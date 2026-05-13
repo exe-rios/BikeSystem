@@ -46,6 +46,13 @@ Abre otra terminal (o vuelve a la raíz) y configura el servidor:
 Bash
 cd backend
 pnpm install
+
+# Aprobar la ejecución de scripts para esbuild (necesario por pnpm 10+)
+pnpm approve-builds # Seleccionar 'esbuild' con espacio y dar Enter
+
+# Configura tus variables de entorno para la base de datos PostgreSQL
+# Crea un archivo .env en la carpeta backend/ basándote en .env.example o solicita las credenciales.
+
 💻 Ejecución en Desarrollo
 Para trabajar en el proyecto, debes tener ambos servicios corriendo:
 
