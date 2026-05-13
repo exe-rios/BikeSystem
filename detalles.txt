@@ -1,0 +1,87 @@
+🚲 BikeSystem - Sistema de Gestión Integral
+Este proyecto es una aplicación de escritorio diseñada para la gestión de stock, ventas y reparaciones en talleres de bicicletas. Está construido bajo una arquitectura de Monorepo separando el Frontend (Escritorio con Electron) y el Backend (API con Express).
+
+🛠️ Tecnologías utilizadas
+Frontend: React + Vite + TypeScript.
+
+Contenedor de Escritorio: Electron.
+
+Backend: Node.js + Express + TypeScript.
+
+Base de Datos: PostgreSQL (PostgreSQL + pg).
+
+Gestor de Paquetes: pnpm (Versión 10+).
+
+📋 Requisitos Previos
+Antes de comenzar, asegúrate de tener instalado lo siguiente:
+
+Node.js (Versión recomendada: v24 o superior).
+
+pnpm:
+
+Bash
+npm install -g pnpm
+🚀 Instalación y Configuración
+Sigue estos pasos para dejar el entorno de desarrollo listo:
+
+1. Clonar el repositorio
+Bash
+git clone <https://github.com/exe-rios/BikeSystem.git>
+cd BIKESYSTEM
+2. Configuración del Frontend (Electron + React)
+Entra a la carpeta del frontend e instala las dependencias. Nota para usuarios de pnpm 10: Debido a políticas de seguridad, debemos aprobar manualmente los scripts de Electron.
+
+Bash
+cd frontend
+pnpm install
+
+# Aprobar la ejecución de scripts para Electron
+pnpm approve-builds # Seleccionar 'electron' con espacio y dar Enter
+
+# Descargar los binarios del motor de Electron
+pnpm rebuild electron
+3. Configuración del Backend (API)
+Abre otra terminal (o vuelve a la raíz) y configura el servidor:
+
+Bash
+cd backend
+pnpm install
+💻 Ejecución en Desarrollo
+Para trabajar en el proyecto, debes tener ambos servicios corriendo:
+
+Ejecutar Frontend (La ventana de escritorio)
+Desde la carpeta frontend:
+
+Bash
+pnpm dev
+Ejecutar Backend (El servidor de datos)
+Desde la carpeta backend:
+
+Bash
+pnpm dev # O el comando que definas en scripts (ej. nodemon src/index.ts)
+📂 Estructura del Proyecto
+Plaintext
+BIKESYSTEM/
+├── frontend/             # Aplicación de React + Vite + Electron
+│   ├── electron/         # Configuración nativa de la ventana
+│   ├── src/              # Componentes, vistas y lógica de React
+│   ├── package.json      # Dependencias y entry point (main: dist-electron/main.js)
+│   └── vite.config.ts    # Configuración del plugin de Electron
+├── backend/              # API REST con Express y TypeScript
+│   ├── src/              # Controladores, modelos y rutas
+│   └── package.json      # Dependencias del servidor
+├── docs/                 # Documentación y PDF del proyecto
+├── .gitignore            # Archivos ignorados (node_modules, dist, etc.)
+└── .gitattributes        # Normalización de saltos de línea (Windows/Mac/Linux)
+
+⚠️ Notas para Colaboradores (Windows / Mac / Linux)
+Compatibilidad: El proyecto está configurado para normalizar los saltos de línea a LF. No cambies la configuración de tu editor a CRLF si estás en Windows.
+
+node_modules y Archivos Lock: Nunca subas las carpetas node_modules al repositorio, es una mala práctica porque ocupan mucho espacio y tienen binarios dependientes del sistema operativo.
+Para garantizar que todos tengamos exactamente las mismas versiones y evitar inconsistencias ("en mi máquina sí funciona"), asegúrate de SIEMPRE subir el archivo pnpm-lock.yaml cada vez que instales o actualices una dependencia.
+
+Es importante que los demás integrantes, luego de descargar los cambios (git pull), ejecuten siempre:
+pnpm install
+Esto leerá pnpm-lock.yaml e instalará los paquetes idénticos en cada máquina.
+
+Variables de Entorno: Los archivos .env están ignorados por seguridad. Solicita las credenciales de la base de datos al administrador del proyecto o guíate por un archivo .env.example si existe.
