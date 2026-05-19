@@ -36,10 +36,3 @@ out/
 .env.development.local
 .env.test.local
 .env.production.local
-
-.agents/
-.opencode/
-
-# Documentación y bloqueos locales
-AGENTS.md
-skills-lock.json
