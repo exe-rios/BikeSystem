@@ -32,8 +32,14 @@ CREATE TABLE Productos (
     id_producto INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     marca VARCHAR(50),
+    modelo VARCHAR(50) NULL,
     Tipo_prod VARCHAR(50) NOT NULL,
     cantidad INT DEFAULT 0,
+    Num_serie VARCHAR(100) NULL,
+    color VARCHAR(30) NULL,
+    rodado VARCHAR(20) NULL,
+    talle VARCHAR(20) NULL,
+    Precio DECIMAL(10, 2),
     stock_minimo INT DEFAULT 0
 );
 
@@ -57,13 +63,8 @@ INSERT INTO Metodo_Pago (nombre) VALUES
 CREATE TABLE Bicicleta (
     id_bicicleta INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_cliente INT NOT NULL,
-    Num_serie VARCHAR(100),
     marca VARCHAR(50),
     modelo VARCHAR(50),
-    color VARCHAR(30),
-    rodado VARCHAR(20),
-    talle VARCHAR(20),
-    Precio DECIMAL(10, 2),
     CONSTRAINT fk_bici_cliente FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente) ON DELETE RESTRICT
 );
 
@@ -153,3 +154,14 @@ CREATE TABLE Detalle_Ingreso (
     CONSTRAINT fk_deting_ingreso FOREIGN KEY (id_ingreso) REFERENCES Ingreso_Stock(id_ingreso) ON DELETE CASCADE,
     CONSTRAINT fk_deting_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE RESTRICT
 );
+
+Para tus compañeros, el proceso sería:
+# 1. Clonar el proyecto
+# 2. Levantar la DB
+docker-compose up -d
+# 3. Crear las tablas (desde la carpeta database)
+docker exec -i bikesystem-db psql -U admin_bikesystem -d bikesystem_db < bikesystem.sql
+# 4. Backend (necesita el .env que creamos)
+cd backend && pnpm dev
+# 5. Frontend
+cd frontend && pnpm dev
