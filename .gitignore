@@ -43,3 +43,6 @@ out/
 # Documentación y bloqueos locales
 AGENTS.md
 skills-lock.json
+
+.postman
+postman
