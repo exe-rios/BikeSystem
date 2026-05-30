@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     # Utilizamos la imagen oficial de PostgreSQL (versión 15 basada en Alpine por ser más ligera)
