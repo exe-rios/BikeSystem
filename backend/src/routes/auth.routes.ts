@@ -23,15 +23,15 @@ router.get('/db-test', async (req, res) => {
 // Login Real
 router.post('/login', async (req, res) => {
     try {
-        const { Nom_usuario, contrasena } = req.body;
+        const { nombre_usuario, contrasena } = req.body;
 
-        if (!Nom_usuario || !contrasena) {
+        if (!nombre_usuario || !contrasena) {
             res.status(400).json({ error: 'Faltan credenciales' });
             return;
         }
 
-        const query = `SELECT id_usuario, nom_usuario, contrasena, rol FROM Usuario WHERE nom_usuario = $1`;
-        const result = await pool.query(query, [Nom_usuario]);
+        const query = `SELECT id_usuario, nombre_usuario, contrasena, rol FROM Usuario WHERE nombre_usuario = $1`;
+        const result = await pool.query(query, [nombre_usuario]);
         const usuario = result.rows[0];
 
         if (!usuario) {
@@ -55,7 +55,7 @@ router.post('/login', async (req, res) => {
         res.status(200).json({
             message: 'Login exitoso',
             token,
-            usuario: { id: usuario.id_usuario, nombre: usuario.nom_usuario, rol: usuario.rol }
+            usuario: { id: usuario.id_usuario, nombre: usuario.nombre_usuario, rol: usuario.rol }
         });
     } catch (err) {
         res.status(500).json({ error: 'Error en el servidor al intentar iniciar sesión' });

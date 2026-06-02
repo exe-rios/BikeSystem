@@ -16,18 +16,18 @@ router.post('/', verificarToken, async (req: PeticionConUsuario, res: Response):
             return;
         }
 
-        const { Nom_usuario, contrasena, rol } = req.body;
-        if (!Nom_usuario || !contrasena || !rol) {
+        const { nombre_usuario, contrasena, rol } = req.body;
+        if (!nombre_usuario || !contrasena || !rol) {
             res.status(400).json({ error: 'Faltan datos para crear el empleado.' });
             return;
         }
 
         const contrasenaEncriptada = await bcrypt.hash(contrasena, 10);
 
-        const query = `INSERT INTO Usuario (nom_usuario, contrasena, rol) 
+        const query = `INSERT INTO Usuario (nombre_usuario, contrasena, rol) 
                         VALUES ($1, $2, $3) 
-                        RETURNING id_usuario, nom_usuario, rol`;
-        const result = await pool.query(query, [Nom_usuario, contrasenaEncriptada, rol]);
+                        RETURNING id_usuario, nombre_usuario, rol`;
+        const result = await pool.query(query, [nombre_usuario, contrasenaEncriptada, rol]);
 
         res.status(201).json({ message: 'Empleado creado con éxito', usuario: result.rows[0] });
     } catch (err) {
@@ -38,7 +38,7 @@ router.post('/', verificarToken, async (req: PeticionConUsuario, res: Response):
 // Consultar Usuarios Registrados
 router.get('/registrados', async (req, res) => {
     try {
-        const query = 'SELECT id_usuario, nom_usuario, rol FROM Usuario ORDER BY id_usuario ASC';
+        const query = 'SELECT id_usuario, nombre_usuario, rol FROM Usuario ORDER BY id_usuario ASC';
         const result = await pool.query(query);
         res.json({ status: 'ok', total: result.rowCount, usuarios: result.rows });
     } catch (err) {
