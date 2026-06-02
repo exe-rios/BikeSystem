@@ -1,0 +1,65 @@
+import { Router, type Router as ExpressRouter } from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { pool } from '../config/db.js';
+
+const router: ExpressRouter = Router();
+
+// Test de salud
+router.get('/health', (req, res) => {
+    res.json({ status: 'ok', message: 'BikeSystem API esta corriendo' });
+});
+
+// Test de base de datos
+router.get('/db-test', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT NOW() as hora, version() as version');
+        res.json({ status: 'ok', connected: true, time: result.rows[0].hora, version: result.rows[0].version });
+    } catch (err) {
+        res.status(500).json({ status: 'error', connected: false, error: err instanceof Error ? err.message : 'Error desconocido' });
+    }
+});
+
+// Login Real
+router.post('/login', async (req, res) => {
+    try {
+        const { Nom_usuario, contrasena } = req.body;
+
+        if (!Nom_usuario || !contrasena) {
+            res.status(400).json({ error: 'Faltan credenciales' });
+            return;
+        }
+
+        const query = `SELECT id_usuario, nom_usuario, contrasena, rol FROM Usuario WHERE nom_usuario = $1`;
+        const result = await pool.query(query, [Nom_usuario]);
+        const usuario = result.rows[0];
+
+        if (!usuario) {
+            res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+            return;
+        }
+
+        const contrasenaValida = await bcrypt.compare(contrasena, usuario.contrasena);
+        if (!contrasenaValida) {
+            res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+            return;
+        }
+
+        const secreto = process.env.JWT_SECRET;
+        const token = jwt.sign(
+            { id: usuario.id_usuario, rol: usuario.rol },
+            secreto!,
+            { expiresIn: '8h' }
+        );
+
+        res.status(200).json({
+            message: 'Login exitoso',
+            token,
+            usuario: { id: usuario.id_usuario, nombre: usuario.nom_usuario, rol: usuario.rol }
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Error en el servidor al intentar iniciar sesión' });
+    }
+});
+
+export default router;
