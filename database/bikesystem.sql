@@ -4,19 +4,19 @@
 
 CREATE TABLE Usuario (
     id_usuario INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    Nom_usuario VARCHAR(50) NOT NULL UNIQUE,
+    nombre_usuario VARCHAR(50) NOT NULL UNIQUE,
     contrasena VARCHAR(255) NOT NULL,
     rol VARCHAR(20) NOT NULL
 );
 
 CREATE TABLE Cliente (
     id_cliente INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    Nombre VARCHAR(100) NOT NULL,
-    Apellido VARCHAR(100) NOT NULL,
-    Dni VARCHAR(20) UNIQUE,
-    Telefono VARCHAR(20),
-    Email VARCHAR(100),
-    Direccion VARCHAR(200)
+    nombre VARCHAR(100) NOT NULL,
+    apellido VARCHAR(100) NOT NULL,
+    dni VARCHAR(20) UNIQUE,
+    telefono VARCHAR(20),
+    email VARCHAR(100),
+    direccion VARCHAR(200)
 );
 
 CREATE TABLE Proveedor (
@@ -33,13 +33,13 @@ CREATE TABLE Productos (
     nombre VARCHAR(100) NOT NULL,
     marca VARCHAR(50),
     modelo VARCHAR(50) NULL,
-    Tipo_prod VARCHAR(50) NOT NULL,
+    tipo_prod VARCHAR(50) NOT NULL,
     cantidad INT DEFAULT 0,
-    Num_serie VARCHAR(100) NULL,
+    numumero_serie VARCHAR(100) NULL,
     color VARCHAR(30) NULL,
     rodado VARCHAR(20) NULL,
     talle VARCHAR(20) NULL,
-    Precio DECIMAL(10, 2),
+    precio DECIMAL(10, 2),
     stock_minimo INT DEFAULT 0
 );
 
@@ -77,7 +77,7 @@ CREATE TABLE Venta (
     id_cliente INT NOT NULL,
     id_usuario INT NOT NULL,
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
-    CostoTotal DECIMAL(10, 2) NOT NULL DEFAULT 0,
+    costoTotal DECIMAL(10, 2) NOT NULL DEFAULT 0,
     CONSTRAINT fk_venta_cliente FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente) ON DELETE RESTRICT,
     CONSTRAINT fk_venta_usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE RESTRICT
 );
@@ -86,12 +86,12 @@ CREATE TABLE Reparacion (
     id_reparacion INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_bicicleta INT NOT NULL,
     id_usuario INT NOT NULL,
-    Fecha_ingreso DATE NOT NULL DEFAULT CURRENT_DATE,
-    Fecha_egreso DATE,
-    Estado VARCHAR(50) NOT NULL,
-    Descripcion TEXT,
-    Costo_mano_obra DECIMAL(10, 2) DEFAULT 0,
-    Costo_total DECIMAL(10, 2) DEFAULT 0,
+    fecha_ingreso DATE NOT NULL DEFAULT CURRENT_DATE,
+    fecha_egreso DATE,
+    estado VARCHAR(50) NOT NULL,
+    descripcion TEXT,
+    costo_mano_obra DECIMAL(10, 2) DEFAULT 0,
+    costo_total DECIMAL(10, 2) DEFAULT 0,
     CONSTRAINT fk_rep_bicicleta FOREIGN KEY (id_bicicleta) REFERENCES Bicicleta(id_bicicleta) ON DELETE RESTRICT,
     CONSTRAINT fk_rep_usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE RESTRICT
 );
@@ -127,9 +127,9 @@ CREATE TABLE Detalle_Venta (
     id_detalle_venta INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_venta INT NOT NULL,
     id_producto INT NOT NULL,
-    Cantidad INT NOT NULL CHECK (Cantidad > 0),
+    cantidad INT NOT NULL CHECK (Cantidad > 0),
     precio_unitario DECIMAL(10, 2) NOT NULL,
-    Costo_total DECIMAL(10, 2) NOT NULL,
+    costo_total DECIMAL(10, 2) NOT NULL,
     CONSTRAINT fk_detventa_venta FOREIGN KEY (id_venta) REFERENCES Venta(id_venta) ON DELETE CASCADE,
     CONSTRAINT fk_detventa_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE RESTRICT
 );
@@ -138,9 +138,9 @@ CREATE TABLE Detalle_Reparacion (
     id_detalle_rep INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_reparacion INT NOT NULL,
     id_producto INT NOT NULL,
-    Cantidad INT NOT NULL CHECK (Cantidad > 0),
+    cantidad INT NOT NULL CHECK (Cantidad > 0),
     precio_unitario DECIMAL(10, 2) NOT NULL,
-    Costo_total DECIMAL(10, 2) NOT NULL,
+    costo_total DECIMAL(10, 2) NOT NULL,
     CONSTRAINT fk_detrep_rep FOREIGN KEY (id_reparacion) REFERENCES Reparacion(id_reparacion) ON DELETE CASCADE,
     CONSTRAINT fk_detrep_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE RESTRICT
 );
