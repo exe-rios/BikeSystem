@@ -6,8 +6,7 @@ import { VentasView } from './views/VentasView';
 import { StockView } from './views/StockView';
 
 function App() {
-  // Agregamos 'stock' como una pantalla independiente en el estado
-  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas' | 'stock'>('inicio')
+  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas' | 'stock'>('clientes')
 
   return (
     <div style={{ 
@@ -17,64 +16,117 @@ function App() {
       maxWidth: '100%', 
       maxHeight: '100vh', 
       overflow: 'hidden', 
-      backgroundColor: '#f5f5f5', 
-      color: '#333' 
+      backgroundColor: 'var(--bg-principal)',
+      color: 'var(--texto-principal)' 
     }}>
 
-      {/* --- MENU LATERAL (SIDEBAR) --- */}
-      <aside style={{ width: '250px', minWidth: '250px', backgroundColor: '#1e293b', color: '#fff', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        <h2 style={{ fontSize: '1.5rem', marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>BikeSystem</h2>
+      {/* --- SIDEBAR MENÚ LATERAL (IDÉNTICO A FIGMA) --- */}
+      <aside style={{ 
+        width: '260px', 
+        minWidth: '260px', 
+        backgroundColor: 'var(--bg-tarjeta)', 
+        borderRight: '1px solid var(--borde-input)',
+        padding: '30px 20px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between'
+      }}>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {/* Título de Marca Limpio */}
+          <h2 style={{ 
+            fontSize: '1.35rem', 
+            fontWeight: '700',
+            color: 'var(--texto-principal)', 
+            marginBottom: '35px', 
+            paddingLeft: '10px'
+          }}>
+            Bike System
+          </h2>
 
-        <button onClick={() => setVistaActual('inicio')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'inicio' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-          Inicio
-        </button>
-        <button onClick={() => setVistaActual('clientes')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'clientes' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-          Gestión de Clientes
-        </button>
-        <button onClick={() => setVistaActual('bicicletas')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'bicicletas' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-          Gestión de Bicicletas
-        </button>
-        <button onClick={() => setVistaActual('ventas')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'ventas' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-          Ventas y Taller
-        </button>
-        {/* BOTÓN NUEVO SEPARADO */}
-        <button onClick={() => setVistaActual('stock')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'stock' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-          Control de Stock
-        </button>
+          {/* Opciones de Navegación */}
+          {[
+            { id: 'inicio', label: 'Inicio', icon: '🏠' },
+            { id: 'clientes', label: 'Clientes', icon: '👤' },
+            { id: 'bicicletas', label: 'Bicicletas', icon: '🚲' },
+            { id: 'ventas', label: 'Ventas', icon: '🛒' },
+            { id: 'stock', label: 'Stock', icon: '📦' }
+          ].map((item) => {
+            const activo = vistaActual === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setVistaActual(item.id as any)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  width: '100%',
+                  padding: '12px 16px',
+                  fontSize: '0.95rem',
+                  fontWeight: activo ? '600' : '500',
+                  border: 'none',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  backgroundColor: activo ? 'var(--azul-oscuro)' : 'transparent',
+                  color: activo ? '#ffffff' : 'var(--texto-mutado)',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '1.1rem', opacity: activo ? 1 : 0.7 }}>{item.icon}</span>
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Perfil del Usuario Abajo en el Menú */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '12px', 
+          paddingTop: '20px', 
+          borderTop: '1px solid var(--borde-input)' 
+        }}>
+          <div style={{ 
+            width: '38px', 
+            height: '38px', 
+            borderRadius: '50%', 
+            backgroundColor: 'var(--azul-oscuro)', 
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: '0.9rem'
+          }}>
+            AU
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Admin User</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)' }}>admin@bikesystem.com</span>
+          </div>
+        </div>
       </aside>
 
-      {/* --- CONTENIDO PRINCIPAL DINÁMICO --- */}
+      {/* --- CONTENIDO DE VISTAS (Fondo Gris Claro) --- */}
       <main style={{ 
         flex: 1, 
-        width: 'calc(100vw - 250px)', 
-        padding: '30px', 
-        overflowY: 'auto', 
-        overflowX: 'hidden' 
+        width: 'calc(100vw - 260px)', 
+        padding: '40px', 
+        overflowY: 'auto'
       }}>
         {vistaActual === 'inicio' && (
           <div>
-            <h1>Panel de Control Principal</h1>
-            <p>Bienvenido al Sistema de Gestión de Bicicletas. Selecciona un módulo en el menú de la izquierda para comenzar.</p>
+            <h1 style={{ fontSize: '2rem', fontWeight: '700', marginBottom: '8px' }}>Dashboard</h1>
+            <p style={{ color: 'var(--texto-mutado)', marginBottom: '25px' }}>Visión general del negocio</p>
           </div>
         )}
 
-        {vistaActual === 'clientes' && (
-          <ClientesView />
-        )}
-
-        {vistaActual === 'bicicletas' && (
-          <BicicletasView />
-        )}
-
-        {/* CORRECCIÓN: El módulo de ventas ahora solo muestra Ventas y Reparaciones */}
-        {vistaActual === 'ventas' && (
-          <VentasView />
-        )}
-
-        {/* NUEVA CONDICIÓN: El stock se renderiza de forma independiente aquí */}
-        {vistaActual === 'stock' && (
-          <StockView />
-        )}
+        {vistaActual === 'clientes' && <ClientesView />}
+        {vistaActual === 'bicicletas' && <BicicletasView />}
+        {vistaActual === 'ventas' && <VentasView />}
+        {vistaActual === 'stock' && <StockView />}
       </main>
 
     </div>
