@@ -1,20 +1,30 @@
 import { useState } from 'react'
 import './App.css'
 import { ClientesView } from './views/ClientesView';
-// Nota: Puedes mantener las importaciones de imágenes aquí arriba si las usas más adelante, 
-// por ahora las dejamos comentadas o guardadas en la carpeta assets.
+import { BicicletasView } from './views/BicicletasView';
+import { VentasView } from './views/VentasView';
+import { StockView } from './views/StockView';
 
 function App() {
-  // Este estado simulará en qué pantalla estamos parados (basado en tus módulos)
-  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas'>('inicio')
+  // Agregamos 'stock' como una pantalla independiente en el estado
+  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas' | 'stock'>('inicio')
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', backgroundColor: '#f5f5f5', color: '#333' }}>
-      
-      {/* --- MENU LATERAL (SIDEBAR) PROVISIONAL --- */}
-      <aside style={{ width: '250px', backgroundColor: '#1e293b', color: '#fff', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+    <div style={{ 
+      display: 'flex', 
+      height: '100vh', 
+      width: '100vw', 
+      maxWidth: '100%', 
+      maxHeight: '100vh', 
+      overflow: 'hidden', 
+      backgroundColor: '#f5f5f5', 
+      color: '#333' 
+    }}>
+
+      {/* --- MENU LATERAL (SIDEBAR) --- */}
+      <aside style={{ width: '250px', minWidth: '250px', backgroundColor: '#1e293b', color: '#fff', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
         <h2 style={{ fontSize: '1.5rem', marginBottom: '20px', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>BikeSystem</h2>
-        
+
         <button onClick={() => setVistaActual('inicio')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'inicio' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
           Inicio
         </button>
@@ -25,12 +35,22 @@ function App() {
           Gestión de Bicicletas
         </button>
         <button onClick={() => setVistaActual('ventas')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'ventas' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
-          Ventas y Stock
+          Ventas y Taller
+        </button>
+        {/* BOTÓN NUEVO SEPARADO */}
+        <button onClick={() => setVistaActual('stock')} style={{ textAlign: 'left', padding: '10px', background: vistaActual === 'stock' ? '#334155' : 'none', color: '#fff', border: 'none', cursor: 'pointer', borderRadius: '4px' }}>
+          Control de Stock
         </button>
       </aside>
 
       {/* --- CONTENIDO PRINCIPAL DINÁMICO --- */}
-      <main style={{ flex: 1, padding: '30px', overflowY: 'auto' }}>
+      <main style={{ 
+        flex: 1, 
+        width: 'calc(100vw - 250px)', 
+        padding: '30px', 
+        overflowY: 'auto', 
+        overflowX: 'hidden' 
+      }}>
         {vistaActual === 'inicio' && (
           <div>
             <h1>Panel de Control Principal</h1>
@@ -39,26 +59,21 @@ function App() {
         )}
 
         {vistaActual === 'clientes' && (
-          <div>
-            <h1>Módulo de Clientes</h1>
-            <p>Aquí se listarán los clientes y se ejecutarán los Casos de Uso (Registrar, Modificar, Buscar).</p>
-            <ClientesView />
-          </div>
+          <ClientesView />
         )}
 
         {vistaActual === 'bicicletas' && (
-          <div>
-            <h1>Módulo de Bicicletas</h1>
-            <p>Aquí gestionaremos el parque de bicicletas asociadas a los clientes.</p>
-            {/* Próximamente pondremos aquí tu componente de Bicicletas */}
-          </div>
+          <BicicletasView />
         )}
 
+        {/* CORRECCIÓN: El módulo de ventas ahora solo muestra Ventas y Reparaciones */}
         {vistaActual === 'ventas' && (
-          <div>
-            <h1>Módulo de Ventas y Repuestos</h1>
-            <p>Control de facturación, reparaciones y stock de productos.</p>
-          </div>
+          <VentasView />
+        )}
+
+        {/* NUEVA CONDICIÓN: El stock se renderiza de forma independiente aquí */}
+        {vistaActual === 'stock' && (
+          <StockView />
         )}
       </main>
 

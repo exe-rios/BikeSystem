@@ -109,3 +109,19 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Corrección para que BikeSystem ocupe toda la pantalla al maximizar */
+#root {
+  max-width: 100% !important;
+  width: 100vw;
+  height: 100vh;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left !important;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
