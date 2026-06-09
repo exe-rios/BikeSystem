@@ -2,30 +2,37 @@ import { useState } from 'react';
 import type { Cliente } from '../types';
 
 export function ClientesView() {
-  // Mock Data inicial
-  const [clientes, setClientes] = useState<Cliente[]>([
-    { id_cliente: 1, Nombre: 'Juan', Apellido: 'Pérez', Dni: '12345678', Telefono: '3496-123456', Email: 'juan@email.com', Direccion: 'Calle Falsa 123' },
-    { id_cliente: 2, Nombre: 'María', Apellido: 'Gómez', Dni: '87654321', Telefono: '3496-654321', Email: 'maria@email.com', Direccion: 'Av. Belgrano 789' }
-  ]);
-
-  // Estado para controlar si el modal flotante de Figma está abierto
+  // Estado inicial vacío - será llenado desde el backend
+  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [mostrarModal, setMostrarModal] = useState(false);
-
-  // Estado para el formulario de alta
-  const [nuevoCliente, setNuevoCliente] = useState<Cliente>({
-    Nombre: '', Apellido: '', Dni: '', Telefono: '', Email: '', Direccion: ''
+  const [nuevoCliente, setNuevoCliente] = useState<Omit<Cliente, 'id_cliente'>>({
+    nombre: '', 
+    apellido: '', 
+    dni: '', 
+    telefono: '', 
+    email: '', 
+    direccion: ''
   });
 
   const handleGuardar = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nuevoCliente.Nombre || !nuevoCliente.Apellido || !nuevoCliente.Dni) {
+    
+    // TODO: Validaciones básicas - la lógica compleja debería estar en el backend
+    if (!nuevoCliente.nombre || !nuevoCliente.apellido || !nuevoCliente.dni) {
       alert('Por favor, completa los campos obligatorios (*)');
       return;
     }
 
+    // TODO: Hacer llamada POST a /api/clientes
+    // const response = await fetch('http://localhost:3000/api/clientes', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    //   body: JSON.stringify(nuevoCliente)
+    // });
+
     setClientes([...clientes, { ...nuevoCliente, id_cliente: clientes.length + 1 }]);
-    setNuevoCliente({ Nombre: '', Apellido: '', Dni: '', Telefono: '', Email: '', Direccion: '' });
-    setMostrarModal(false); // Cerramos el modal como en tu mockup
+    setNuevoCliente({ nombre: '', apellido: '', dni: '', telefono: '', email: '', direccion: '' });
+    setMostrarModal(false);
   };
 
   return (
@@ -35,10 +42,9 @@ export function ClientesView() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Gestión de Clientes</h1>
-          <p style={{ color: 'var(--texto-mutated)', fontSize: '0.9rem', marginTop: '2px' }}>Listado y registro de usuarios del sistema</p>
+          <p style={{ color: 'var(--texto-mutado)', fontSize: '0.9rem', marginTop: '2px' }}>Listado y registro de usuarios del sistema</p>
         </div>
 
-        {/* Botón de Acción Principal de Figma (Negro/Azul Oscuro Redondeado) */}
         <button 
           onClick={() => setMostrarModal(true)}
           style={{
@@ -104,11 +110,11 @@ export function ClientesView() {
             {clientes.map(c => (
               <tr key={c.id_cliente} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
                 <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '500', color: 'var(--texto-principal)' }}>
-                  {c.Apellido}, {c.Nombre}
+                  {c.apellido}, {c.nombre}
                 </td>
-                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.Dni}</td>
-                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.Telefono}</td>
-                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.Email}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.dni}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.telefono}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.email}</td>
                 <td style={{ padding: '16px', textAlign: 'right' }}>
                   <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', marginRight: '12px' }}>Editar</button>
                   <button style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Eliminar</button>
@@ -140,38 +146,41 @@ export function ClientesView() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
-                  <input type="text" value={nuevoCliente.Nombre} onChange={e => setNuevoCliente({...nuevoCliente, Nombre: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                  <input type="text" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
-                  <input type="text" value={nuevoCliente.Apellido} onChange={e => setNuevoCliente({...nuevoCliente, Apellido: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                  <input type="text" value={nuevoCliente.apellido} onChange={e => setNuevoCliente({...nuevoCliente, apellido: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
-                <input type="text" value={nuevoCliente.Dni} onChange={e => setNuevoCliente({...nuevoCliente, Dni: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <input type="text" value={nuevoCliente.dni} onChange={e => setNuevoCliente({...nuevoCliente, dni: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono</label>
-                <input type="text" value={nuevoCliente.Telefono} onChange={e => setNuevoCliente({...nuevoCliente, Telefono: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono *</label>
+                <input type="tel" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email</label>
-                <input type="email" value={nuevoCliente.Email} onChange={e => setNuevoCliente({...nuevoCliente, Email: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email *</label>
+                <input type="email" value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
-              <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                <button type="button" onClick={() => setMostrarModal(false)} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '10px', backgroundColor: '#fff', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
-                <button type="submit" style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', fontWeight: '600', cursor: 'pointer' }}>Guardar Cliente</button>
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección *</label>
+                <input type="text" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({...nuevoCliente, direccion: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
+
+              <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '1rem', cursor: 'pointer', marginTop: '8px' }}>
+                Registrar Cliente
+              </button>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }

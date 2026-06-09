@@ -2,16 +2,11 @@ import { useState } from 'react';
 import type { Producto } from '../types';
 
 export function StockView() {
-  // Mock Data: Lista de repuestos y componentes iniciales
-  const [productos, setProductos] = useState<Producto[]>([
-    { id_producto: 1, nombre: 'Cámara rodado 29 vanila', categoria: 'Repuesto', precio_venta: 4500, cantidad: 25, stock_minimo: 10 },
-    { id_producto: 2, nombre: 'Pastillas de freno Shimano B01S', categoria: 'Repuesto', precio_venta: 8900, cantidad: 3, stock_minimo: 5 }, // Alerta bajo stock
-    { id_producto: 3, nombre: 'Cadena KMC 11 velocidades', categoria: 'Componente', precio_venta: 22000, cantidad: 12, stock_minimo: 4 },
-    { id_producto: 4, nombre: 'Casco MTB Pro', categoria: 'Accesorio', precio_venta: 45000, cantidad: 1, stock_minimo: 3 } // Alerta bajo stock
-  ]);
+  // TODO: Cargar productos desde backend GET /api/productos
+  const [productos, setProductos] = useState<Producto[]>([]);
 
   // Estado para el formulario de agregar producto
-  const [nuevoProducto, setNuevoProducto] = useState<Producto>({
+  const [nuevoProducto, setNuevoProducto] = useState<Omit<Producto, 'id_producto'>>({
     nombre: '',
     categoria: 'Repuesto',
     precio_venta: 0,
@@ -21,10 +16,15 @@ export function StockView() {
 
   const handleAgregarProducto = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // TODO: Validaciones complejas deberían estar en el backend
     if (!nuevoProducto.nombre || nuevoProducto.precio_venta <= 0) {
       alert('Por favor ingresa un nombre válido y un precio mayor a cero.');
       return;
     }
+
+    // TODO: Hacer llamada POST a /api/productos
+    // const response = await fetch('http://localhost:3000/api/productos', { ... });
 
     setProductos([
       ...productos,
@@ -94,7 +94,8 @@ export function StockView() {
           </thead>
           <tbody>
             {productos.map(p => {
-              // Validamos la condición del RF22: Alerta por bajo stock
+              // TODO: IMPORTANTE - La lógica de validación de bajo stock debería venir del backend
+              // El backend debería incluir una propiedad "alerta_stock" o "es_bajo_stock" en la respuesta
               const esBajoStock = p.cantidad <= p.stock_minimo;
 
               return (

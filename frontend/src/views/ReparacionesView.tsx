@@ -1,73 +1,9 @@
 import { useState } from 'react';
-import type { Cliente } from '../types'; // Asegúrate de importar tus tipos correctos
-
-// Definimos interfaces locales si no las tienes importadas
-interface Bicicleta {
-  marca: string;
-  modelo: string;
-}
-
-interface Reparacion {
-  id_reparacion: number;
-  cliente: string;
-  bicicleta: Bicicleta;
-  fecha_ingreso: string;
-  estado: 'Recibida' | 'En Reparación' | 'Lista' | 'Entregada';
-}
+import type { Reparacion } from '../types';
 
 export function ReparacionesView() {
-  // Simulación de datos basada en tus bocetos
-  const [reparaciones] = useState<Reparacion[]>([
-    {
-      id_reparacion: 1,
-      cliente: 'Juan Pérez',
-      bicicleta: { marca: 'Trek', modelo: 'Marlin 7' },
-      fecha_ingreso: '04/05/2026',
-      estado: 'Recibida'
-    },
-    {
-      id_reparacion: 2,
-      cliente: 'Ana García',
-      bicicleta: { marca: 'Specialized', modelo: 'Allez' },
-      fecha_ingreso: '04/05/2026',
-      estado: 'Recibida'
-    },
-    {
-      id_reparacion: 3,
-      cliente: 'Carlos López',
-      bicicleta: { marca: 'Giant', modelo: 'Talon' },
-      fecha_ingreso: '03/05/2026',
-      estado: 'En Reparación'
-    },
-    {
-      id_reparacion: 4,
-      cliente: 'María Rodríguez',
-      bicicleta: { marca: 'Cannondale', modelo: 'Urbana' },
-      fecha_ingreso: '02/05/2026',
-      estado: 'En Reparación'
-    },
-    {
-      id_reparacion: 5,
-      cliente: 'Luis Martínez',
-      bicicleta: { marca: 'Haro', modelo: 'BMX' },
-      fecha_ingreso: '01/05/2026',
-      estado: 'En Reparación'
-    },
-    {
-      id_reparacion: 6,
-      cliente: 'Pedro Sánchez',
-      bicicleta: { marca: 'Cannondale', modelo: 'CAAD' },
-      fecha_ingreso: '30/04/2026',
-      estado: 'Lista'
-    },
-    {
-      id_reparacion: 7,
-      cliente: 'Laura Fernández',
-      bicicleta: { marca: 'Scott', modelo: 'Scale' },
-      fecha_ingreso: '29/04/2026',
-      estado: 'Lista'
-    }
-  ]);
+  // TODO: Cargar reparaciones desde backend GET /api/talleres
+  const [reparaciones] = useState<Reparacion[]>([]);
 
   // Configuración de las 4 columnas requeridas (Título, propiedad estado y color de cabecera)
   const columnas = [
@@ -159,10 +95,10 @@ export function ReparacionesView() {
                       gap: '6px'
                     }}>
                       <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#0f172a' }}>
-                        {rep.cliente}
+                        Cliente #{rep.id_bicicleta}
                       </h3>
                       <p style={{ margin: 0, fontSize: '0.95rem', color: '#64748b', fontWeight: '500' }}>
-                        MTB {rep.bicicleta.marca} {rep.bicicleta.modelo}
+                        Bicicleta #{rep.id_bicicleta}
                       </p>
                       <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
                         Ingreso: {rep.fecha_ingreso}

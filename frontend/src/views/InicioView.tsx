@@ -5,25 +5,26 @@ interface InicioViewProps {
 }
 
 export function InicioView({ onNavigate }: InicioViewProps) {
-  const stockAlerts = [
-    { id: 1, producto: 'Cadena Shimano XT', stock: 2, minimo: 5 },
-    { id: 2, producto: 'Frenos de disco', stock: 1, minimo: 3 },
-    { id: 3, producto: 'Cubiertas 26"', stock: 3, minimo: 8 },
-  ];
+  // TODO: Cargar alertas de stock desde backend GET /api/productos?alertas=true
+  const [stockAlerts] = useState<Array<{ id: number; producto: string; stock: number; minimo: number }>>([]);
 
-  const ultimosMovimientos = [
-    { id: 1, tipo: 'Reparación', cliente: 'Juan Pérez', detalle: 'Cambio de frenos', estado: 'En reparación', fecha: '04/05/2026' },
-    { id: 2, tipo: 'Venta', cliente: 'María García', detalle: 'Bicicleta MTB', estado: 'Completada', fecha: '04/05/2026' },
-    { id: 3, tipo: 'Reparación', cliente: 'Carlos López', detalle: 'Ajuste de cambios', estado: 'Lista', fecha: '03/05/2026' },
-    { id: 4, tipo: 'Venta', cliente: 'Ana Martínez', detalle: 'Accesorios varios', estado: 'Completada', fecha: '03/05/2026' },
-  ];
+  // TODO: Cargar últimos movimientos desde backend GET /api/movimientos o /api/dashboard/ultimos-movimientos
+  const [ultimosMovimientos] = useState<Array<{ id: number; tipo: string; cliente: string; detalle: string; estado: string; fecha: string }>>([]);
+
+  // TODO: Cargar estadísticas del día desde backend GET /api/dashboard/estadisticas-hoy
+  const [estadisticas] = useState({
+    ventasHoy: 0,
+    reparacionesActivas: 0,
+    ingresosHoy: 0,
+    entregasHoy: 0
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', color: '#fff', padding: '4px' }}>
       
       {/* HEADER SIMPLE */}
       <div>
-        <h1 style={{ color: '#333', fontSize: '2rem', fontWeight: '700', margin: 0 }}>Dashboard</h1>
+        <h1 style={{color: '#333', fontSize: '2rem', fontWeight: '700', margin: 0 }}>Dashboard</h1>
         <p style={{ color: '#888', fontSize: '0.9rem', margin: '4px 0 0 0' }}>Visión general del negocio</p>
       </div>
 
@@ -35,7 +36,7 @@ export function InicioView({ onNavigate }: InicioViewProps) {
             onClick={() => onNavigate('ventas')}
             style={{
               height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-              backgroundColor: '#2ecc71', color: '#fff', border: 'none', borderRadius: '6px',
+              backgroundColor: '#3cf288', color: '#fff', border: 'none', borderRadius: '6px',
               fontSize: '1.2rem', fontWeight: '700', cursor: 'pointer'
             }}
           >
@@ -104,19 +105,19 @@ export function InicioView({ onNavigate }: InicioViewProps) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #ccc' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#777' }}>Ventas Hoy</p>
-              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#3498db' }}>8</p>
+              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#3498db' }}>{estadisticas.ventasHoy}</p>
             </div>
             <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #ccc' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#777' }}>Reparaciones Activas</p>
-              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#e67e22' }}>12</p>
+              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#e67e22' }}>{estadisticas.reparacionesActivas}</p>
             </div>
             <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #ccc' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#777' }}>Ingresos Hoy</p>
-              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#2ecc71' }}>$4,500</p>
+              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#2ecc71' }}>${estadisticas.ingresosHoy.toLocaleString()}</p>
             </div>
             <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #ccc' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#777' }}>Entregas Hoy</p>
-              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#333' }}>5</p>
+              <p style={{ margin: '6px 0 0 0', fontSize: '1.6rem', fontWeight: '700', color: '#333' }}>{estadisticas.entregasHoy}</p>
             </div>
           </div>
         </div>
