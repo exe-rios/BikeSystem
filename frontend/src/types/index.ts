@@ -25,3 +25,29 @@ export interface Bicicleta {
   talle: string;
   Precio: number;
 }
+export interface Venta {
+  id_venta?: number;
+  id_cliente: number;
+  fecha: string;
+  total: number;
+  tipo_pago: 'Efectivo' | 'Tarjeta' | 'Transferencia';
+}
+
+export interface Reparacion {
+  id_reparacion?: number;
+  id_bicicleta: number;
+  descripcion_falla: string;
+  costo_estimado: number;
+  // RF15 exige un dropdown estricto con estos estados exactos:
+  estado: 'Recibida' | 'En reparación' | 'Lista' | 'Entregada';
+  fecha_ingreso: string;
+}
+
+export interface Producto {
+  id_producto?: number;
+  nombre: string;
+  categoria: 'Repuesto' | 'Accesorio' | 'Componente';
+  precio_venta: number;
+  cantidad: number;
+  stock_minimo: number; // Campo clave para el RF22
+}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Cliente } from '../types';
 
+
 export function ClientesView() {
   // Mock Data: Datos de prueba provisionales con la estructura exacta de tu DDL
   const [clientes, setClientes] = useState<Cliente[]>([
@@ -98,7 +99,7 @@ export function ClientesView() {
           <div style={{ marginBottom: '15px' }}>
             <input 
               type="text" 
-              placeholder="🔍 Buscar cliente por Nombre, Apellido o DNI..." 
+              placeholder="Buscar cliente por Nombre, Apellido o DNI..." 
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
               style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '1rem' }}
