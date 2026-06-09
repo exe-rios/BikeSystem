@@ -8,26 +8,19 @@ export function ReportesView() {
   const [fechaHasta, setFechaHasta] = useState('2026-05-04');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Estructura de KPIs nativa adaptada
-  const kpiData = {
-    ventas: { ingresos: 960000, cantidad: 149, reparaciones: 0, promedio: 6443 },
-    reparaciones: { ingresos: 265000, cantidad: 0, reparaciones: 42, promedio: 6310 },
-    ingresos: { ingresos: 1225000, cantidad: 149, reparaciones: 42, promedio: 6393 },
-  };
+  // TODO: Cargar KPIs desde backend POST /api/reportes/kpis con parámetros { tipo, fechaDesde, fechaHasta }
+  const [kpiData] = useState({
+    ventas: { ingresos: 0, cantidad: 0, reparaciones: 0, promedio: 0 },
+    reparaciones: { ingresos: 0, cantidad: 0, reparaciones: 0, promedio: 0 },
+    ingresos: { ingresos: 0, cantidad: 0, reparaciones: 0, promedio: 0 },
+  });
 
   const currentKPI = reportType === 'reparaciones' ? kpiData.reparaciones :
                      reportType === 'ingresos' ? kpiData.ingresos :
                      kpiData.ventas;
 
-  // Listado analítico para la tabla (Hereda la estética de tu gestión de clientes)
-  const detalleVentas = [
-    { id: 1, fecha: '04/05/2026', tipo: 'Bicicleta', producto: 'MTB Giant Talon 2', cliente: 'Juan Pérez', cantidad: 1, importe: 45000 },
-    { id: 2, fecha: '04/05/2026', tipo: 'Accesorio', producto: 'Casco Bell Super 3R', cliente: 'María García', cantidad: 2, importe: 17000 },
-    { id: 3, fecha: '04/05/2026', tipo: 'Repuesto', producto: 'Cadena Shimano XT', cliente: 'Carlos López', cantidad: 1, importe: 8500 },
-    { id: 4, fecha: '03/05/2026', tipo: 'Bicicleta', producto: 'Ruta Specialized Allez', cliente: 'Ana Martínez', cantidad: 1, importe: 52000 },
-    { id: 5, fecha: '03/05/2026', tipo: 'Accesorio', producto: 'Guantes Fox Ranger', cliente: 'Luis Torres', cantidad: 3, importe: 9600 },
-    { id: 6, fecha: '03/05/2026', tipo: 'Repuesto', producto: 'Pedales Shimano M520', cliente: 'Pedro Sánchez', cantidad: 2, importe: 9600 },
-  ];
+  // TODO: Cargar detalles desde backend GET /api/reportes/detalle?tipo={reportType}&fechaDesde={fechaDesde}&fechaHasta={fechaHasta}
+  const [detalleVentas] = useState<Array<{ id: number; fecha: string; tipo: string; producto: string; cliente: string; cantidad: number; importe: number }>>([]);
 
   return (
     <div style={{ padding: '4px', display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '100%', color: '#fff' }}>

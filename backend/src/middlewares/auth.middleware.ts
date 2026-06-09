@@ -22,10 +22,11 @@ export const verificarToken = (req: PeticionConUsuario, res: Response, next: Nex
     }
 
     try {
-        // Leemos la clave directamente desde el archivo .env
+        // Verificar que la clave JWT_SECRET esté configurada
         const secreto = process.env.JWT_SECRET;
         if (!secreto) {
-            res.status(500).json({ error: 'Falta la configuración de seguridad en el servidor.' });
+            console.error('[AUTH]: JWT_SECRET no está configurado en variables de entorno');
+            res.status(500).json({ error: 'Error de configuración del servidor. Contacte al administrador.' });
             return;
         }
 

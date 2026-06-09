@@ -2,45 +2,45 @@ import { useState } from 'react';
 import type { Bicicleta, Cliente } from '../types';
 
 export function BicicletasView() {
-  // Mock Data de Clientes (necesaria para asociar el dueño en el modal)
-  const clientes: Cliente[] = [
-    { id_cliente: 1, Nombre: 'Juan', Apellido: 'Pérez', Dni: '12345678', Telefono: '3496-123456', Email: 'juan@email.com', Direccion: 'Calle Falsa 123' },
-    { id_cliente: 2, Nombre: 'María', Apellido: 'Gómez', Dni: '87654321', Telefono: '3496-654321', Email: 'maria@email.com', Direccion: 'Av. Belgrano 789' }
-  ];
+  // TODO: Cargar clientes desde backend GET /api/clientes
+  const clientes: Cliente[] = [];
 
-  // Mock Data de Bicicletas iniciales
-  const [bicicletas, setBicicletas] = useState<Bicicleta[]>(
-    [
-      { id_bicicleta: 1, id_cliente: 1, Num_serie: 'SN-998822', marca: 'Vairo', modelo: 'XR 3.8', color: 'Negro', rodado: '29', talle: 'M', Precio: 450000 },
-      { id_bicicleta: 2, id_cliente: 2, Num_serie: 'SN-112233', marca: 'Venzo', modelo: 'Amphion', color: 'Rojo', rodado: '29', talle: 'S', Precio: 520000 }
-    ]
-  );
-
-  // Control del modal flotante
+  // Estado inicial vacío - será llenado desde el backend
+  const [bicicletas, setBicicletas] = useState<Bicicleta[]>([]);
   const [mostrarModal, setMostrarModal] = useState(false);
-
-  // Estado del formulario de nueva bici
-  const [nuevaBici, setNuevaBici] = useState<Bicicleta>({
-    id_cliente: 0, Num_serie: '', marca: '', modelo: '', color: '', rodado: '29', talle: 'M', Precio: 0
+  const [nuevaBici, setNuevaBici] = useState<Omit<Bicicleta, 'id_bicicleta'>>({
+    id_cliente: 0, 
+    numero_serie: '', 
+    marca: '', 
+    modelo: '', 
+    color: '', 
+    rodado: '29', 
+    talle: 'M', 
+    precio: 0
   });
 
-  // Auxiliar para mostrar el apellido y nombre del dueño en la tabla
+  // Auxiliar para mostrar el nombre del dueño en la tabla
   const obtenerNombreDueno = (id_cl: number) => {
     const c = clientes.find(item => item.id_cliente === id_cl);
-    return c ? `${c.Apellido}, ${c.Nombre}` : 'Sin dueño';
+    return c ? `${c.apellido}, ${c.nombre}` : 'Sin dueño';
   };
 
   const handleGuardarBici = (e: React.FormEvent) => {
     e.preventDefault();
-    if (nuevaBici.id_cliente === 0 || !nuevaBici.marca || !nuevaBici.modelo || !nuevaBici.Num_serie) {
+    
+    // TODO: Validaciones complejas deberían estar en el backend
+    if (nuevaBici.id_cliente === 0 || !nuevaBici.marca || !nuevaBici.modelo || !nuevaBici.numero_serie) {
       alert('Por favor, completa los campos obligatorios (*) y asigna un dueño.');
       return;
     }
 
+    // TODO: Hacer llamada POST a /api/bicicletas
+    // const response = await fetch('http://localhost:3000/api/bicicletas', { ... });
+
     setBicicletas([...bicicletas, { ...nuevaBici, id_bicicleta: bicicletas.length + 1 }]);
     
-    // Resetear formulario y cerrar modal
-    setNuevaBici({ id_cliente: 0, Num_serie: '', marca: '', modelo: '', color: '', rodado: '29', talle: 'M', Precio: 0 });
+    // Resetear formulario
+    setNuevaBici({ id_cliente: 0, numero_serie: '', marca: '', modelo: '', color: '', rodado: '29', talle: 'M', precio: 0 });
     setMostrarModal(false);
   };
 
@@ -104,7 +104,7 @@ export function BicicletasView() {
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-principal)' }}>
                   {b.marca} <span style={{ color: 'var(--texto-mutado)', fontWeight: 'normal' }}>{b.modelo}</span>
                 </td>
-                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', fontFamily: 'monospace' }}>{b.Num_serie}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', fontFamily: 'monospace' }}>{b.numero_serie}</td>
                 <td style={{ padding: '16px', fontSize: '0.9rem' }}>
                   <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569', marginRight: '5px' }}>R{b.rodado}</span>
                   <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569' }}>Talle {b.talle}</span>
@@ -147,7 +147,7 @@ export function BicicletasView() {
                 >
                   <option value={0}>-- Seleccionar Cliente Responsable --</option>
                   {clientes.map(c => (
-                    <option key={c.id_cliente} value={c.id_cliente}>{c.Apellido}, {c.Nombre} (DNI: {c.Dni})</option>
+                    <option key={c.id_cliente} value={c.id_cliente}>{c.apellido}, {c.nombre} (DNI: {c.dni})</option>
                   ))}
                 </select>
               </div>
@@ -165,7 +165,129 @@ export function BicicletasView() {
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Número de Serie / Cuadro *</label>
-                <input type="text" placeholder="Código grabado en el cuadro" value={nuevaBici.Num_serie} onChange={e => setNuevaBici({...nuevaBici, Num_serie: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <input type="text" placeholder="Código grabado en el cuadro" value={nuevaBici.numero_serie} onChange={e => setNuevaBici({...nuevaBici, numero_serie: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Color</label>
+                  <input type="text" placeholder="Gris/Rojo" value={nuevaBici.color} onChange={e => setNuevaBici({...nuevaBici, color: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Rodado</label>
+                  <select value={nuevaBici.rodado} onChange={e => setNuevaBici({...nuevaBici, rodado: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}>
+                    <option value="26">26</option>
+                    <option value="27.5">27.5</option>
+                    <option value="29">29</option>
+                    <option value="700c">700c (Ruta)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Talle</label>
+                  <select value={nuevaBici.talle} onChange={e => setNuevaBici({...nuevaBici, talle: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
+                <button type="button" onClick={() => setMostrarModal(false)} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '10px', backgroundColor: '#fff', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
+                <button type="submit" style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', fontWeight: '600', cursor: 'pointer' }}>Guardar Bicicleta</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TABLA DE CONTENIDO BLANCA */}
+      <div style={{ 
+        backgroundColor: 'var(--bg-tarjeta)', borderRadius: '14px', border: '1px solid var(--borde-input)',
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--borde-input)' }}>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Dueño / Cliente</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Marca / Modelo</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>N° Serie</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Especificaciones</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', textAlign: 'right' }}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bicicletas.map(b => (
+              <tr key={b.id_bicicleta} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '600', color: 'var(--texto-principal)' }}>
+                  {obtenerNombreDueno(b.id_cliente)}
+                </td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-principal)' }}>
+                  {b.marca} <span style={{ color: 'var(--texto-mutado)', fontWeight: 'normal' }}>{b.modelo}</span>
+                </td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', fontFamily: 'monospace' }}>{b.numero_serie}</td>
+                <td style={{ padding: '16px', fontSize: '0.9rem' }}>
+                  <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569', marginRight: '5px' }}>R{b.rodado}</span>
+                  <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569' }}>Talle {b.talle}</span>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'right' }}>
+                  <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', marginRight: '12px' }}>Editar</button>
+                  <button style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Eliminar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL FLOTANTE: REGISTRAR BICICLETA (POPUPS DE FIGMA) */}
+      {mostrarModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-tarjeta)', width: '520px', padding: '30px',
+            borderRadius: '16px', border: '1px solid var(--borde-input)',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Registrar nueva bicicleta</h3>
+              <button onClick={() => setMostrarModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleGuardarBici} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Asignar Dueño / Cliente *</label>
+                <select 
+                  value={nuevaBici.id_cliente} 
+                  onChange={e => setNuevaBici({...nuevaBici, id_cliente: Number(e.target.value)})}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}
+                >
+                  <option value={0}>-- Seleccionar Cliente Responsable --</option>
+                  {clientes.map(c => (
+                    <option key={c.id_cliente} value={c.id_cliente}>{c.apellido}, {c.nombre} (DNI: {c.dni})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
+                  <input type="text" placeholder="Ej: Vairo" value={nuevaBici.marca} onChange={e => setNuevaBici({...nuevaBici, marca: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
+                  <input type="text" placeholder="Ej: XR 4.0" value={nuevaBici.modelo} onChange={e => setNuevaBici({...nuevaBici, modelo: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Número de Serie / Cuadro *</label>
+                <input type="text" placeholder="Código grabado en el cuadro" value={nuevaBici.numero_serie} onChange={e => setNuevaBici({...nuevaBici, numero_serie: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
