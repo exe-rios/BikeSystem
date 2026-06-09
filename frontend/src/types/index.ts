@@ -51,3 +51,10 @@ export interface Producto {
   cantidad: number;
   stock_minimo: number; // Campo clave para el RF22
 }
+export interface Venta {
+  id_venta?: number;
+  id_cliente: number;
+  fecha: string;
+  total: number;
+  tipo_pago: string; // <-- Asegúrate de que se llame exactamente así
+}
