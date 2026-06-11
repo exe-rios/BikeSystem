@@ -1,140 +1,184 @@
 import { useState } from 'react';
 import type { Cliente } from '../types';
 
-
 export function ClientesView() {
-  // Mock Data: Datos de prueba provisionales con la estructura exacta de tu DDL
-  const [clientes, setClientes] = useState<Cliente[]>([
-    { id_cliente: 1, Nombre: 'Juan', Apellido: 'Pérez', Dni: '12345678', Telefono: '3496-123456', Email: 'juan@email.com', Direccion: 'Calle Falsa 123' },
-    { id_cliente: 2, Nombre: 'María', Apellido: 'Gómez', Dni: '87654321', Telefono: '3496-654321', Email: 'maria@email.com', Direccion: 'Av. Belgrano 789' }
-  ]);
-
-  // Estado para la barra de búsqueda (RF4 - Buscar Cliente)
-  const [busqueda, setBusqueda] = useState('');
-
-  // Estado para controlar el formulario de nuevo cliente
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [nuevoCliente, setNuevoCliente] = useState<Cliente>({
-    Nombre: '',
-    Apellido: '',
-    Dni: '',
-    Telefono: '',
-    Email: '',
-    Direccion: ''
+  // Estado inicial vacío - será llenado desde el backend
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [mostrarModal, setMostrarModal] = useState(false);
+  const [nuevoCliente, setNuevoCliente] = useState<Omit<Cliente, 'id_cliente'>>({
+    nombre: '', 
+    apellido: '', 
+    dni: '', 
+    telefono: '', 
+    email: '', 
+    direccion: ''
   });
 
-  // Filtrar clientes según lo que el usuario escribe en el buscador (RF4)
-  const clientesFiltrados = clientes.filter(cliente => 
-    cliente.Nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-    cliente.Apellido.toLowerCase().includes(busqueda.toLowerCase()) ||
-    cliente.Dni.includes(busqueda)
-  );
-
-  // Función para manejar el envío del formulario (CU02 - Registrar Cliente)
-  const handleGuardarCliente = (e: React.FormEvent) => {
+  const handleGuardar = (e: React.FormEvent) => {
     e.preventDefault();
-    // Validamos que los campos obligatorios según el DDL no estén vacíos
-    if (!nuevoCliente.Nombre || !nuevoCliente.Apellido || !nuevoCliente.Dni) {
-      alert('Por favor, completa los campos obligatorios (Nombre, Apellido, DNI).');
+    
+    // TODO: Validaciones básicas - la lógica compleja debería estar en el backend
+    if (!nuevoCliente.nombre || !nuevoCliente.apellido || !nuevoCliente.dni) {
+      alert('Por favor, completa los campos obligatorios (*)');
       return;
     }
 
-    const clienteParaGuardar = {
-      ...nuevoCliente,
-      id_cliente: clientes.length + 1 // ID temporal para simular la base de datos
-    };
+    // TODO: Hacer llamada POST a /api/clientes
+    // const response = await fetch('http://localhost:3000/api/clientes', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+    //   body: JSON.stringify(nuevoCliente)
+    // });
 
-    setClientes([...clientes, clienteParaGuardar]);
-    setMostrarFormulario(false);
-    // Limpiamos el formulario
-    setNuevoCliente({ Nombre: '', Apellido: '', Dni: '', Telefono: '', Email: '', Direccion: '' });
+    setClientes([...clientes, { ...nuevoCliente, id_cliente: clientes.length + 1 }]);
+    setNuevoCliente({ nombre: '', apellido: '', dni: '', telefono: '', email: '', direccion: '' });
+    setMostrarModal(false);
   };
 
   return (
-    <div style={{ padding: '10px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px', justifyContent: 'space-between' }}>
-        <h2>Gestión de Clientes</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
+      
+      {/* HEADER SUPERIOR ESTILO FIGMA */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Gestión de Clientes</h1>
+          <p style={{ color: 'var(--texto-mutado)', fontSize: '0.9rem', marginTop: '2px' }}>Listado y registro de usuarios del sistema</p>
+        </div>
+
         <button 
-          onClick={() => setMostrarFormulario(!mostrarFormulario)}
-          style={{ padding: '10px 15px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+          onClick={() => setMostrarModal(true)}
+          style={{
+            backgroundColor: 'var(--azul-oscuro)',
+            color: '#fff',
+            border: 'none',
+            padding: '12px 20px',
+            borderRadius: '10px',
+            fontWeight: '600',
+            fontSize: '0.9rem',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'background-color 0.2s'
+          }}
         >
-          {mostrarFormulario ? 'Volver al Listado' : '＋ Registrar Nuevo Cliente'}
+          ➕ Registrar Cliente
         </button>
       </div>
 
-      {/* --- FORMULARIO DE REGISTRO (CU02 / RF1) --- */}
-      {mostrarFormulario ? (
-        <form onSubmit={handleGuardarCliente} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Nombre *</label>
-            <input type="text" value={nuevoCliente.Nombre} onChange={e => setNuevoCliente({...nuevoCliente, Nombre: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Apellido *</label>
-            <input type="text" value={nuevoCliente.Apellido} onChange={e => setNuevoCliente({...nuevoCliente, Apellido: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>DNI *</label>
-            <input type="text" value={nuevoCliente.Dni} onChange={e => setNuevoCliente({...nuevoCliente, Dni: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Teléfono</label>
-            <input type="text" value={nuevoCliente.Telefono} onChange={e => setNuevoCliente({...nuevoCliente, Telefono: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Email</label>
-            <input type="email" value={nuevoCliente.Email} onChange={e => setNuevoCliente({...nuevoCliente, Email: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Dirección</label>
-            <input type="text" value={nuevoCliente.Direccion} onChange={e => setNuevoCliente({...nuevoCliente, Direccion: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <button type="submit" style={{ gridColumn: 'span 2', padding: '12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-            Guardar Cliente en Sistema
-          </button>
-        </form>
-      ) : (
-        /* --- TABLA DE CONSULTA Y BUSCADOR (CU01 / RF4) --- */
-        <div>
-          <div style={{ marginBottom: '15px' }}>
-            <input 
-              type="text" 
-              placeholder="Buscar cliente por Nombre, Apellido o DNI..." 
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '1rem' }}
-            />
-          </div>
+      {/* BLOQUE DE CONTADORES SUPERIORES */}
+      <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ 
+          backgroundColor: 'var(--naranja-notif)', 
+          padding: '12px 20px', 
+          borderRadius: '12px', 
+          display: 'inline-flex', 
+          alignItems: 'center', 
+          gap: '10px' 
+        }}>
+          <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Total Clientes Registrados</span>
+          <span style={{ 
+            backgroundColor: '#ff9248', 
+            color: '#fff', 
+            padding: '2px 10px', 
+            borderRadius: '20px', 
+            fontWeight: '700',
+            fontSize: '0.85rem'
+          }}>{clientes.length}</span>
+        </div>
+      </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                <th style={{ padding: '12px' }}>ID</th>
-                <th style={{ padding: '12px' }}>Nombre Completo</th>
-                <th style={{ padding: '12px' }}>DNI</th>
-                <th style={{ padding: '12px' }}>Teléfono</th>
-                <th style={{ padding: '12px' }}>Email</th>
-                <th style={{ padding: '12px' }}>Dirección</th>
+      {/* TABLA ESTILO FIGMA (Contenedor Blanco con Sombra y Bordes Redondos) */}
+      <div style={{ 
+        backgroundColor: 'var(--bg-tarjeta)', 
+        borderRadius: '14px', 
+        border: '1px solid var(--borde-input)',
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)',
+        overflow: 'hidden'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--borde-input)' }}>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Nombre</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>DNI</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Teléfono</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Email</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'right' }}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {clientes.map(c => (
+              <tr key={c.id_cliente} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
+                <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '500', color: 'var(--texto-principal)' }}>
+                  {c.apellido}, {c.nombre}
+                </td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.dni}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.telefono}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.email}</td>
+                <td style={{ padding: '16px', textAlign: 'right' }}>
+                  <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', marginRight: '12px' }}>Editar</button>
+                  <button style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Eliminar</button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {clientesFiltrados.map(cliente => (
-                <tr key={cliente.id_cliente} style={{ borderBottom: '1px solid #edf2f7' }}>
-                  <td style={{ padding: '12px' }}>{cliente.id_cliente}</td>
-                  <td style={{ padding: '12px', fontWeight: '500' }}>{cliente.Apellido}, {cliente.Nombre}</td>
-                  <td style={{ padding: '12px' }}>{cliente.Dni}</td>
-                  <td style={{ padding: '12px' }}>{cliente.Telefono}</td>
-                  <td style={{ padding: '12px' }}>{cliente.Email}</td>
-                  <td style={{ padding: '12px' }}>{cliente.Direccion}</td>
-                </tr>
-              ))}
-              {clientesFiltrados.length === 0 && (
-                <tr>
-                  <td colSpan={6} style={{ padding: '20px', textAlign: 'center', color: '#718096' }}>No se encontraron clientes que coincidan con la búsqueda.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL FLOTANTE DE REGISTRO (RECREANDO EL POP-UP DE FIGMA) */}
+      {mostrarModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-tarjeta)', width: '480px', padding: '30px',
+            borderRadius: '16px', border: '1px solid var(--borde-input)',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Registrar Nuevo Cliente</h3>
+              <button onClick={() => setMostrarModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleGuardar} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
+                  <input type="text" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
+                  <input type="text" value={nuevoCliente.apellido} onChange={e => setNuevoCliente({...nuevoCliente, apellido: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
+                <input type="text" value={nuevoCliente.dni} onChange={e => setNuevoCliente({...nuevoCliente, dni: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono *</label>
+                <input type="tel" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email *</label>
+                <input type="email" value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección *</label>
+                <input type="text" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({...nuevoCliente, direccion: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+              </div>
+
+              <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '1rem', cursor: 'pointer', marginTop: '8px' }}>
+                Registrar Cliente
+              </button>
+            </form>
+          </div>
         </div>
       )}
     </div>

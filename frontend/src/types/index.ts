@@ -1,36 +1,38 @@
 export interface Usuario {
   id_usuario?: number;
-  Nom_usuario: string;
-  rol: 'dueño' | 'empleado'; // Alineado con RF26 y tu DDL
+  nombre_usuario: string;
+  contrasena?: string;
+  rol: 'ADMIN' | 'SUPERADMIN' | 'EMPLEADO';
 }
 
 export interface Cliente {
   id_cliente?: number;
-  Nombre: string;
-  Apellido: string;
-  Dni: string;
-  Telefono: string;
-  Email: string;
-  Direccion: string;
+  nombre: string;
+  apellido: string;
+  dni: string;
+  telefono: string;
+  email: string;
+  direccion: string;
 }
 
 export interface Bicicleta {
   id_bicicleta?: number;
-  id_cliente: number; // Relación FK restricta de tu BD
-  Num_serie: string;
+  id_cliente: number;
+  numero_serie: string;
   marca: string;
   modelo: string;
   color: string;
   rodado: string;
   talle: string;
-  Precio: number;
+  precio: number;
 }
+
 export interface Venta {
   id_venta?: number;
   id_cliente: number;
   fecha: string;
   total: number;
-  tipo_pago: 'Efectivo' | 'Tarjeta' | 'Transferencia';
+  tipo_pago: 'Efectivo' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Transferencia';
 }
 
 export interface Reparacion {
@@ -38,8 +40,7 @@ export interface Reparacion {
   id_bicicleta: number;
   descripcion_falla: string;
   costo_estimado: number;
-  // RF15 exige un dropdown estricto con estos estados exactos:
-  estado: 'Recibida' | 'En reparación' | 'Lista' | 'Entregada';
+  estado: 'Recibida' | 'En Reparación' | 'Lista' | 'Entregada';
   fecha_ingreso: string;
 }
 
@@ -49,5 +50,6 @@ export interface Producto {
   categoria: 'Repuesto' | 'Accesorio' | 'Componente';
   precio_venta: number;
   cantidad: number;
-  stock_minimo: number; // Campo clave para el RF22
+  stock_minimo: number;
 }
+

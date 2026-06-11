@@ -2,170 +2,328 @@ import { useState } from 'react';
 import type { Bicicleta, Cliente } from '../types';
 
 export function BicicletasView() {
-  // Datos de prueba simulados de Clientes (los mismos que el módulo anterior)
-  const clientesRegistrados: Cliente[] = [
-    { id_cliente: 1, Nombre: 'Juan', Apellido: 'Pérez', Dni: '12345678', Telefono: '3496-123456', Email: 'juan@email.com', Direccion: 'Calle Falsa 123' },
-    { id_cliente: 2, Nombre: 'María', Apellido: 'Gómez', Dni: '87654321', Telefono: '3496-654321', Email: 'maria@email.com', Direccion: 'Av. Belgrano 789' }
-  ];
+  // TODO: Cargar clientes desde backend GET /api/clientes
+  const clientes: Cliente[] = [];
 
-  // Datos de prueba simulados para Bicicletas (siguiendo tu Modelo Lógico)
-  const [bicicletas, setBicicletas] = useState<Bicicleta[]>([
-    { id_bicicleta: 1, id_cliente: 1, Num_serie: 'SN-998822', marca: 'Vairo', modelo: 'XR 3.8', color: 'Negro/Verde', rodado: '29', talle: 'M', Precio: 450000 },
-    { id_bicicleta: 2, id_cliente: 2, Num_serie: 'SN-112233', marca: 'Venzo', modelo: 'Amphion', color: 'Rojo', rodado: '29', talle: 'S', Precio: 520000 }
-  ]);
-
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [busqueda, setBusqueda] = useState('');
-
-  // Estado del formulario para nueva bicicleta
-  const [nuevaBici, setNuevaBici] = useState<Bicicleta>({
-    id_cliente: 0, // 0 significa que aún no se seleccionó propietario
-    Num_serie: '',
-    marca: '',
-    modelo: '',
-    color: '',
-    rodado: '',
-    talle: '',
-    Precio: 0
+  // Estado inicial vacío - será llenado desde el backend
+  const [bicicletas, setBicicletas] = useState<Bicicleta[]>([]);
+  const [mostrarModal, setMostrarModal] = useState(false);
+  const [nuevaBici, setNuevaBici] = useState<Omit<Bicicleta, 'id_bicicleta'>>({
+    id_cliente: 0, 
+    numero_serie: '', 
+    marca: '', 
+    modelo: '', 
+    color: '', 
+    rodado: '29', 
+    talle: 'M', 
+    precio: 0
   });
 
-  // Función para obtener el nombre del propietario de manera dinámica en la tabla
-  const obtenerPropietario = (id_cliente: number) => {
-    const cliente = clientesRegistrados.find(c => c.id_cliente === id_cliente);
-    return cliente ? `${cliente.Apellido}, ${cliente.Nombre}` : 'Desconocido';
+  // Auxiliar para mostrar el nombre del dueño en la tabla
+  const obtenerNombreDueno = (id_cl: number) => {
+    const c = clientes.find(item => item.id_cliente === id_cl);
+    return c ? `${c.apellido}, ${c.nombre}` : 'Sin dueño';
   };
-
-  // Filtrar bicicletas por marca, modelo o número de serie (CU05)
-  const bicisFiltradas = bicicletas.filter(bici => 
-    bici.marca.toLowerCase().includes(busqueda.toLowerCase()) ||
-    bici.modelo.toLowerCase().includes(busqueda.toLowerCase()) ||
-    bici.Num_serie.includes(busqueda)
-  );
 
   const handleGuardarBici = (e: React.FormEvent) => {
     e.preventDefault();
-    if (nuevaBici.id_cliente === 0 || !nuevaBici.Num_serie || !nuevaBici.marca) {
-      alert('Por favor, completa los campos obligatorios y selecciona un propietario.');
+    
+    // TODO: Validaciones complejas deberían estar en el backend
+    if (nuevaBici.id_cliente === 0 || !nuevaBici.marca || !nuevaBici.modelo || !nuevaBici.numero_serie) {
+      alert('Por favor, completa los campos obligatorios (*) y asigna un dueño.');
       return;
     }
 
-    const biciParaGuardar = {
-      ...nuevaBici,
-      id_bicicleta: bicicletas.length + 1
-    };
+    // TODO: Hacer llamada POST a /api/bicicletas
+    // const response = await fetch('http://localhost:3000/api/bicicletas', { ... });
 
-    setBicicletas([...bicicletas, biciParaGuardar]);
-    setMostrarFormulario(false);
-    // Reiniciar formulario
-    setNuevaBici({ id_cliente: 0, Num_serie: '', marca: '', modelo: '', color: '', rodado: '', talle: '', Precio: 0 });
+    setBicicletas([...bicicletas, { ...nuevaBici, id_bicicleta: bicicletas.length + 1 }]);
+    
+    // Resetear formulario
+    setNuevaBici({ id_cliente: 0, numero_serie: '', marca: '', modelo: '', color: '', rodado: '29', talle: 'M', precio: 0 });
+    setMostrarModal(false);
   };
 
   return (
-    <div style={{ padding: '10px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h2>Gestión de Bicicletas</h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      
+      {/* HEADER SUPERIOR ESTILO FIGMA */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Gestión de Bicicletas</h1>
+          <p style={{ color: 'var(--texto-mutado)', fontSize: '0.9rem', marginTop: '2px' }}>Registro de rodados asociados a clientes</p>
+        </div>
+
         <button 
-          onClick={() => setMostrarFormulario(!mostrarFormulario)}
-          style={{ padding: '10px 15px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+          onClick={() => setMostrarModal(true)}
+          style={{
+            backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none',
+            padding: '12px 20px', borderRadius: '10px', fontWeight: '600',
+            fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px'
+          }}
         >
-          {mostrarFormulario ? 'Volver al Listado' : '＋ Registrar Nueva Bicicleta'}
+          ➕ Registrar Bicicleta
         </button>
       </div>
 
-      {/* --- FORMULARIO DE REGISTRO (CU06 / RF6) --- */}
-      {mostrarFormulario ? (
-        <form onSubmit={handleGuardarBici} style={{ background: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-          
-          {/* SELECCIÓN DE PROPIETARIO (Cumple la FK restrictiva del DDL) */}
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Propietario / Cliente *</label>
-            <select 
-              value={nuevaBici.id_cliente} 
-              onChange={e => setNuevaBici({...nuevaBici, id_cliente: Number(e.target.value)})}
-              style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc', backgroundColor: '#fff' }}
-            >
-              <option value={0}>-- Selecciona el dueño de la bicicleta --</option>
-              {clientesRegistrados.map(c => (
-                <option key={c.id_cliente} value={c.id_cliente}>
-                  {c.Apellido}, {c.Nombre} (DNI: {c.Dni})
-                </option>
-              ))}
-            </select>
-          </div>
+      {/* BLOQUE DE CONTADORES SUPERIORES */}
+      <div style={{ display: 'flex', gap: '15px' }}>
+        <div style={{ 
+          backgroundColor: 'var(--naranja-notif)', padding: '12px 20px', borderRadius: '12px', 
+          display: 'inline-flex', alignItems: 'center', gap: '10px' 
+        }}>
+          <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Bicicletas en Sistema</span>
+          <span style={{ 
+            backgroundColor: '#ff9248', color: '#fff', padding: '2px 10px', 
+            borderRadius: '20px', fontWeight: '700', fontSize: '0.85rem'
+          }}>{bicicletas.length}</span>
+        </div>
+      </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Número de Serie *</label>
-            <input type="text" value={nuevaBici.Num_serie} onChange={e => setNuevaBici({...nuevaBici, Num_serie: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Marca *</label>
-            <input type="text" value={nuevaBici.marca} onChange={e => setNuevaBici({...nuevaBici, marca: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Modelo</label>
-            <input type="text" value={nuevaBici.modelo} onChange={e => setNuevaBici({...nuevaBici, modelo: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Color</label>
-            <input type="text" value={nuevaBici.color} onChange={e => setNuevaBici({...nuevaBici, color: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Rodado</label>
-            <input type="text" placeholder="Ej: 29, 26" value={nuevaBici.rodado} onChange={e => setNuevaBici({...nuevaBici, rodado: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Talle</label>
-            <input type="text" placeholder="Ej: S, M, L" value={nuevaBici.talle} onChange={e => setNuevaBici({...nuevaBici, talle: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-          <div style={{ gridColumn: 'span 2' }}>
-            <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>Precio Estimado (Arriendo/Valor)</label>
-            <input type="number" value={nuevaBici.Precio} onChange={e => setNuevaBici({...nuevaBici, Precio: Number(e.target.value)})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid #ccc' }} />
-          </div>
-
-          <button type="submit" style={{ gridColumn: 'span 2', padding: '12px', backgroundColor: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '10px' }}>
-            Asociar y Registrar Bicicleta
-          </button>
-        </form>
-      ) : (
-        /* --- TABLA DE LISTADO (CU05) --- */
-        <div>
-          <div style={{ marginBottom: '15px' }}>
-            <input 
-              type="text" 
-              placeholder="Buscar bicicleta por Marca, Modelo o N° de Serie..." 
-              value={busqueda}
-              onChange={e => setBusqueda(e.target.value)}
-              style={{ width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '1rem' }}
-            />
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', background: 'white', borderRadius: '8px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f8fafc', borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                <th style={{ padding: '12px' }}>N° Serie</th>
-                <th style={{ padding: '12px' }}>Marca / Modelo</th>
-                <th style={{ padding: '12px' }}>Detalles (Rodado/Talle)</th>
-                <th style={{ padding: '12px' }}>Propietario</th>
+      {/* TABLA DE CONTENIDO BLANCA */}
+      <div style={{ 
+        backgroundColor: 'var(--bg-tarjeta)', borderRadius: '14px', border: '1px solid var(--borde-input)',
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--borde-input)' }}>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Dueño / Cliente</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Marca / Modelo</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>N° Serie</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Especificaciones</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', textAlign: 'right' }}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bicicletas.map(b => (
+              <tr key={b.id_bicicleta} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '600', color: 'var(--texto-principal)' }}>
+                  {obtenerNombreDueno(b.id_cliente)}
+                </td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-principal)' }}>
+                  {b.marca} <span style={{ color: 'var(--texto-mutado)', fontWeight: 'normal' }}>{b.modelo}</span>
+                </td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', fontFamily: 'monospace' }}>{b.numero_serie}</td>
+                <td style={{ padding: '16px', fontSize: '0.9rem' }}>
+                  <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569', marginRight: '5px' }}>R{b.rodado}</span>
+                  <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569' }}>Talle {b.talle}</span>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'right' }}>
+                  <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', marginRight: '12px' }}>Editar</button>
+                  <button style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Eliminar</button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {bicisFiltradas.map(bici => (
-                <tr key={bici.id_bicicleta} style={{ borderBottom: '1px solid #edf2f7' }}>
-                  <td style={{ padding: '12px', fontFamily: 'monospace', fontWeight: 'bold' }}>{bici.Num_serie}</td>
-                  <td style={{ padding: '12px' }}>{bici.marca} {bici.modelo} <span style={{ fontSize: '0.85rem', color: '#718096' }}>({bici.color})</span></td>
-                  <td style={{ padding: '12px' }}>R: {bici.rodado} / T: {bici.talle}</td>
-                  <td style={{ padding: '12px', color: '#1e3a8a', fontWeight: '500' }}>{obtenerPropietario(bici.id_cliente)}</td>
-                </tr>
-              ))}
-              {bicisFiltradas.length === 0 && (
-                <tr>
-                  <td colSpan={4} style={{ padding: '20px', textAlign: 'center', color: '#718096' }}>No hay bicicletas registradas con esos criterios.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL FLOTANTE: REGISTRAR BICICLETA (POPUPS DE FIGMA) */}
+      {mostrarModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-tarjeta)', width: '520px', padding: '30px',
+            borderRadius: '16px', border: '1px solid var(--borde-input)',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Registrar nueva bicicleta</h3>
+              <button onClick={() => setMostrarModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleGuardarBici} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Asignar Dueño / Cliente *</label>
+                <select 
+                  value={nuevaBici.id_cliente} 
+                  onChange={e => setNuevaBici({...nuevaBici, id_cliente: Number(e.target.value)})}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}
+                >
+                  <option value={0}>-- Seleccionar Cliente Responsable --</option>
+                  {clientes.map(c => (
+                    <option key={c.id_cliente} value={c.id_cliente}>{c.apellido}, {c.nombre} (DNI: {c.dni})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
+                  <input type="text" placeholder="Ej: Vairo" value={nuevaBici.marca} onChange={e => setNuevaBici({...nuevaBici, marca: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
+                  <input type="text" placeholder="Ej: XR 4.0" value={nuevaBici.modelo} onChange={e => setNuevaBici({...nuevaBici, modelo: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Número de Serie / Cuadro *</label>
+                <input type="text" placeholder="Código grabado en el cuadro" value={nuevaBici.numero_serie} onChange={e => setNuevaBici({...nuevaBici, numero_serie: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Color</label>
+                  <input type="text" placeholder="Gris/Rojo" value={nuevaBici.color} onChange={e => setNuevaBici({...nuevaBici, color: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Rodado</label>
+                  <select value={nuevaBici.rodado} onChange={e => setNuevaBici({...nuevaBici, rodado: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}>
+                    <option value="26">26</option>
+                    <option value="27.5">27.5</option>
+                    <option value="29">29</option>
+                    <option value="700c">700c (Ruta)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Talle</label>
+                  <select value={nuevaBici.talle} onChange={e => setNuevaBici({...nuevaBici, talle: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
+                <button type="button" onClick={() => setMostrarModal(false)} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '10px', backgroundColor: '#fff', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
+                <button type="submit" style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', fontWeight: '600', cursor: 'pointer' }}>Guardar Bicicleta</button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
+
+      {/* TABLA DE CONTENIDO BLANCA */}
+      <div style={{ 
+        backgroundColor: 'var(--bg-tarjeta)', borderRadius: '14px', border: '1px solid var(--borde-input)',
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden'
+      }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--borde-input)' }}>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Dueño / Cliente</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Marca / Modelo</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>N° Serie</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Especificaciones</th>
+              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', textAlign: 'right' }}>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bicicletas.map(b => (
+              <tr key={b.id_bicicleta} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '600', color: 'var(--texto-principal)' }}>
+                  {obtenerNombreDueno(b.id_cliente)}
+                </td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-principal)' }}>
+                  {b.marca} <span style={{ color: 'var(--texto-mutado)', fontWeight: 'normal' }}>{b.modelo}</span>
+                </td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', fontFamily: 'monospace' }}>{b.numero_serie}</td>
+                <td style={{ padding: '16px', fontSize: '0.9rem' }}>
+                  <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569', marginRight: '5px' }}>R{b.rodado}</span>
+                  <span style={{ background: '#f1f5f9', padding: '3px 8px', borderRadius: '6px', color: '#475569' }}>Talle {b.talle}</span>
+                </td>
+                <td style={{ padding: '16px', textAlign: 'right' }}>
+                  <button style={{ background: 'none', border: 'none', color: '#3b82f6', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer', marginRight: '12px' }}>Editar</button>
+                  <button style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}>Eliminar</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* MODAL FLOTANTE: REGISTRAR BICICLETA (POPUPS DE FIGMA) */}
+      {mostrarModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-tarjeta)', width: '520px', padding: '30px',
+            borderRadius: '16px', border: '1px solid var(--borde-input)',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Registrar nueva bicicleta</h3>
+              <button onClick={() => setMostrarModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleGuardarBici} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Asignar Dueño / Cliente *</label>
+                <select 
+                  value={nuevaBici.id_cliente} 
+                  onChange={e => setNuevaBici({...nuevaBici, id_cliente: Number(e.target.value)})}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}
+                >
+                  <option value={0}>-- Seleccionar Cliente Responsable --</option>
+                  {clientes.map(c => (
+                    <option key={c.id_cliente} value={c.id_cliente}>{c.apellido}, {c.nombre} (DNI: {c.dni})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
+                  <input type="text" placeholder="Ej: Vairo" value={nuevaBici.marca} onChange={e => setNuevaBici({...nuevaBici, marca: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
+                  <input type="text" placeholder="Ej: XR 4.0" value={nuevaBici.modelo} onChange={e => setNuevaBici({...nuevaBici, modelo: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Número de Serie / Cuadro *</label>
+                <input type="text" placeholder="Código grabado en el cuadro" value={nuevaBici.numero_serie} onChange={e => setNuevaBici({...nuevaBici, numero_serie: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Color</label>
+                  <input type="text" placeholder="Gris/Rojo" value={nuevaBici.color} onChange={e => setNuevaBici({...nuevaBici, color: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Rodado</label>
+                  <select value={nuevaBici.rodado} onChange={e => setNuevaBici({...nuevaBici, rodado: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}>
+                    <option value="26">26</option>
+                    <option value="27.5">27.5</option>
+                    <option value="29">29</option>
+                    <option value="700c">700c (Ruta)</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Talle</label>
+                  <select value={nuevaBici.talle} onChange={e => setNuevaBici({...nuevaBici, talle: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: '#fff' }}>
+                    <option value="S">S</option>
+                    <option value="M">M</option>
+                    <option value="L">L</option>
+                    <option value="XL">XL</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '15px' }}>
+                <button type="button" onClick={() => setMostrarModal(false)} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '10px', backgroundColor: '#fff', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
+                <button type="submit" style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', fontWeight: '600', cursor: 'pointer' }}>Guardar Bicicleta</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
