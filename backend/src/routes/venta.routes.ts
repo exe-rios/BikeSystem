@@ -1,8 +1,13 @@
-import { Router, type Router as ExpressRouter } from 'express';
+import { Router } from 'express';
+import { verificarToken } from '../middlewares/auth.middleware.js';
 
-const router: ExpressRouter = Router();
+const router: ReturnType<typeof Router> = Router();
 
-// Aquí irán las rutas de ventas
-// router.get('/', getVentas);
+// TODO: Implementar endpoints de ventas
+// GET /api/ventas - Obtener todas las ventas
+// POST /api/ventas - Crear nueva venta
+// GET /api/ventas/:id - Obtener venta por ID
+// PUT /api/ventas/:id - Actualizar venta
+// DELETE /api/ventas/:id - Cancelar venta
 
 export default router;
