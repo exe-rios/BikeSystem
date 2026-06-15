@@ -1,14 +1,22 @@
-
 import { Router } from 'express';
+import { 
+    crearProducto, 
+    obtenerProductos, 
+    obtenerProductoPorId, 
+    actualizarProducto, 
+    eliminarProducto 
+} from '../controllers/producto.controller.js';
 import { verificarToken } from '../middlewares/auth.middleware.js';
 
 const router: ReturnType<typeof Router> = Router();
 
-// TODO: Implementar endpoints de productos
-// GET /api/productos - Obtener todos los productos
-// POST /api/productos - Crear nuevo producto
-// GET /api/productos/:id - Obtener producto por ID
-// PUT /api/productos/:id - Actualizar producto
-// DELETE /api/productos/:id - Eliminar producto
+
+router.post('/', verificarToken, crearProducto);
+router.get('/', verificarToken, obtenerProductos);
+router.get('/:id', verificarToken, obtenerProductoPorId);
+router.put('/:id', verificarToken, actualizarProducto);
+router.delete('/:id', verificarToken, eliminarProducto);
+
 
 export default router;
+

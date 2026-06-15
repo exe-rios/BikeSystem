@@ -1,13 +1,17 @@
 import { Router } from 'express';
+import { 
+    crearVenta, 
+    agregarDetalleVenta, 
+    obtenerVentas, 
+    obtenerVentaPorId 
+} from '../controllers/venta.controller.js';
 import { verificarToken } from '../middlewares/auth.middleware.js';
 
 const router: ReturnType<typeof Router> = Router();
 
-// TODO: Implementar endpoints de ventas
-// GET /api/ventas - Obtener todas las ventas
-// POST /api/ventas - Crear nueva venta
-// GET /api/ventas/:id - Obtener venta por ID
-// PUT /api/ventas/:id - Actualizar venta
-// DELETE /api/ventas/:id - Cancelar venta
+router.post('/', verificarToken, crearVenta);
+router.get('/', verificarToken, obtenerVentas);
+router.post('/detalle', verificarToken, agregarDetalleVenta);
+router.get('/:id', verificarToken, obtenerVentaPorId);
 
 export default router;
