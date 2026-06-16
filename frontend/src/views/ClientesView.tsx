@@ -6,17 +6,17 @@ export function ClientesView() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [nuevoCliente, setNuevoCliente] = useState<Omit<Cliente, 'id_cliente'>>({
-    nombre: '', 
-    apellido: '', 
-    dni: '', 
-    telefono: '', 
-    email: '', 
+    nombre: '',
+    apellido: '',
+    dni: '',
+    telefono: '',
+    email: '',
     direccion: ''
   });
 
   const handleGuardar = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // TODO: Validaciones básicas - la lógica compleja debería estar en el backend
     if (!nuevoCliente.nombre || !nuevoCliente.apellido || !nuevoCliente.dni) {
       alert('Por favor, completa los campos obligatorios (*)');
@@ -37,7 +37,7 @@ export function ClientesView() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
-      
+
       {/* HEADER SUPERIOR ESTILO FIGMA */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -45,7 +45,7 @@ export function ClientesView() {
           <p style={{ color: 'var(--texto-mutado)', fontSize: '0.9rem', marginTop: '2px' }}>Listado y registro de usuarios del sistema</p>
         </div>
 
-        <button 
+        <button
           onClick={() => setMostrarModal(true)}
           style={{
             backgroundColor: 'var(--azul-oscuro)',
@@ -68,20 +68,20 @@ export function ClientesView() {
 
       {/* BLOQUE DE CONTADORES SUPERIORES */}
       <div style={{ display: 'flex', gap: '15px' }}>
-        <div style={{ 
-          backgroundColor: 'var(--naranja-notif)', 
-          padding: '12px 20px', 
-          borderRadius: '12px', 
-          display: 'inline-flex', 
-          alignItems: 'center', 
-          gap: '10px' 
+        <div style={{
+          backgroundColor: 'var(--naranja-notif)',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '10px'
         }}>
           <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Total Clientes Registrados</span>
-          <span style={{ 
-            backgroundColor: '#ff9248', 
-            color: '#fff', 
-            padding: '2px 10px', 
-            borderRadius: '20px', 
+          <span style={{
+            backgroundColor: '#ff9248',
+            color: '#fff',
+            padding: '2px 10px',
+            borderRadius: '20px',
             fontWeight: '700',
             fontSize: '0.85rem'
           }}>{clientes.length}</span>
@@ -89,9 +89,9 @@ export function ClientesView() {
       </div>
 
       {/* TABLA ESTILO FIGMA (Contenedor Blanco con Sombra y Bordes Redondos) */}
-      <div style={{ 
-        backgroundColor: 'var(--bg-tarjeta)', 
-        borderRadius: '14px', 
+      <div style={{
+        backgroundColor: 'var(--bg-tarjeta)',
+        borderRadius: '14px',
         border: '1px solid var(--borde-input)',
         boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)',
         overflow: 'hidden'
@@ -107,6 +107,11 @@ export function ClientesView() {
             </tr>
           </thead>
           <tbody>
+            <tr>
+              <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--texto-mutado)', fontSize: '0.95rem' }}>
+                No hay clientes registrados en el sistema.
+              </td>
+            </tr>
             {clientes.map(c => (
               <tr key={c.id_cliente} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
                 <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '500', color: 'var(--texto-principal)' }}>
@@ -146,32 +151,32 @@ export function ClientesView() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
-                  <input type="text" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({...nuevoCliente, nombre: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                  <input type="text" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
-                  <input type="text" value={nuevoCliente.apellido} onChange={e => setNuevoCliente({...nuevoCliente, apellido: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                  <input type="text" value={nuevoCliente.apellido} onChange={e => setNuevoCliente({ ...nuevoCliente, apellido: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
                 </div>
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
-                <input type="text" value={nuevoCliente.dni} onChange={e => setNuevoCliente({...nuevoCliente, dni: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <input type="text" value={nuevoCliente.dni} onChange={e => setNuevoCliente({ ...nuevoCliente, dni: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono *</label>
-                <input type="tel" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({...nuevoCliente, telefono: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <input type="tel" value={nuevoCliente.telefono} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email *</label>
-                <input type="email" value={nuevoCliente.email} onChange={e => setNuevoCliente({...nuevoCliente, email: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <input type="email" value={nuevoCliente.email} onChange={e => setNuevoCliente({ ...nuevoCliente, email: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
               <div>
                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección *</label>
-                <input type="text" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({...nuevoCliente, direccion: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
+                <input type="text" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem' }} />
               </div>
 
               <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '1rem', cursor: 'pointer', marginTop: '8px' }}>
