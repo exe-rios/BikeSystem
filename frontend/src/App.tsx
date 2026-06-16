@@ -1,5 +1,12 @@
 import { useState } from 'react'
 import './App.css'
+import iconInicio from './assets/Fotinhos/icono-inicio.png'
+import iconClientes from './assets/Fotinhos/icono-clientes.png'
+import iconBicicletas from './assets/Fotinhos/icono-bicicletas.png'
+import iconVentas from './assets/Fotinhos/icono-ventas.png'
+import iconReparaciones from './assets/Fotinhos/icono-reparaciones.png'
+import iconStock from './assets/Fotinhos/icono-stock.png'
+import iconReportes from './assets/Fotinhos/icono-reportes.png'
 import { InicioView } from './views/InicioView'; // Conectado perfectamente
 import { ClientesView } from './views/ClientesView';
 import { BicicletasView } from './views/BicicletasView';
@@ -50,14 +57,13 @@ function App() {
 
           {/* Opciones de Navegación */}
           {[
-            { id: 'inicio', label: 'Inicio', icon: '' },
-            { id: 'clientes', label: 'Clientes', icon: '' },
-            { id: 'bicicletas', label: 'Bicicletas', icon: '' },
-            { id: 'ventas', label: 'Ventas', icon: '' },
-            { id: 'reparaciones', label: 'Reparaciones', icon: '' },
-            { id: 'stock', label: 'Stock', icon: '' },
-            { id: 'reportes', label: 'Reportes', icon: '' },
-            { id: 'pago-proveedores', label: 'Pago a Proveedores', icon: '' }
+            { id: 'inicio', label: 'Inicio', icon: iconInicio },
+            { id: 'clientes', label: 'Clientes', icon: iconClientes },
+            { id: 'bicicletas', label: 'Bicicletas', icon: iconBicicletas },
+            { id: 'ventas', label: 'Ventas', icon: iconVentas },
+            { id: 'reparaciones', label: 'Reparaciones', icon: iconReparaciones },
+            { id: 'stock', label: 'Stock', icon: iconStock },
+            { id: 'reportes', label: 'Reportes', icon: iconReportes }
           ].map((item) => {
             const activo = vistaActual === item.id;
             return (
@@ -80,7 +86,9 @@ function App() {
                   transition: 'all 0.15s ease'
                 }}
               >
-                <span style={{ fontSize: '1.1rem', opacity: activo ? 1 : 0.7 }}>{item.icon}</span>
+                <span style={{ display: 'inline-flex', width: '22px', height: '22px', opacity: activo ? 1 : 0.7 }}>
+                  <img src={item.icon} alt={`${item.label} icon`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </span>
                 {item.label}
               </button>
             );
