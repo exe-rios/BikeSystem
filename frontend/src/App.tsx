@@ -8,6 +8,7 @@ import iconReparaciones from './assets/Fotinhos/icono-reparaciones.png'
 import iconStock from './assets/Fotinhos/icono-stock.png'
 import iconReportes from './assets/Fotinhos/icono-reportes.png'
 import iconPagoProveedores from './assets/Fotinhos/icono-pagoproveedores.png'
+import logoDnBike from './assets/Fotinhos/iconoDnBike.jpeg'
 import { InicioView } from './views/InicioView';
 import { ClientesView } from './views/ClientesView';
 import { BicicletasView } from './views/BicicletasView';
@@ -83,14 +84,30 @@ function App() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
           {/* Título de Marca */}
-          <h2 style={{
-            fontSize: '1.35rem',
-            fontWeight: '700',
-            color: 'var(--texto-principal)',
-            marginBottom: '35px',
-            paddingLeft: '10px'
-          }}>
-            Bike System
+          <h2
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '1.35rem',
+              fontWeight: '700',
+              color: 'var(--texto-principal)',
+              marginBottom: '35px',
+              paddingLeft: '10px'
+            }}
+          >
+            {/* Imagen como Icono */}
+            <img
+              src={logoDnBike}
+              alt="Logo DN Bike"
+              style={{
+                width: '32px',
+                height: '32px',
+                objectFit: 'contain',
+                borderRadius: '50%'
+              }}
+            />
+            DN Bike
           </h2>
 
           {/* Opciones de Navegación */}
@@ -134,42 +151,31 @@ function App() {
           })}
         </div>
 
-        {/* --- APARTADO DE USUARIO AGRANDADO Y SIMÉTRICO --- */}
+        {/* Perfil del Usuario */}
         <div style={{
           display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-          paddingTop: '24px',
-          borderTop: '1px solid var(--borde-input)',
-          width: '100%',
-          boxSizing: 'border-box'
+          alignItems: 'center',
+          gap: '12px',
+          paddingTop: '20px',
+          borderTop: '1px solid var(--borde-input)'
         }}>
-          {/* Fila del Perfil */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div style={{
-              width: '46px', // Avatar más grande y legible
-              height: '46px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--azul-oscuro)',
-              color: 'white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '700',
-              fontSize: '1.05rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-            }}>
-              {userName ? userName.split(' ').map(n => n[0]).join('') : 'U'}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              <span style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
-                {userName || 'Usuario'}
-              </span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--texto-mutado)', width: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {userEmail || 'correo@bikesystem.com'}
-              </span>
-            </div>
+          <div style={{
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            backgroundColor: 'var(--azul-oscuro)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: '0.9rem'
+          }}>
+            AU
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Admin User</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)' }}>admin@bikesystem.com</span>
           </div>
 
           {/* Botón Cerrar Sesión completo de ancho completo */}

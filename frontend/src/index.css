@@ -2,15 +2,23 @@
    PALETA DE COLORES FIEL A TU FIGMA (Modo Claro Sofisticado)
    ========================================================================== */
 :root {
-  --bg-principal: #f8fafc;       /* El fondo gris clarito de tus bocetos */
-  --bg-tarjeta: #ffffff;         /* El blanco de tus contenedores, tablas y modales */
-  --azul-oscuro: #08060d;        /* El negro/azul noche de tus botones principales y menú activo */
-  --borde-input: #e2e8f0;        /* El gris sutil de tus cajas de texto */
-  --texto-principal: #0f172a;    /* Color de títulos */
-  --texto-mutado: #64748b;       /* Color de subtítulos y placeholders */
-  --naranja-notif: #ffedd5;      /* Fondo de los globos de notificación */
-  --naranja-texto: #ea580c;      /* Texto de las burbujas (ej: cantidad de bicis) */
-  
+  --bg-principal: #f8fafc;
+  /* El fondo gris clarito de tus bocetos */
+  --bg-tarjeta: #ffffff;
+  /* El blanco de tus contenedores, tablas y modales */
+  --azul-oscuro: #08060d;
+  /* El negro/azul noche de tus botones principales y menú activo */
+  --borde-input: #e2e8f0;
+  /* El gris sutil de tus cajas de texto */
+  --texto-principal: #0f172a;
+  /* Color de títulos */
+  --texto-mutado: #64748b;
+  /* Color de subtítulos y placeholders */
+  --naranja-notif: #ffedd5;
+  /* Fondo de los globos de notificación */
+  --naranja-texto: #ea580c;
+  /* Texto de las burbujas (ej: cantidad de bicis) */
+
   --sans: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -43,6 +51,9 @@ body {
   text-align: left !important;
 }
 
-input, select, textarea, button {
+input,
+select,
+textarea,
+button {
   font-family: inherit;
 }
