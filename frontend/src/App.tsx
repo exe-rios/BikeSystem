@@ -14,9 +14,10 @@ import { VentasView } from './views/VentasView';
 import { ReparacionesView } from './views/ReparacionesView';
 import { StockView } from './views/StockView';
 import { ReportesView } from './views/ReportesView';
+import { PagoProveedores } from './views/PagoProveedores';
 
 function App() {
-  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas' | 'reparaciones' | 'stock' | 'reportes'>('inicio') // Lo puse en 'inicio' por defecto para que lo pruebes directo
+  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas' | 'reparaciones' | 'stock' | 'reportes' | 'pago-proveedores'>('inicio') // Lo puse en 'inicio' por defecto para que lo pruebes directo
 
   return (
     <div style={{ 
@@ -139,6 +140,7 @@ function App() {
         {vistaActual === 'reparaciones' && <ReparacionesView />}
         {vistaActual === 'stock' && <StockView />}
         {vistaActual === 'reportes' && <ReportesView />}
+        {vistaActual === 'pago-proveedores' && <PagoProveedores />}
       </main>
 
     </div>
