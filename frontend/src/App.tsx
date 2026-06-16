@@ -18,9 +18,46 @@ import { StockView } from './views/StockView';
 import { ReportesView } from './views/ReportesView';
 import { PagoProveedores } from './views/PagoProveedores';
 
-function App() {
-  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas' | 'reparaciones' | 'stock' | 'reportes' | 'pago-proveedores'>('inicio') // Lo puse en 'inicio' por defecto para que lo pruebes directo
+// Importamos la nueva vista de Login
+import { LoginView } from './views/LoginView';
 
+function App() {
+  // Estados de autenticación (Cargan directo desde el localStorage si existen)
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [userEmail, setUserEmail] = useState<string | null>(localStorage.getItem('userEmail'));
+  const [userName, setUserName] = useState<string | null>(localStorage.getItem('userName'));
+
+  const [vistaActual, setVistaActual] = useState<'inicio' | 'clientes' | 'bicicletas' | 'ventas' | 'reparaciones' | 'stock' | 'reportes' | 'pago-proveedores'>('inicio')
+
+  // Manejador del Login Exitoso
+  const handleLoginSuccess = (tokenRecibido: string, emailRecibido: string, nombreRecibido: string) => {
+    localStorage.setItem('token', tokenRecibido);
+    localStorage.setItem('userEmail', emailRecibido);
+    localStorage.setItem('userName', nombreRecibido);
+
+    setToken(tokenRecibido);
+    setUserEmail(emailRecibido);
+    setUserName(nombreRecibido);
+    setVistaActual('inicio'); // Forzamos ir al inicio al loguearse
+  };
+
+  // Manejador del Logout
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+
+    setToken(null);
+    setUserEmail(null);
+    setUserName(null);
+  };
+
+  // INTERCEPCIÓN: Si no hay token guardado, mostramos únicamente la pantalla de login
+  if (!token) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // Si hay token, renderizamos la App con el menú y contenido dinámico completo
   return (
     <div style={{
       display: 'flex',
@@ -140,6 +177,38 @@ function App() {
             <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Admin User</span>
             <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)' }}>admin@bikesystem.com</span>
           </div>
+
+          {/* Botón Cerrar Sesión completo de ancho completo */}
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%',
+              backgroundColor: 'rgba(239, 68, 68, 0.06)', // Fondo rojizo UI limpio
+              color: '#333',
+              border: '1px solid rgba(239, 68, 68, 0.15)',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              padding: '11px',
+              borderRadius: '10px', // Misma simetría que los botones del menú superior
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.2s ease-in-out',
+              boxSizing: 'border-box'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(189, 189, 189, 0.12)';
+              e.currentTarget.style.borderColor = '#ccc';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(189, 189, 189, 0.12)';
+              e.currentTarget.style.borderColor = '#333';
+            }}
+          >
+            <span></span> Cerrar Sesión
+          </button>
         </div>
       </aside>
 
@@ -150,9 +219,7 @@ function App() {
         padding: '40px',
         overflowY: 'auto'
       }}>
-        {/* Cambiado el div plano por tu nuevo componente modular */}
         {vistaActual === 'inicio' && <InicioView onNavigate={setVistaActual as any} />}
-
         {vistaActual === 'clientes' && <ClientesView />}
         {vistaActual === 'bicicletas' && <BicicletasView />}
         {vistaActual === 'ventas' && <VentasView />}

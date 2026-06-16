@@ -7,13 +7,13 @@ export function VentasView() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      
+
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Módulo de Ventas</h1>
           <p style={{ color: 'var(--texto-mutado)', fontSize: '0.9rem' }}>Registro de transacciones comerciales y facturas emitidas</p>
         </div>
-        
+
         <button style={{
           backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none',
           padding: '12px 20px', borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer'
@@ -22,7 +22,7 @@ export function VentasView() {
         </button>
       </div>
 
-      <div style={{ 
+      <div style={{
         backgroundColor: 'var(--bg-tarjeta)', borderRadius: '14px', border: '1px solid var(--borde-input)',
         boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)', overflow: 'hidden'
       }}>
@@ -37,6 +37,11 @@ export function VentasView() {
             </tr>
           </thead>
           <tbody>
+            <tr>
+              <td colSpan={5} style={{ padding: '32px', textAlign: 'center', color: 'var(--texto-mutado)', fontSize: '0.95rem' }}>
+                No hay ventas registradas en el sistema.
+              </td>
+            </tr>
             {ventas.map(v => (
               <tr key={v.id_venta} style={{ borderBottom: '1px solid #f1f5f9' }}>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', fontFamily: 'monospace' }}>FAC-{String(v.id_venta).padStart(6, '0')}</td>
