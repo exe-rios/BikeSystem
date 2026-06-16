@@ -7,6 +7,7 @@ import iconVentas from './assets/Fotinhos/icono-ventas.png'
 import iconReparaciones from './assets/Fotinhos/icono-reparaciones.png'
 import iconStock from './assets/Fotinhos/icono-stock.png'
 import iconReportes from './assets/Fotinhos/icono-reportes.png'
+import iconPagoProveedores from './assets/Fotinhos/icono-pagoproveedores.png'
 import { InicioView } from './views/InicioView'; // Conectado perfectamente
 import { ClientesView } from './views/ClientesView';
 import { BicicletasView } from './views/BicicletasView';
@@ -63,7 +64,8 @@ function App() {
             { id: 'ventas', label: 'Ventas', icon: iconVentas },
             { id: 'reparaciones', label: 'Reparaciones', icon: iconReparaciones },
             { id: 'stock', label: 'Stock', icon: iconStock },
-            { id: 'reportes', label: 'Reportes', icon: iconReportes }
+            { id: 'reportes', label: 'Reportes', icon: iconReportes },
+            { id: 'pago-proveedores', label: 'Pago a Proveedores', icon: iconPagoProveedores }
           ].map((item) => {
             const activo = vistaActual === item.id;
             return (
