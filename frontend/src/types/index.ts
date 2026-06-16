@@ -53,3 +53,30 @@ export interface Producto {
   stock_minimo: number;
 }
 
+export interface Proveedor {
+  id_proveedor?: number;
+  nombre_empresa: string;
+  cuit: string;
+  telefono: string;
+  email: string;
+  direccion: string;
+}
+
+export interface MetodoPago {
+  id_metodo_pago: number;
+  nombre: string;
+}
+
+export interface PagoProveedor {
+  id_pago?: number;
+  id_proveedor: number;
+  proveedor_nombre?: string;
+  id_usuario: number;
+  usuario_nombre?: string;
+  id_metodo_pago: number;
+  metodo_pago_nombre?: string;
+  fecha?: string;
+  monto_total: number;
+  observaciones?: string;
+}
+

@@ -17,6 +17,7 @@ import tallerRoutes from './routes/taller.routes.js';
 import detalleReparacionRoutes from './routes/detalleReparacion.routes.js';
 import proveedorRoutes from './routes/proveedor.routes.js';
 import ingresoRoutes from './routes/ingreso.routes.js';
+import pagoProveedorRoutes from './routes/pagoProveedor.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,6 +48,7 @@ app.use('/api/talleres', tallerRoutes);
 app.use('/api/detalle-reparacion', detalleReparacionRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/ingresos', ingresoRoutes);
+app.use('/api/pagos-proveedores', pagoProveedorRoutes);
 
 app.listen(PORT, () => {
   console.log(`[Server]: 🚴 Backend de BikeSystem corriendo ordenadamente en http://localhost:${PORT}`);
