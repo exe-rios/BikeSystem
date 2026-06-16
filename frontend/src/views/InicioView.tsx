@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import iconCarrito from '../assets/Fotinhos/carrito.png';
+import iconReparar from '../assets/Fotinhos/reparar.png';
+import iconAlerta from '../assets/Fotinhos/alerta.png';
+import iconGrafico from '../assets/Fotinhos/grafico-de-barras.png';
 
 interface InicioViewProps {
   onNavigate: (view: string) => void;
@@ -40,17 +44,19 @@ export function InicioView({ onNavigate }: InicioViewProps) {
               fontSize: '1.2rem', fontWeight: '700', cursor: 'pointer'
             }}
           >
-            🛒 Nueva Venta
+            <img src={iconCarrito} alt="Nueva Venta" style={{ width: '24px', height: '24px' }} />
+            Nueva Venta
           </button>
           <button 
             onClick={() => onNavigate('reparaciones')}
             style={{
               height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-              backgroundColor: '#16161a', color: '#fff', border: '1px solid #333', borderRadius: '6px',
+              backgroundColor: '#fff', color: '#333', border: '1px solid #333', borderRadius: '6px',
               fontSize: '1.2rem', fontWeight: '700', cursor: 'pointer'
             }}
           >
-            🔧 Nueva Reparación
+            <img src={iconReparar} alt="Nueva Reparación" style={{ width: '24px', height: '24px' }} />
+            Nueva Reparación
           </button>
         </div>
       </div>
@@ -69,8 +75,9 @@ export function InicioView({ onNavigate }: InicioViewProps) {
           justifyContent: 'space-between' 
         }}>
           <div>
-            <h3 style={{ fontSize: '1rem', fontWeight: '600', margin: '0 0 14px 0', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              ⚠️ Alertas de Stock
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', margin: '0 0 14px 0', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <img src={iconAlerta} alt="Alertas de Stock" style={{ width: '20px', height: '20px' }} />
+              Alertas de Stock
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {stockAlerts.map((item) => (
@@ -101,7 +108,10 @@ export function InicioView({ onNavigate }: InicioViewProps) {
           border: '1px solid #ccc', // <-- CAMBIA EL BORDE ACÁ
           padding: '20px' 
         }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', margin: '0 0 14px 0', color: '#aaa' }}>Estadísticas del Día</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+            <img src={iconGrafico} alt="Estadísticas del Día" style={{ width: '24px', height: '24px' }} />
+            <h3 style={{ fontSize: '1rem', fontWeight: '600', margin: 0, color: '#aaa' }}>Estadísticas del Día</h3>
+          </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div style={{ padding: '12px', backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #ccc' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: '#777' }}>Ventas Hoy</p>
