@@ -56,7 +56,7 @@ function App() {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // Si hay token, renderizamos la App con el menú y contenido dinámico tal como lo tenías
+  // Si hay token, renderizamos la App con el menú y contenido dinámico completo
   return (
     <div style={{
       display: 'flex',
@@ -134,53 +134,74 @@ function App() {
           })}
         </div>
 
-        {/* Perfil del Usuario + Botón de Salida */}
+        {/* --- APARTADO DE USUARIO AGRANDADO Y SIMÉTRICO --- */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingTop: '20px',
-          borderTop: '1px solid var(--borde-input)'
+          flexDirection: 'column',
+          gap: '16px',
+          paddingTop: '24px',
+          borderTop: '1px solid var(--borde-input)',
+          width: '100%',
+          boxSizing: 'border-box'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Fila del Perfil */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
-              width: '38px',
-              height: '38px',
+              width: '46px', // Avatar más grande y legible
+              height: '46px',
               borderRadius: '50%',
               backgroundColor: 'var(--azul-oscuro)',
               color: 'white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '0.9rem'
+              fontWeight: '700',
+              fontSize: '1.05rem',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
             }}>
               {userName ? userName.split(' ').map(n => n[0]).join('') : 'U'}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <span style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
                 {userName || 'Usuario'}
               </span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--texto-mutado)', width: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {userEmail || 'correo@bikesystem.com'}
               </span>
             </div>
           </div>
 
-          {/* Botón de Logout interactivo */}
+          {/* Botón Cerrar Sesión completo de ancho completo */}
           <button
             onClick={handleLogout}
-            title="Cerrar sesión"
             style={{
-              background: 'none', border: 'none', fontSize: '1.2rem',
-              cursor: 'pointer', padding: '4px 8px', borderRadius: '6px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              transition: 'background-color 0.2s'
+              width: '100%',
+              backgroundColor: 'rgba(239, 68, 68, 0.06)', // Fondo rojizo UI limpio
+              color: '#333',
+              border: '1px solid rgba(239, 68, 68, 0.15)',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              padding: '11px',
+              borderRadius: '10px', // Misma simetría que los botones del menú superior
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              transition: 'all 0.2s ease-in-out',
+              boxSizing: 'border-box'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.08)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(189, 189, 189, 0.12)';
+              e.currentTarget.style.borderColor = '#ccc';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(189, 189, 189, 0.12)';
+              e.currentTarget.style.borderColor = '#333';
+            }}
           >
-            🚪
+            <span></span> Cerrar Sesión
           </button>
         </div>
       </aside>
