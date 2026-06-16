@@ -8,7 +8,7 @@ import iconReparaciones from './assets/Fotinhos/icono-reparaciones.png'
 import iconStock from './assets/Fotinhos/icono-stock.png'
 import iconReportes from './assets/Fotinhos/icono-reportes.png'
 import iconPagoProveedores from './assets/Fotinhos/icono-pagoproveedores.png'
-import logoDnBike from './assets/Fotinhos/iconoDnBike.jpeg'
+import logoDnBike from './assets/Fotinhos/iconoDnBike.jpeg' // Mantengo el logo nuevo de tu compañero
 import { InicioView } from './views/InicioView';
 import { ClientesView } from './views/ClientesView';
 import { BicicletasView } from './views/BicicletasView';
@@ -18,7 +18,7 @@ import { StockView } from './views/StockView';
 import { ReportesView } from './views/ReportesView';
 import { PagoProveedores } from './views/PagoProveedores';
 
-// Importamos la nueva vista de Login
+// Importamos la vista de Login
 import { LoginView } from './views/LoginView';
 
 function App() {
@@ -38,7 +38,7 @@ function App() {
     setToken(tokenRecibido);
     setUserEmail(emailRecibido);
     setUserName(nombreRecibido);
-    setVistaActual('inicio'); // Forzamos ir al inicio al loguearse
+    setVistaActual('inicio');
   };
 
   // Manejador del Logout
@@ -57,7 +57,6 @@ function App() {
     return <LoginView onLoginSuccess={handleLoginSuccess} />;
   }
 
-  // Si hay token, renderizamos la App con el menú y contenido dinámico completo
   return (
     <div style={{
       display: 'flex',
@@ -83,7 +82,7 @@ function App() {
       }}>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {/* Título de Marca */}
+          {/* Título de Marca (Cambio de tu compañero respetado) */}
           <h2
             style={{
               display: 'flex',
@@ -96,7 +95,6 @@ function App() {
               paddingLeft: '10px'
             }}
           >
-            {/* Imagen como Icono */}
             <img
               src={logoDnBike}
               alt="Logo DN Bike"
@@ -151,46 +149,57 @@ function App() {
           })}
         </div>
 
-        {/* Perfil del Usuario */}
+        {/* --- APARTADO DE USUARIO AGRANDADO Y SIMÉTRICO (RESTAURADO Y ARREGLADO) --- */}
         <div style={{
           display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          paddingTop: '20px',
-          borderTop: '1px solid var(--borde-input)'
+          flexDirection: 'column',
+          gap: '16px',
+          paddingTop: '24px',
+          borderTop: '1px solid var(--borde-input)',
+          width: '100%',
+          boxSizing: 'border-box'
         }}>
-          <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '50%',
-            backgroundColor: 'var(--azul-oscuro)',
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: '0.9rem'
-          }}>
-            AU
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Admin User</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)' }}>admin@bikesystem.com</span>
+          {/* Fila superior: Info del Perfil */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '50%',
+              backgroundColor: 'var(--azul-oscuro)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '700',
+              fontSize: '1.05rem',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+            }}>
+              {userName ? userName.split(' ').map(n => n[0]).join('') : 'U'}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <span style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
+                {userName || 'Usuario'}
+              </span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--texto-mutado)', width: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {userEmail || 'correo@bikesystem.com'}
+              </span>
+            </div>
           </div>
 
-          {/* Botón Cerrar Sesión completo de ancho completo */}
+          {/* Fila inferior: Botón Cerrar Sesión de ancho completo bien estilizado */}
           <button
             onClick={handleLogout}
             style={{
               width: '100%',
-              backgroundColor: 'rgba(239, 68, 68, 0.06)', // Fondo rojizo UI limpio
+              backgroundColor: 'rgba(239, 68, 68, 0.06)',
               color: '#333',
               border: '1px solid rgba(239, 68, 68, 0.15)',
               fontSize: '0.9rem',
               fontWeight: '600',
               cursor: 'pointer',
               padding: '11px',
-              borderRadius: '10px', // Misma simetría que los botones del menú superior
+              borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -199,12 +208,12 @@ function App() {
               boxSizing: 'border-box'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(189, 189, 189, 0.12)';
-              e.currentTarget.style.borderColor = '#ccc';
+              e.currentTarget.style.backgroundColor = '#e6e6e6';
+              e.currentTarget.style.borderColor = '#333';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(189, 189, 189, 0.12)';
-              e.currentTarget.style.borderColor = '#333';
+              e.currentTarget.style.backgroundColor = '#fff';
+              e.currentTarget.style.borderColor = '#ccc';
             }}
           >
             <span></span> Cerrar Sesión
