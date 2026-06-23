@@ -16,19 +16,19 @@ export function ReportesView() {
   });
 
   const currentKPI = reportType === 'reparaciones' ? kpiData.reparaciones :
-                     reportType === 'ingresos' ? kpiData.ingresos :
-                     kpiData.ventas;
+    reportType === 'ingresos' ? kpiData.ingresos :
+      kpiData.ventas;
 
   // TODO: Cargar detalles desde backend GET /api/reportes/detalle?tipo={reportType}&fechaDesde={fechaDesde}&fechaHasta={fechaHasta}
   const [detalleVentas] = useState<Array<{ id: number; fecha: string; tipo: string; producto: string; cliente: string; cantidad: number; importe: number }>>([]);
 
   return (
     <div style={{ padding: '4px', display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '100%', color: '#fff' }}>
-      
+
       {/* SECCIÓN SUPERIOR: TÍTULO Y ACCIONES */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{color: '#333', fontSize: '2rem', fontWeight: '700', margin: 0 }}>Gestión de Reportes</h1>
+          <h1 style={{ color: '#333', fontSize: '2rem', fontWeight: '700', margin: 0 }}>Gestión de Reportes</h1>
           <p style={{ color: '#888', fontSize: '0.9rem', margin: '4px 0 0 0' }}>Análisis estadístico del rendimiento del taller</p>
         </div>
 
