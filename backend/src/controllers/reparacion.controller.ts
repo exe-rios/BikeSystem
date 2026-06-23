@@ -13,6 +13,8 @@ export const crearReparacion = async (req: Request, res: Response): Promise<void
             return;
         }
 
+        // No se requiere id_cliente: la bicicleta es suficiente
+
         // INSERT en la tabla Reparacion (La fecha_ingreso se pone sola gracias al DEFAULT CURRENT_DATE)
         const query = `
             INSERT INTO Reparacion (id_bicicleta, id_usuario, estado, descripcion, costo_mano_obra)
