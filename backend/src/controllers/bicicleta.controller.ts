@@ -36,13 +36,23 @@ export const crearBicicleta = async (req: Request, res: Response): Promise<void>
 // Usamos un INNER JOIN para que Diego pueda ver de quién es cada bici directamente
 export const obtenerBicicletas = async (req: Request, res: Response): Promise<void> => {
     try {
-        const query = `
+        const { id_cliente } = req.query;
+
+        let query = `
             SELECT b.*, c.nombre, c.apellido 
             FROM Bicicleta b
             INNER JOIN Cliente c ON b.id_cliente = c.id_cliente
-            ORDER BY b.id_bicicleta DESC;
         `;
-        const result = await pool.query(query);
+
+        const params: any[] = [];
+        if (id_cliente) {
+            query += ` WHERE b.id_cliente = $1`;
+            params.push(id_cliente);
+        }
+
+        query += ` ORDER BY b.id_bicicleta DESC;`;
+
+        const result = await pool.query(query, params);
         
         res.status(200).json({ total: result.rowCount, bicicletas: result.rows });
     } catch (error) {
