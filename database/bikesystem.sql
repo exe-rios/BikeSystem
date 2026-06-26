@@ -155,6 +155,25 @@ CREATE TABLE Detalle_Ingreso (
     CONSTRAINT fk_deting_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE RESTRICT
 );
 
+-- 1. Creamos la función (Procedimiento Almacenado)
+CREATE OR REPLACE FUNCTION actualizar_stock_venta()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Descontar la cantidad vendida del stock del producto
+    UPDATE Productos
+    SET cantidad = cantidad - NEW.cantidad
+    WHERE id_producto = NEW.id_producto;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- 2. Creamos el Trigger
+CREATE TRIGGER trg_actualizar_stock_venta
+AFTER INSERT ON Detalle_Venta
+FOR EACH ROW
+EXECUTE FUNCTION actualizar_stock_venta();
+
 Para tus compañeros, el proceso sería:
 # 1. Clonar el proyecto
 # 2. Levantar la DB
