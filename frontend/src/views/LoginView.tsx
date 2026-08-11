@@ -1,11 +1,14 @@
 import { useState } from 'react';
 
 interface LoginViewProps {
-    onLoginSuccess: (token: string, usuarioEmail: string, usuarioNombre: string) => void;
+    onLoginSuccess: (token: string, usuarioNombre: string) => void;
 }
 
+const API_URL = 'http://localhost:3000';
+
 export function LoginView({ onLoginSuccess }: LoginViewProps) {
-    const [email, setEmail] = useState('');
+    // Cambiamos 'email' por 'usuario' para ser coherentes con la BD
+    const [usuario, setUsuario] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [cargando, setCargando] = useState(false);
@@ -15,25 +18,51 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
         setError('');
         setCargando(true);
 
-        if (!email || !password) {
+        if (!usuario || !password) {
             setError('Por favor, completa todos los campos.');
             setCargando(false);
             return;
         }
 
         try {
-            // --- SIMULACIÓN DE BACKEND (Cambiar por tu FETCH real más adelante) ---
-            await new Promise((resolve) => setTimeout(resolve, 1000)); // Simula un segundo de delay
+            // 💡 Se cambió '/api/auth/login' por '/api/login' para coincidir con tu backend
+            const response = await fetch(`${API_URL}/api/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    nombre_usuario: usuario,
+                    contrasena: password
+                })
+            });
 
-            if (email === 'admin@bikesystem.com' && password === 'admin123') {
-                // Al tener éxito pasamos Token ficticio, Email y Nombre a mostrar
-                onLoginSuccess('fake-jwt-token-xyz123', 'admin@bikesystem.com', 'Admin User');
-            } else {
-                setError('Credenciales incorrectas. (Prueba con admin@bikesystem.com / admin123)');
+            // Validación defensiva por si el servidor no devuelve JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                throw new Error(`Ruta no encontrada en el backend (Estado ${response.status}). Revisa las rutas de Express.`);
             }
-            // ---------------------------------------------------------------------
-        } catch (err) {
-            setError('Error de conexión con el servidor.');
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.mensaje || data.error || 'Credenciales incorrectas');
+            }
+
+            // Guardamos el token JWT REAL generado por el backend
+            localStorage.setItem('token', data.token);
+
+            // Notificamos al estado global
+            // (Si tu backend devuelve 'data.usuario.nombre_usuario', ajusta el fallback)
+            const nombreMostrar = data.usuario?.nombre || data.usuario?.nombre_usuario || usuario;
+            onLoginSuccess(data.token, nombreMostrar);
+
+        } catch (err: unknown) {
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError('Error de conexión con el servidor.');
+            }
         } finally {
             setCargando(false);
         }
@@ -63,20 +92,20 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
                         backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444',
                         color: '#ef4444', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem'
                     }}>
-                        {error}
+                        ⚠️ {error}
                     </div>
                 )}
 
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                     <div>
                         <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                            Correo Electrónico
+                            Nombre de Usuario
                         </label>
                         <input
-                            type="email"
-                            placeholder="nombre@correo.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            type="text"
+                            placeholder="Ej: admin"
+                            value={usuario}
+                            onChange={(e) => setUsuario(e.target.value)}
                             style={{
                                 width: '100%', padding: '11px 14px', borderRadius: '8px', border: '1px solid var(--borde-input)',
                                 backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', fontSize: '0.9rem', boxSizing: 'border-box'

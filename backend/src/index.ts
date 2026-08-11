@@ -1,9 +1,6 @@
+import 'dotenv/config'; // <-- ESTO CARGA EL .ENV ANTES QUE CUALQUIER OTRO IMPORT
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
-
-// Inicializamos dotenv lo antes posible
-dotenv.config();
 
 // RUTAS DEL NEGOCIO
 import authRoutes from './routes/auth.routes.js';
@@ -22,6 +19,8 @@ import reporteRoutes from './routes/reporte.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ... (el resto de tu archivo queda exactamente igual)
 
 // ==========================================
 // CONFIGURACIÓN DE SEGURIDAD CORS

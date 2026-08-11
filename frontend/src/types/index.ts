@@ -27,14 +27,6 @@ export interface Bicicleta {
   precio: number;
 }
 
-export interface Venta {
-  id_venta?: number;
-  id_cliente: number;
-  fecha: string;
-  total: number;
-  tipo_pago: 'Efectivo' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Transferencia';
-}
-
 export interface Reparacion {
   id_reparacion?: number;
   id_bicicleta: number;
@@ -80,3 +72,42 @@ export interface PagoProveedor {
   observaciones?: string;
 }
 
+// --- NUEVAS EXTENSIONES Y TIPOS PARA EL MÓDULO DE VENTAS Y STOCK ---
+
+export interface ProductoStock {
+  id_producto: number;
+  nombre: string;
+  marca: string;
+  modelo: string;
+  tipo_producto: 'bicicleta' | 'accesorio' | 'repuesto';
+  cantidad: number;
+  precio: number;
+  numero_serie?: string;
+  color?: string;
+  rodado?: string;
+  talle?: string;
+}
+
+export interface DetalleVentaItem {
+  id_producto: number;
+  nombre: string;
+  tipo_producto: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  numero_serie?: string;
+  marca?: string;
+  modelo?: string;
+  color?: string;
+  rodado?: string;
+  talle?: string;
+}
+
+export interface Venta {
+  id_venta?: number;
+  id_cliente: number;
+  fecha: string;
+  total: number;
+  tipo_pago: 'Efectivo' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Transferencia';
+  detalles?: DetalleVentaItem[];
+}
