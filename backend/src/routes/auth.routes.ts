@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/db.js';
 
+
 const router: ExpressRouter = Router();
 
 // Test de salud
@@ -34,23 +35,32 @@ router.post('/login', async (req, res) => {
         const result = await pool.query(query, [nombre_usuario]);
         const usuario = result.rows[0];
 
+        // LOG DE CONTROL
         if (!usuario) {
+            console.log(`❌ Usuario no encontrado en BD: "${nombre_usuario}"`);
             res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
             return;
         }
 
         const contrasenaValida = await bcrypt.compare(contrasena, usuario.contrasena);
+        
+        // LOG DE CONTROL
         if (!contrasenaValida) {
+            console.log(`❌ Contraseña incorrecta para el usuario: "${nombre_usuario}"`);
             res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
             return;
         }
 
-        const secreto = process.env.JWT_SECRET;
+        // Respaldo de clave secreta por si falta en el .env
+        const secreto = process.env.JWT_SECRET || 'clave_secreta_bikesystem_desarrollo_2026';
+
         const token = jwt.sign(
             { id: usuario.id_usuario, rol: usuario.rol },
-            secreto!,
+            secreto,
             { expiresIn: '8h' }
         );
+
+        console.log(`✅ Login exitoso para: "${nombre_usuario}" (${usuario.rol})`);
 
         res.status(200).json({
             message: 'Login exitoso',
@@ -58,6 +68,7 @@ router.post('/login', async (req, res) => {
             usuario: { id: usuario.id_usuario, nombre: usuario.nombre_usuario, rol: usuario.rol }
         });
     } catch (err) {
+        console.error('[AUTH LOGIN ERROR]:', err);
         res.status(500).json({ error: 'Error en el servidor al intentar iniciar sesión' });
     }
 });
