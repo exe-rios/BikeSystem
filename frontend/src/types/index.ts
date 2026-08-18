@@ -2,7 +2,7 @@ export interface Usuario {
   id_usuario?: number;
   nombre_usuario: string;
   contrasena?: string;
-  rol: 'ADMIN' | 'SUPERADMIN' | 'EMPLEADO';
+  rol: 'ADMIN' | 'SUPERADMIN' | 'EMPLEADO' | string;
 }
 
 export interface Cliente {
@@ -18,30 +18,53 @@ export interface Cliente {
 export interface Bicicleta {
   id_bicicleta?: number;
   id_cliente: number;
-  numero_serie: string;
   marca: string;
   modelo: string;
-  color: string;
-  rodado: string;
-  talle: string;
-  precio: number;
+  nombre?: string;
+  apellido?: string;
 }
 
 export interface Reparacion {
   id_reparacion?: number;
   id_bicicleta: number;
-  descripcion_falla: string;
-  costo_estimado: number;
+  id_usuario?: number;
+  fecha_ingreso?: string;
+  fecha_egreso?: string | null;
   estado: 'Recibida' | 'En Reparación' | 'Lista' | 'Entregada';
-  fecha_ingreso: string;
+  descripcion: string;
+  costo_mano_obra?: number;
+  costo_total?: number;
+  marca?: string;
+  modelo?: string;
+  cliente_nombre?: string;
+  cliente_apellido?: string;
+}
+
+export interface DetalleReparacionItem {
+  id_detalle_rep?: number;
+  id_reparacion: number;
+  id_producto: number;
+  cantidad: number;
+  precio_unitario: number;
+  costo_total: number;
+  nombre?: string;
+  marca?: string;
+  modelo?: string;
+  tipo_prod?: string;
 }
 
 export interface Producto {
   id_producto?: number;
   nombre: string;
-  categoria: 'Repuesto' | 'Accesorio' | 'Componente';
-  precio_venta: number;
+  marca?: string;
+  modelo?: string;
+  tipo_prod: 'bicicleta' | 'repuesto' | 'accesorio' | 'componente';
   cantidad: number;
+  numero_serie?: string;
+  color?: string;
+  rodado?: string;
+  talle?: string;
+  precio: number;
   stock_minimo: number;
 }
 
@@ -72,32 +95,16 @@ export interface PagoProveedor {
   observaciones?: string;
 }
 
-// --- NUEVAS EXTENSIONES Y TIPOS PARA EL MÓDULO DE VENTAS Y STOCK ---
-
-export interface ProductoStock {
-  id_producto: number;
-  nombre: string;
-  marca: string;
-  modelo: string;
-  tipo_producto: 'bicicleta' | 'accesorio' | 'repuesto';
-  cantidad: number;
-  precio: number;
-  numero_serie?: string;
-  color?: string;
-  rodado?: string;
-  talle?: string;
-}
-
 export interface DetalleVentaItem {
   id_producto: number;
-  nombre: string;
-  tipo_producto: string;
   cantidad: number;
-  precioUnitario: number;
-  subtotal: number;
-  numero_serie?: string;
+  precio_unitario: number;
+  costo_total?: number;
+  nombre?: string;
   marca?: string;
   modelo?: string;
+  tipo_prod?: string;
+  numero_serie?: string;
   color?: string;
   rodado?: string;
   talle?: string;
@@ -106,8 +113,61 @@ export interface DetalleVentaItem {
 export interface Venta {
   id_venta?: number;
   id_cliente: number;
-  fecha: string;
-  total: number;
-  tipo_pago: 'Efectivo' | 'Tarjeta de Débito' | 'Tarjeta de Crédito' | 'Transferencia';
+  id_usuario?: number;
+  fecha?: string;
+  costo_total: number;
+  cliente_nombre?: string;
+  cliente_apellido?: string;
+  vendedor?: string;
   detalles?: DetalleVentaItem[];
+}
+
+export interface DetalleIngresoItem {
+  id_detalle_ing?: number;
+  id_ingreso?: number;
+  id_producto: number;
+  cantidad: number;
+  precio_costo: number;
+  nombre?: string;
+  marca?: string;
+  modelo?: string;
+}
+
+export interface IngresoStock {
+  id_ingreso?: number;
+  id_proveedor: number;
+  id_usuario?: number;
+  fecha_ingreso?: string;
+  num_comprobante: string;
+  proveedor?: string;
+  proveedor_telefono?: string;
+  usuario_registro?: string;
+  total_items?: number;
+  monto_total_costo?: number;
+  detalles?: DetalleIngresoItem[];
+}
+
+export interface DashboardFinanzas {
+  ventas_mostrador: number;
+  ingresos_taller: number;
+  total_mes: number;
+}
+
+export interface DashboardTallerActivo {
+  estado: string;
+  cantidad: string | number;
+}
+
+export interface DashboardAlertaStock {
+  id_producto: number;
+  nombre: string;
+  marca: string;
+  cantidad: number;
+  stock_minimo: number;
+}
+
+export interface DashboardData {
+  finanzas: DashboardFinanzas;
+  taller_activo: DashboardTallerActivo[];
+  alertas_stock: DashboardAlertaStock[];
 }
