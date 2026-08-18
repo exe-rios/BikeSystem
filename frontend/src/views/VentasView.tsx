@@ -191,8 +191,9 @@ export function VentasView() {
     }
   };
 
-  // Filtrado de productos en el selector de la venta
+  // Filtrado de productos en el selector de la venta (solo productos activos)
   const productosFiltrados = productos.filter(p => {
+    if (p.activo === false) return false;
     const prodTipo = (p.tipo_prod || '').toLowerCase().trim();
     const filtro = filtroTipo.toLowerCase().trim();
     return filtro === 'todos' || prodTipo.startsWith(filtro) || filtro.startsWith(prodTipo);

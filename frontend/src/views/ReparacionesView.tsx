@@ -233,7 +233,7 @@ export function ReparacionesView() {
     return desc.includes(term) || marca.includes(term) || modelo.includes(term) || cliente.includes(term) || idStr.includes(term);
   });
 
-  const repuestosDisponibles = productos.filter(p => (p.tipo_prod || '').toLowerCase() !== 'bicicleta');
+  const repuestosDisponibles = productos.filter(p => p.activo !== false && (p.tipo_prod || '').toLowerCase() !== 'bicicleta');
   const productoRepuestoSeleccionado = productos.find(p => p.id_producto === repuestoSeleccionadoId);
   const totalRepuestosCosto = repuestosUtilizados.reduce((acc, item) => acc + Number(item.costo_total || 0), 0);
 

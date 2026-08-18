@@ -40,7 +40,8 @@ CREATE TABLE Productos (
     rodado VARCHAR(20) NULL,
     talle VARCHAR(20) NULL,
     precio DECIMAL(10, 2),
-    stock_minimo INT DEFAULT 0
+    stock_minimo INT DEFAULT 0,
+    activo BOOLEAN NOT NULL DEFAULT true
 );
 
 

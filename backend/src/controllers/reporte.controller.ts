@@ -24,11 +24,11 @@ export const obtenerDashboard = async (req: Request, res: Response): Promise<voi
         `;
         const resultTaller = await pool.query(queryTaller);
 
-        // 3. Alertas de inventario (Top 5 productos que urgen comprar)
+        // 3. Alertas de inventario (Top 5 productos activos que urgen comprar)
         const queryStock = `
             SELECT id_producto, nombre, marca, cantidad, stock_minimo 
             FROM Productos 
-            WHERE cantidad <= stock_minimo 
+            WHERE activo = true AND cantidad <= stock_minimo 
             ORDER BY cantidad ASC 
             LIMIT 5;
         `;

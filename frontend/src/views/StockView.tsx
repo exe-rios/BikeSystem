@@ -8,6 +8,7 @@ export function StockView() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [filtroEstado, setFiltroEstado] = useState<'todos' | 'activos' | 'inactivos'>('todos');
   const [busqueda, setBusqueda] = useState<string>('');
 
   // Modal State for Editing
@@ -25,7 +26,8 @@ export function StockView() {
     numero_serie: '',
     color: '',
     rodado: '29',
-    talle: 'M'
+    talle: 'M',
+    activo: true
   });
 
   const cargarProductos = async () => {
@@ -77,7 +79,8 @@ export function StockView() {
         numero_serie: '',
         color: '',
         rodado: '29',
-        talle: 'M'
+        talle: 'M',
+        activo: true
       });
       await cargarProductos();
     } catch (err: unknown) {
@@ -115,26 +118,48 @@ export function StockView() {
   };
 
   const handleEliminarProducto = async (id: number, nombre: string) => {
-    if (!window.confirm(`¿Seguro que deseas eliminar "${nombre}" del inventario?`)) {
+    if (!window.confirm(`¿Seguro que deseas dar de baja "${nombre}" del inventario?\n\nEl producto ya no aparecerá disponible para nuevas ventas o reparaciones, pero se mantendrán intactos todos sus registros históricos.`)) {
       return;
     }
 
     try {
       await api.productos.delete(id);
-      alert('Producto eliminado');
+      alert('Producto dado de baja exitosamente');
       await cargarProductos();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        alert(`No se pudo eliminar: ${err.message}`);
+        alert(`No se pudo dar de baja: ${err.message}`);
       }
     }
   };
 
-  // Filtrado robusto insensible a mayúsculas y espacios
+  const handleReactivarProducto = async (id: number, nombre: string) => {
+    if (!window.confirm(`¿Deseas reactivar "${nombre}" para que vuelva a estar disponible en ventas y taller?`)) {
+      return;
+    }
+
+    try {
+      await api.productos.reactivate(id);
+      alert('Producto reactivado exitosamente');
+      await cargarProductos();
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert(`No se pudo reactivar: ${err.message}`);
+      }
+    }
+  };
+
+  // Filtrado robusto insensible a mayúsculas, espacios y estado
   const productosFiltrados = productos.filter(p => {
     const prodTipo = (p.tipo_prod || '').toLowerCase().trim();
     const filtro = filtroTipo.toLowerCase().trim();
     const cumpleFiltro = filtro === 'todos' || prodTipo.startsWith(filtro) || filtro.startsWith(prodTipo);
+
+    const esActivo = p.activo !== false;
+    const cumpleEstado =
+      filtroEstado === 'todos' ||
+      (filtroEstado === 'activos' && esActivo) ||
+      (filtroEstado === 'inactivos' && !esActivo);
 
     const termino = busqueda.toLowerCase().trim();
     const cumpleBusqueda =
@@ -145,7 +170,7 @@ export function StockView() {
       (p.numero_serie && p.numero_serie.toLowerCase().includes(termino)) ||
       (p.tipo_prod && p.tipo_prod.toLowerCase().includes(termino));
 
-    return cumpleFiltro && cumpleBusqueda;
+    return cumpleFiltro && cumpleEstado && cumpleBusqueda;
   });
 
   return (
@@ -364,29 +389,57 @@ export function StockView() {
             </p>
           </div>
 
-          {/* Filtros de Categoría Funcionales */}
-          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-            {['todos', 'bicicleta', 'repuesto', 'accesorio', 'componente'].map(tipo => (
-              <button
-                key={tipo}
-                type="button"
-                onClick={() => setFiltroTipo(tipo)}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.82rem',
-                  fontWeight: '600',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textTransform: 'capitalize',
-                  backgroundColor: filtroTipo === tipo ? 'var(--azul-oscuro)' : 'var(--bg-principal)',
-                  color: filtroTipo === tipo ? '#fff' : 'var(--texto-mutado)',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                {tipo}
-              </button>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+            {/* Filtros de Tipo */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              {['todos', 'bicicleta', 'repuesto', 'accesorio', 'componente'].map(tipo => (
+                <button
+                  key={tipo}
+                  type="button"
+                  onClick={() => setFiltroTipo(tipo)}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textTransform: 'capitalize',
+                    backgroundColor: filtroTipo === tipo ? 'var(--azul-oscuro)' : 'var(--bg-principal)',
+                    color: filtroTipo === tipo ? '#fff' : 'var(--texto-mutado)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {tipo}
+                </button>
+              ))}
+            </div>
+
+            {/* Filtros de Estado (Borrado Lógico) */}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--texto-mutado)' }}>Estado:</span>
+              {(['todos', 'activos', 'inactivos'] as const).map(est => (
+                <button
+                  key={est}
+                  type="button"
+                  onClick={() => setFiltroEstado(est)}
+                  style={{
+                    padding: '3px 10px',
+                    borderRadius: '6px',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    border: '1px solid var(--borde-input)',
+                    cursor: 'pointer',
+                    textTransform: 'capitalize',
+                    backgroundColor: filtroEstado === est ? (est === 'inactivos' ? '#ef4444' : '#10b981') : 'var(--bg-principal)',
+                    color: filtroEstado === est ? '#fff' : 'var(--texto-mutado)',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {est === 'todos' ? 'Todos' : est === 'activos' ? 'Activos' : 'Inactivos (Bajas)'}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -420,30 +473,38 @@ export function StockView() {
                 <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Tipo</th>
                 <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Precio</th>
                 <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', textAlign: 'center' }}>Stock</th>
-                <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Estado</th>
+                <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Estado Catálogo</th>
+                <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Salud Stock</th>
                 <th style={{ padding: '12px 16px', textAlign: 'right' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {cargando ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+                  <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                     Cargando inventario...
                   </td>
                 </tr>
               ) : productosFiltrados.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+                  <td colSpan={7} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                     No se encontraron artículos con los filtros aplicados.
                   </td>
                 </tr>
               ) : (
                 productosFiltrados.map(p => {
                   const esBajoStock = p.cantidad <= p.stock_minimo;
+                  const esActivo = p.activo !== false;
                   return (
-                    <tr key={p.id_producto} style={{ borderBottom: '1px solid var(--borde-input)', backgroundColor: esBajoStock ? 'rgba(239, 68, 68, 0.04)' : 'transparent' }}>
+                    <tr key={p.id_producto} style={{
+                      borderBottom: '1px solid var(--borde-input)',
+                      backgroundColor: !esActivo ? 'rgba(148, 163, 184, 0.08)' : esBajoStock ? 'rgba(239, 68, 68, 0.04)' : 'transparent',
+                      opacity: !esActivo ? 0.75 : 1
+                    }}>
                       <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: '600', color: 'var(--texto-principal)' }}>{p.nombre}</div>
+                        <div style={{ fontWeight: '600', color: esActivo ? 'var(--texto-principal)' : 'var(--texto-mutado)' }}>
+                          {p.nombre}
+                        </div>
                         {(p.marca || p.modelo) && (
                           <div style={{ fontSize: '0.8rem', color: 'var(--texto-mutado)' }}>
                             {p.marca} {p.modelo}
@@ -475,6 +536,17 @@ export function StockView() {
                         {p.cantidad} <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--texto-mutado)' }}>/ min {p.stock_minimo}</span>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
+                        {esActivo ? (
+                          <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                            ✓ Activo
+                          </span>
+                        ) : (
+                          <span style={{ backgroundColor: '#f1f5f9', color: '#64748b', border: '1px solid #cbd5e1', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
+                            ✕ Dado de Baja
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
                         {esBajoStock ? (
                           <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '3px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: '700' }}>
                             REABASTECER
@@ -492,12 +564,23 @@ export function StockView() {
                         >
                           Editar
                         </button>
-                        <button
-                          onClick={() => p.id_producto && handleEliminarProducto(p.id_producto, p.nombre)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}
-                        >
-                          Eliminar
-                        </button>
+                        {esActivo ? (
+                          <button
+                            onClick={() => p.id_producto && handleEliminarProducto(p.id_producto, p.nombre)}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', fontWeight: '600', fontSize: '0.85rem', cursor: 'pointer' }}
+                            title="Dar de baja producto (conserva historial)"
+                          >
+                            Dar de baja
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => p.id_producto && handleReactivarProducto(p.id_producto, p.nombre)}
+                            style={{ background: 'none', border: 'none', color: '#10b981', fontWeight: '700', fontSize: '0.85rem', cursor: 'pointer' }}
+                            title="Reactivar producto en catálogo"
+                          >
+                            Reactivar
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -595,6 +678,18 @@ export function StockView() {
                 </div>
               </div>
 
+              <div style={{ marginTop: '4px', padding: '10px 12px', backgroundColor: 'var(--bg-principal)', borderRadius: '8px', border: '1px solid var(--borde-input)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={productoEditando.activo !== false}
+                    onChange={e => setProductoEditando({ ...productoEditando, activo: e.target.checked })}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span>Producto Activo (Visible para nuevas ventas y reparaciones)</span>
+                </label>
+              </div>
+
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setMostrarModalEditar(false)} style={{ flex: 1, padding: '11px', border: '1px solid var(--borde-input)', borderRadius: '8px', backgroundColor: 'transparent', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
                 <button type="submit" disabled={guardando} style={{ flex: 2, padding: '11px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: guardando ? 'not-allowed' : 'pointer', opacity: guardando ? 0.7 : 1 }}>
@@ -609,3 +704,4 @@ export function StockView() {
     </div>
   );
 }
+
