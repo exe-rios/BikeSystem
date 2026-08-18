@@ -1,10 +1,9 @@
 import { useState } from 'react';
+import { api } from '../services/api';
 
 interface LoginViewProps {
-    onLoginSuccess: (token: string, usuarioNombre: string) => void;
+    onLoginSuccess: (token: string, usuario: { id: number; nombre: string; rol: string }) => void;
 }
-
-const API_URL = 'http://localhost:3000';
 
 export function LoginView({ onLoginSuccess }: LoginViewProps) {
     // Cambiamos 'email' por 'usuario' para ser coherentes con la BD
@@ -18,45 +17,15 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
         setError('');
         setCargando(true);
 
-        if (!usuario || !password) {
+        if (!usuario.trim() || !password) {
             setError('Por favor, completa todos los campos.');
             setCargando(false);
             return;
         }
 
         try {
-            // 💡 Se cambió '/api/auth/login' por '/api/login' para coincidir con tu backend
-            const response = await fetch(`${API_URL}/api/login`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    nombre_usuario: usuario,
-                    contrasena: password
-                })
-            });
-
-            // Validación defensiva por si el servidor no devuelve JSON
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error(`Ruta no encontrada en el backend (Estado ${response.status}). Revisa las rutas de Express.`);
-            }
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.mensaje || data.error || 'Credenciales incorrectas');
-            }
-
-            // Guardamos el token JWT REAL generado por el backend
-            localStorage.setItem('token', data.token);
-
-            // Notificamos al estado global
-            // (Si tu backend devuelve 'data.usuario.nombre_usuario', ajusta el fallback)
-            const nombreMostrar = data.usuario?.nombre || data.usuario?.nombre_usuario || usuario;
-            onLoginSuccess(data.token, nombreMostrar);
-
+            const data = await api.auth.login(usuario.trim(), password);
+            onLoginSuccess(data.token, data.usuario);
         } catch (err: unknown) {
             if (err instanceof Error) {
                 setError(err.message);

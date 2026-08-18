@@ -8,15 +8,15 @@ import { google } from 'googleapis';
 const SCOPES = ['https://www.googleapis.com/auth/drive.file'];
 
 // Configuramos la autenticación con la Cuenta de Servicio
-// Construimos la instancia de JWT usando el objeto de opciones (firma de la librería más reciente)
-const auth = new google.auth.JWT({
+const jwtOptions: any = {
     email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'), // Corrige los saltos de línea de la clave
+    key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
     scopes: SCOPES
-});
+};
+
+const auth = new google.auth.JWT(jwtOptions);
 
 const drive = google.drive({ version: 'v3', auth });
-
 
 export const iniciarPlanDeRespaldos = () => {
     // Programado para ejecutarse TODOS los días a las 19:50 hs
@@ -43,10 +43,12 @@ export const iniciarPlanDeRespaldos = () => {
                 }
 
                 // Preparamos los metadatos para Google Drive
-                const fileMetadata = {
+                const fileMetadata: { name: string; parents?: string[] } = {
                     name: nombreArchivo,
-                    parents: process.env.GOOGLE_DRIVE_FOLDER_ID ? [process.env.GOOGLE_DRIVE_FOLDER_ID] : undefined
                 };
+                if (process.env.GOOGLE_DRIVE_FOLDER_ID) {
+                    fileMetadata.parents = [process.env.GOOGLE_DRIVE_FOLDER_ID];
+                }
 
                 // Preparamos el cuerpo del archivo
                 const media = {

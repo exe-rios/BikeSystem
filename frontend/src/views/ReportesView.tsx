@@ -1,206 +1,253 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '../services/api';
+import type { DashboardData, Venta, Reparacion } from '../types';
 
-type ReportType = 'ventas' | 'reparaciones' | 'stock-uso' | 'ingresos' | 'stock-disponible';
+type ReportType = 'ventas' | 'reparaciones' | 'general';
 
 export function ReportesView() {
-  const [reportType, setReportType] = useState<ReportType>('ventas');
-  const [fechaDesde, setFechaDesde] = useState('2026-05-01');
-  const [fechaHasta, setFechaHasta] = useState('2026-05-04');
+  const [reportType, setReportType] = useState<ReportType>('general');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // TODO: Cargar KPIs desde backend POST /api/reportes/kpis con parámetros { tipo, fechaDesde, fechaHasta }
-  const [kpiData] = useState({
-    ventas: { ingresos: 0, cantidad: 0, reparaciones: 0, promedio: 0 },
-    reparaciones: { ingresos: 0, cantidad: 0, reparaciones: 0, promedio: 0 },
-    ingresos: { ingresos: 0, cantidad: 0, reparaciones: 0, promedio: 0 },
+  const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+  const [ventas, setVentas] = useState<Venta[]>([]);
+  const [reparaciones, setReparaciones] = useState<Reparacion[]>([]);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    setError(null);
+    try {
+      const [resDash, resVentas, resRep] = await Promise.all([
+        api.reportes.getDashboard().catch(() => null),
+        api.ventas.getAll().catch(() => ({ total: 0, ventas: [] })),
+        api.reparaciones.getAll().catch(() => ({ total: 0, reparaciones: [] }))
+      ]);
+
+      if (resDash) setDashboard(resDash);
+      setVentas(resVentas.ventas || []);
+      setReparaciones(resRep.reparaciones || []);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Error al cargar datos estadísticos');
+      }
+    } finally {
+      setCargando(false);
+    }
+  };
+
+  useEffect(() => {
+    cargarDatos();
+  }, []);
+
+  // Cálculos dinámicos
+  const totalVentasMonto = ventas.reduce((acc, v) => acc + Number(v.costo_total || 0), 0);
+  const totalReparacionesMonto = reparaciones.reduce((acc, r) => acc + Number(r.costo_total || r.costo_mano_obra || 0), 0);
+  const totalIngresos = totalVentasMonto + totalReparacionesMonto;
+  const totalOperaciones = ventas.length + reparaciones.length;
+  const ticketPromedio = totalOperaciones > 0 ? totalIngresos / totalOperaciones : 0;
+
+  // Filtrado de ventas
+  const ventasFiltradas = ventas.filter(v => {
+    const cumpleTermino =
+      searchTerm === '' ||
+      (v.cliente_nombre && v.cliente_nombre.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (v.cliente_apellido && v.cliente_apellido.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      String(v.id_venta).includes(searchTerm);
+
+    let cumpleFecha = true;
+    if (v.fecha) {
+      const f = new Date(v.fecha).toISOString().slice(0, 10);
+      if (fechaDesde && f < fechaDesde) cumpleFecha = false;
+      if (fechaHasta && f > fechaHasta) cumpleFecha = false;
+    }
+
+    return cumpleTermino && cumpleFecha;
   });
 
-  const currentKPI = reportType === 'reparaciones' ? kpiData.reparaciones :
-    reportType === 'ingresos' ? kpiData.ingresos :
-      kpiData.ventas;
-
-  // TODO: Cargar detalles desde backend GET /api/reportes/detalle?tipo={reportType}&fechaDesde={fechaDesde}&fechaHasta={fechaHasta}
-  const [detalleVentas] = useState<Array<{ id: number; fecha: string; tipo: string; producto: string; cliente: string; cantidad: number; importe: number }>>([]);
-
   return (
-    <div style={{ padding: '4px', display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '100%', color: '#fff' }}>
+    <div className="imprimible" style={{ padding: '4px', display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '100%', color: 'var(--texto-principal)' }}>
+
+      {/* MEMBRETE EXCLUSIVO PARA IMPRESIÓN */}
+      <div className="imprimir-membrete">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.6rem', fontWeight: '800' }}>DN BIKE</h1>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: '#444' }}>Informe Ejecutivo y Métricas de Rendimiento</p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem' }}>REPORTE GERENCIAL</h3>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#666' }}>Fecha de Emisión: {new Date().toLocaleDateString()}</p>
+          </div>
+        </div>
+      </div>
 
       {/* SECCIÓN SUPERIOR: TÍTULO Y ACCIONES */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h1 style={{ color: '#333', fontSize: '2rem', fontWeight: '700', margin: 0 }}>Gestión de Reportes</h1>
-          <p style={{ color: '#888', fontSize: '0.9rem', margin: '4px 0 0 0' }}>Análisis estadístico del rendimiento del taller</p>
+          <h1 style={{ color: 'var(--texto-principal)', fontSize: '2rem', fontWeight: '700', margin: 0 }}>Gestión de Reportes</h1>
+          <p style={{ color: 'var(--texto-mutado)', fontSize: '0.9rem', margin: '4px 0 0 0' }}>Análisis estadístico del rendimiento del local y taller</p>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button style={{
-            backgroundColor: '#1e1e1e', color: '#fff', border: '1px solid #333',
-            padding: '10px 18px', borderRadius: '8px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer'
-          }}>
-            🖨️ Imprimir
-          </button>
-          <button style={{
-            backgroundColor: '#2ecc71', color: '#fff', border: 'none',
-            padding: '10px 18px', borderRadius: '8px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer'
-          }}>
-            + Exportar PDF
+        <div className="no-imprimir" style={{ display: 'flex', gap: '12px' }}>
+          <button
+            onClick={() => window.print()}
+            style={{
+              backgroundColor: 'var(--bg-tarjeta)', color: 'var(--texto-principal)', border: '1px solid var(--borde-input)',
+              padding: '10px 18px', borderRadius: '8px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer'
+            }}
+          >
+            Imprimir Reporte
           </button>
         </div>
       </div>
 
-      {/* BLOQUE DE FILTROS (Mismo diseño limpio de tus inputs de registro) */}
-      <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #ccc', padding: '20px' }}>
+      {error && (
+        <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.08)', color: '#ef4444', padding: '12px 16px', borderRadius: '8px', fontSize: '0.9rem' }}>
+          {error}
+        </div>
+      )}
+
+      {/* BLOQUE DE FILTROS (Oculto al imprimir) */}
+      <div className="no-imprimir" style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '14px', border: '1px solid var(--borde-input)', padding: '20px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
           <div>
-            <label style={{ fontSize: '0.85rem', color: '#333', marginBottom: '8px', display: 'block', fontWeight: '600' }}>Tipo de Reporte</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--texto-principal)', marginBottom: '8px', display: 'block', fontWeight: '600' }}>Tipo de Reporte</label>
             <select
               value={reportType}
               onChange={(e) => setReportType(e.target.value as ReportType)}
               style={{
-                width: '100%', padding: '12px', backgroundColor: '#fff',
-                border: '1px solid #ccc', borderRadius: '6px', color: '#333', fontSize: '0.9rem', outline: 'none'
+                width: '100%', padding: '10px', backgroundColor: 'var(--bg-principal)',
+                border: '1px solid var(--borde-input)', borderRadius: '8px', color: 'var(--texto-principal)', fontSize: '0.9rem', outline: 'none'
               }}
             >
-              <option value="ventas">Ventas (Bicicletas, Repuestos, Accesorios)</option>
-              <option value="reparaciones">Reparaciones Finalizadas</option>
-              <option value="stock-uso">Uso de Stock en Taller</option>
-              <option value="ingresos">Ingresos Totales Brutos</option>
+              <option value="general">Consolidado General</option>
+              <option value="ventas">Ventas de Mostrador</option>
+              <option value="reparaciones">Taller y Reparaciones</option>
             </select>
           </div>
 
           <div>
-            <label style={{ fontSize: '0.85rem', color: '#333', marginBottom: '8px', display: 'block', fontWeight: '600' }}>Fecha Desde</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--texto-principal)', marginBottom: '8px', display: 'block', fontWeight: '600' }}>Fecha Desde</label>
             <input
               type="date"
               value={fechaDesde}
               onChange={(e) => setFechaDesde(e.target.value)}
               style={{
-                width: '100%', padding: '12px', backgroundColor: '#fff',
-                border: '1px solid #ccc', borderRadius: '6px', color: '#333', fontSize: '0.9rem', outline: 'none'
+                width: '100%', padding: '10px', backgroundColor: 'var(--bg-principal)',
+                border: '1px solid var(--borde-input)', borderRadius: '8px', color: 'var(--texto-principal)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
               }}
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '0.85rem', color: '#333', marginBottom: '8px', display: 'block', fontWeight: '600' }}>Fecha Hasta</label>
+            <label style={{ fontSize: '0.85rem', color: 'var(--texto-principal)', marginBottom: '8px', display: 'block', fontWeight: '600' }}>Fecha Hasta</label>
             <input
               type="date"
               value={fechaHasta}
               onChange={(e) => setFechaHasta(e.target.value)}
               style={{
-                width: '100%', padding: '12px', backgroundColor: '#fff',
-                border: '1px solid #ccc', borderRadius: '6px', color: '#333', fontSize: '0.9rem', outline: 'none'
+                width: '100%', padding: '10px', backgroundColor: 'var(--bg-principal)',
+                border: '1px solid var(--borde-input)', borderRadius: '8px', color: 'var(--texto-principal)', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box'
               }}
             />
           </div>
         </div>
       </div>
 
-      {/* BLOQUE DE INDICADORES (TARJETAS KPI RÁPIDAS) */}
+      {/* BLOQUE DE INDICADORES KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
-        <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #ccc', padding: '20px' }}>
-          <p style={{ fontSize: '0.85rem', color: '#888', margin: '0 0 6px 0' }}>Ingresos Totales</p>
-          <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: '#2ecc71', margin: 0 }}>${currentKPI.ingresos.toLocaleString()}</h3>
+        <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', padding: '20px' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)', margin: '0 0 6px 0' }}>Ingresos Totales (Histórico)</p>
+          <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: '#16a34a', margin: 0 }}>
+            ${totalIngresos.toLocaleString()}
+          </h3>
         </div>
 
-        {reportType !== 'reparaciones' && (
-          <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #ccc', padding: '20px' }}>
-            <p style={{ fontSize: '0.85rem', color: '#888', margin: '0 0 6px 0' }}>Unidades Vendidas</p>
-            <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: '#3498db', margin: 0 }}>{currentKPI.cantidad} uds.</h3>
-          </div>
-        )}
-
-        {reportType !== 'ventas' && (
-          <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #ccc', padding: '20px' }}>
-            <p style={{ fontSize: '0.85rem', color: '#888', margin: '0 0 6px 0' }}>Reparaciones Listas</p>
-            <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: '#e67e22', margin: 0 }}>{currentKPI.reparaciones}</h3>
-          </div>
-        )}
-
-        <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #ccc', padding: '20px' }}>
-          <p style={{ fontSize: '0.85rem', color: '#888', margin: '0 0 6px 0' }}>Ticket Promedio</p>
-          <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: '#333', margin: 0 }}>${currentKPI.promedio.toLocaleString()}</h3>
-        </div>
-      </div>
-
-      {/* SECCIÓN GRÁFICA NATIVA CSS (Sin Recharts) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #ccc', padding: '24px' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', margin: '0 0 20px 0', color: '#333' }}>Ventas Semanales (Volumen)</h3>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '140px', paddingBottom: '8px', borderBottom: '1px solid #ccc' }}>
-            {[
-              { d: 'Lun', h: '35%' }, { d: 'Mar', h: '60%' }, { d: 'Mié', h: '45%' },
-              { d: 'Jue', h: '80%' }, { d: 'Vie', h: '95%' }, { d: 'Sáb', h: '100%' }, { d: 'Dom', h: '55%' }
-            ].map(item => (
-              <div key={item.d} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '8px' }}>
-                <div style={{ width: '50%', height: item.h, backgroundColor: '#3498db', borderRadius: '4px 4px 0 0', minHeight: '15px' }}></div>
-                <span style={{ fontSize: '0.75rem', color: '#666' }}>{item.d}</span>
-              </div>
-            ))}
-          </div>
+        <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', padding: '20px' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)', margin: '0 0 6px 0' }}>Recaudación Mes Actual</p>
+          <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: '#2563eb', margin: 0 }}>
+            ${Number(dashboard?.finanzas?.total_mes || 0).toLocaleString()}
+          </h3>
         </div>
 
-        <div style={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #ccc', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', margin: '0 0 10px 0', color: '#333' }}>Tendencia del Mes</h3>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.8rem' }}>📈</span>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: '#888', textAlign: 'center' }}>Rendimiento comercial óptimo y estable en comparación al histórico.</p>
-          </div>
+        <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', padding: '20px' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)', margin: '0 0 6px 0' }}>Órdenes de Taller</p>
+          <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: '#ea580c', margin: 0 }}>
+            {reparaciones.length}
+          </h3>
+        </div>
+
+        <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', padding: '20px' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)', margin: '0 0 6px 0' }}>Ticket Promedio Operación</p>
+          <h3 style={{ fontSize: '1.6rem', fontWeight: '700', color: 'var(--texto-principal)', margin: 0 }}>
+            ${Math.round(ticketPromedio).toLocaleString()}
+          </h3>
         </div>
       </div>
 
-      {/* TABLA DE DESGLOSE (Clon idéntico de tu pantalla "Gestión de Clientes") */}
+      {/* TABLA DE DETALLE DE VENTAS */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div style={{ display: 'flex', backgroundColor: '#fff', borderRadius: '6px', padding: '12px 16px', alignItems: 'center' }}>
-          <span style={{ color: '#888', marginRight: '10px' }}>🔍</span>
+        <div style={{ display: 'flex', backgroundColor: 'var(--bg-tarjeta)', borderRadius: '8px', padding: '12px 16px', alignItems: 'center', border: '1px solid var(--borde-input)' }}>
+          <span style={{ color: 'var(--texto-mutado)', marginRight: '10px' }}>🔍</span>
           <input
             type="text"
-            placeholder="Buscar cliente por nombre o producto..."
+            placeholder="Buscar por comprobante o nombre de cliente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ width: '100%', border: 'none', backgroundColor: 'transparent', color: '#000', fontSize: '1rem', outline: 'none' }}
+            style={{ width: '100%', border: 'none', backgroundColor: 'transparent', color: 'var(--texto-principal)', fontSize: '0.95rem', outline: 'none' }}
           />
         </div>
 
-        <div style={{ backgroundColor: '#fff', borderRadius: '8px', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', color: '#000' }}>
+        <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--borde-input)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid #eee', backgroundColor: '#fafafa' }}>
-                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>ID</th>
-                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>Fecha</th>
-                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>Tipo</th>
-                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>Producto / Servicio</th>
-                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold' }}>Cliente</th>
-                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold', textAlign: 'center' }}>Cant.</th>
-                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: '#666', fontWeight: 'bold', textAlign: 'right' }}>Importe</th>
+              <tr style={{ borderBottom: '1px solid var(--borde-input)', backgroundColor: '#f8fafc' }}>
+                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Comprobante</th>
+                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Fecha</th>
+                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Cliente</th>
+                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Vendedor</th>
+                <th style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase', textAlign: 'right' }}>Importe Total</th>
               </tr>
             </thead>
             <tbody>
-              {detalleVentas
-                .filter(item =>
-                  searchTerm === '' ||
-                  item.producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  item.cliente.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((item) => (
-                  <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '14px 16px', fontSize: '0.9rem', color: '#888' }}>#{item.id.toString().padStart(4, '0')}</td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>{item.fecha}</td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{
-                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold',
-                        backgroundColor: item.tipo === 'Bicicleta' ? '#e3f2fd' : '#fff3e0',
-                        color: item.tipo === 'Bicicleta' ? '#1e88e5' : '#f57c00'
-                      }}>
-                        {item.tipo}
-                      </span>
+              {cargando ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+                    Cargando reportes...
+                  </td>
+                </tr>
+              ) : ventasFiltradas.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+                    No se encontraron registros de ventas con los filtros aplicados.
+                  </td>
+                </tr>
+              ) : (
+                ventasFiltradas.map((item) => (
+                  <tr key={item.id_venta} style={{ borderBottom: '1px solid var(--borde-input)' }}>
+                    <td style={{ padding: '14px 16px', fontSize: '0.9rem', color: 'var(--texto-mutado)', fontFamily: 'monospace' }}>
+                      FAC-{String(item.id_venta).padStart(6, '0')}
                     </td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.9rem', fontWeight: '500' }}>{item.producto}</td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>{item.cliente}</td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.9rem', textAlign: 'center' }}>{item.cantidad}</td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.9rem', fontWeight: '700', textAlign: 'right', color: '#27ae60' }}>${item.importe.toLocaleString()}</td>
+                    <td style={{ padding: '14px 16px', fontSize: '0.9rem' }}>
+                      {item.fecha ? new Date(item.fecha).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td style={{ padding: '14px 16px', fontSize: '0.9rem', fontWeight: '500' }}>
+                      {item.cliente_nombre ? `${item.cliente_apellido}, ${item.cliente_nombre}` : `Cliente #${item.id_cliente}`}
+                    </td>
+                    <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
+                      {item.vendedor || 'Sistema'}
+                    </td>
+                    <td style={{ padding: '14px 16px', fontSize: '0.95rem', fontWeight: '700', textAlign: 'right', color: '#16a34a' }}>
+                      ${Number(item.costo_total).toLocaleString()}
+                    </td>
                   </tr>
-                ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
