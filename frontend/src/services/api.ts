@@ -129,7 +129,10 @@ export const api = {
 
   // Productos (Inventario / Stock, incluye bicicletas nuevas a la venta)
   productos: {
-    getAll: () => request<{ total: number; productos: Producto[] }>('/api/productos'),
+    getAll: (soloActivos?: boolean) =>
+      request<{ total: number; productos: Producto[] }>(
+        soloActivos ? '/api/productos?solo_activos=true' : '/api/productos'
+      ),
     getById: (id: number) => request<Producto>(`/api/productos/${id}`),
     create: (producto: Omit<Producto, 'id_producto'>) =>
       request<{ message: string; producto: Producto }>('/api/productos', {
@@ -141,7 +144,11 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(producto),
       }),
-    delete: (id: number) => request<{ message: string }>(`/api/productos/${id}`, { method: 'DELETE' }),
+    delete: (id: number) => request<{ message: string; producto?: Producto }>(`/api/productos/${id}`, { method: 'DELETE' }),
+    reactivate: (id: number) =>
+      request<{ message: string; producto?: Producto }>(`/api/productos/${id}/reactivar`, {
+        method: 'PUT',
+      }),
   },
 
   // Ventas

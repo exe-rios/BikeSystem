@@ -66,6 +66,7 @@ export interface Producto {
   talle?: string;
   precio: number;
   stock_minimo: number;
+  activo?: boolean;
 }
 
 export interface Proveedor {
