@@ -15,8 +15,6 @@ import { BicicletasView } from './views/BicicletasView';
 import { VentasView } from './views/VentasView';
 import { ReparacionesView } from './views/ReparacionesView';
 import { StockView } from './views/StockView';
-import { IngresosView } from './views/IngresosView';
-import { ProveedoresView } from './views/ProveedoresView';
 import { ReportesView } from './views/ReportesView';
 import { PagoProveedores } from './views/PagoProveedores';
 import { UsuariosView } from './views/UsuariosView';
@@ -30,8 +28,6 @@ type VistaTipo =
   | 'ventas'
   | 'reparaciones'
   | 'stock'
-  | 'ingresos'
-  | 'proveedores'
   | 'pago-proveedores'
   | 'reportes'
   | 'usuarios';
@@ -54,10 +50,8 @@ function AppContent() {
     { id: 'ventas', label: 'Ventas', icon: iconVentas },
     { id: 'reparaciones', label: 'Reparaciones', icon: iconReparaciones },
     { id: 'stock', label: 'Stock', icon: iconStock },
-    { id: 'ingresos', label: 'Recepción Remitos', emoji: '' },
     { id: 'bicicletas', label: 'Bicicletas Clientes', icon: iconBicicletas },
     { id: 'clientes', label: 'Clientes', icon: iconClientes },
-    { id: 'proveedores', label: 'Proveedores', emoji: '', adminOnly: true },
     { id: 'pago-proveedores', label: 'Pagos a Proveedores', icon: iconPagoProveedores, adminOnly: true },
     { id: 'reportes', label: 'Reportes y Métricas', icon: iconReportes, adminOnly: true },
     { id: 'usuarios', label: 'Empleados / Usuarios', emoji: '', adminOnly: true },
@@ -228,7 +222,7 @@ function AppContent() {
               e.currentTarget.style.color = '#333';
             }}
           >
-            🚪 Cerrar Sesión
+            Cerrar Sesión
           </button>
         </div>
       </aside>
@@ -244,10 +238,8 @@ function AppContent() {
         {vistaActual === 'ventas' && <VentasView />}
         {vistaActual === 'reparaciones' && <ReparacionesView />}
         {vistaActual === 'stock' && <StockView />}
-        {vistaActual === 'ingresos' && <IngresosView />}
         {vistaActual === 'bicicletas' && <BicicletasView />}
         {vistaActual === 'clientes' && <ClientesView />}
-        {vistaActual === 'proveedores' && (esAdmin ? <ProveedoresView /> : <InicioView onNavigate={handleNavigate} />)}
         {vistaActual === 'pago-proveedores' && (esAdmin ? <PagoProveedores /> : <InicioView onNavigate={handleNavigate} />)}
         {vistaActual === 'reportes' && (esAdmin ? <ReportesView /> : <InicioView onNavigate={handleNavigate} />)}
         {vistaActual === 'usuarios' && (esAdmin ? <UsuariosView /> : <InicioView onNavigate={handleNavigate} />)}
