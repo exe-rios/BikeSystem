@@ -405,7 +405,7 @@ export function ReparacionesView() {
                               title="Ver detalle, repuestos y talón de entrega"
                               style={{ background: 'none', border: 'none', color: 'var(--azul-oscuro)', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', padding: '2px 4px' }}
                             >
-                              🔍
+                              🔍 {/* no eliminar */}
                             </button>
                             <button
                               type="button"
@@ -417,13 +417,13 @@ export function ReparacionesView() {
                               title="Editar orden"
                               style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.8rem', fontWeight: '600', cursor: 'pointer', padding: '2px 4px' }}
                             >
-                              ✏️
+                              ✏️  {/* no eliminar */}
                             </button>
                           </div>
                         </div>
 
                         <div style={{ fontSize: '0.88rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
-                          🚲 {rep.marca || 'Bicicleta'} {rep.modelo || ''}
+                          {rep.marca || 'Bicicleta'} {rep.modelo || ''}
                         </div>
 
                         {rep.cliente_nombre && (
