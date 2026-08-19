@@ -193,7 +193,7 @@ export function ReportesView() {
       {/* TABLA DE DETALLE DE VENTAS */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', backgroundColor: 'var(--bg-tarjeta)', borderRadius: '8px', padding: '12px 16px', alignItems: 'center', border: '1px solid var(--borde-input)' }}>
-          <span style={{ color: 'var(--texto-mutado)', marginRight: '10px' }}>🔍</span>
+          <span style={{ color: 'var(--texto-mutado)', marginRight: '10px' }}></span>
           <input
             type="text"
             placeholder="Buscar por comprobante o nombre de cliente..."
