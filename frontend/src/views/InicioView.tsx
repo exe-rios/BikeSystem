@@ -83,7 +83,7 @@ export function InicioView({ onNavigate }: InicioViewProps) {
               fontSize: '1.2rem', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)'
             }}
           >
-            <img src={iconCarrito} alt="Nueva Venta" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+            <img src={iconCarrito} alt="Nueva Venta" style={{ width: '28px', height: '28px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
             Nueva Venta
           </button>
           <button
@@ -94,7 +94,7 @@ export function InicioView({ onNavigate }: InicioViewProps) {
               fontSize: '1.2rem', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
             }}
           >
-            <img src={iconReparar} alt="Nueva Reparación" style={{ width: '28px', height: '28px', objectFit: 'contain' }} />
+            <img src={iconReparar} alt="Nueva Reparación" style={{ width: '28px', height: '28px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
             Gestionar Taller
           </button>
         </div>

@@ -51,7 +51,7 @@ export function VentasView() {
 
   // Item selector state
   const [productoBuscadoId, setProductoBuscadoId] = useState<number>(0);
-  const [cantidadAnadir, setCantidadAnadir] = useState<number>(1);
+  const [cantidadAnadir, setCantidadAnadir] = useState<number | string>(1);
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
 
   // Modal Detalle de Venta (Visualización al hacer clic en una fila)
@@ -114,9 +114,9 @@ export function VentasView() {
 
     const prod = productos.find(p => p.id_producto === productoBuscadoId);
     if (!prod) return;
-
-    if (cantidadAnadir > prod.cantidad) {
-      alert(`No hay suficiente stock. Stock disponible: ${prod.cantidad}`);
+    const cant = Number(cantidadAnadir) || 1;
+    if (cant > Number(prod.cantidad)) {
+      alert(`No hay stock suficiente de "${prod.nombre}". Disponible: ${prod.cantidad}`);
       return;
     }
 
@@ -130,9 +130,9 @@ export function VentasView() {
       id_producto: prod.id_producto!,
       nombre: prod.nombre,
       tipo_prod: prod.tipo_prod,
-      cantidad: cantidadAnadir,
+      cantidad: cant,
       precio_unitario: Number(prod.precio),
-      costo_total: Number(prod.precio) * cantidadAnadir,
+      costo_total: Number(prod.precio) * cant,
       marca: prod.marca,
       modelo: prod.modelo,
       numero_serie: prod.numero_serie,
@@ -637,7 +637,7 @@ export function VentasView() {
                   >
                     <option value={0}>Seleccionar Producto ({productosFiltrados.length} disponibles)</option>
                     {productosFiltrados.map(p => (
-                      <option key={p.id_producto} value={p.id_producto} disabled={p.cantidad <= 0}>
+                      <option key={p.id_producto} value={p.id_producto} disabled={Number(p.cantidad) <= 0}>
                         {p.nombre} {p.marca ? `(${p.marca})` : ''} - ${Number(p.precio).toLocaleString()} [Stock: {p.cantidad}]
                       </option>
                     ))}
@@ -647,7 +647,7 @@ export function VentasView() {
                     type="number"
                     min="1"
                     value={cantidadAnadir}
-                    onChange={e => setCantidadAnadir(Number(e.target.value))}
+                    onChange={e => setCantidadAnadir(e.target.value)}
                     placeholder="Cant."
                     style={{
                       padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)',

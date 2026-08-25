@@ -19,12 +19,12 @@ export function PagoProveedores() {
     const [nuevoPago, setNuevoPago] = useState<{
         nombre_proveedor: string;
         id_metodo_pago: number;
-        monto_total: number;
+        monto_total: number | string;
         observaciones: string;
     }>({
         nombre_proveedor: '',
         id_metodo_pago: 0,
-        monto_total: 0,
+        monto_total: '',
         observaciones: ''
     });
 
@@ -64,7 +64,8 @@ export function PagoProveedores() {
             return;
         }
 
-        if (!nuevoPago.id_metodo_pago || nuevoPago.monto_total <= 0) {
+        const montoNum = Number(nuevoPago.monto_total);
+        if (!nuevoPago.id_metodo_pago || isNaN(montoNum) || montoNum <= 0) {
             alert('Por favor selecciona un método de pago y un monto mayor a cero.');
             return;
         }
@@ -75,13 +76,13 @@ export function PagoProveedores() {
                 nombre_proveedor: nuevoPago.nombre_proveedor.trim(),
                 id_usuario: user?.id_usuario || 1,
                 id_metodo_pago: nuevoPago.id_metodo_pago,
-                monto_total: Number(nuevoPago.monto_total),
+                monto_total: montoNum,
                 observaciones: nuevoPago.observaciones
             });
 
             alert('Pago a proveedor registrado exitosamente');
             setMostrarModal(false);
-            setNuevoPago({ nombre_proveedor: '', id_metodo_pago: 0, monto_total: 0, observaciones: '' });
+            setNuevoPago({ nombre_proveedor: '', id_metodo_pago: 0, monto_total: '', observaciones: '' });
             await cargarDatos();
         } catch (err: unknown) {
             if (err instanceof Error) {
@@ -309,10 +310,10 @@ export function PagoProveedores() {
                                 <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Monto Total ($) *</label>
                                 <input
                                     type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    value={nuevoPago.monto_total || ''}
-                                    onChange={e => setNuevoPago({ ...nuevoPago, monto_total: Number(e.target.value) })}
+                                    step="any"
+                                    min="0"
+                                    value={nuevoPago.monto_total}
+                                    onChange={e => setNuevoPago({ ...nuevoPago, monto_total: e.target.value })}
                                     placeholder="0.00"
                                     style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
                                     required
