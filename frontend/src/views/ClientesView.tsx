@@ -2,11 +2,20 @@ import { useState, useEffect } from 'react';
 import type { Cliente } from '../types';
 import { api } from '../services/api';
 
+interface ErroresFormulario {
+  nombre?: string;
+  apellido?: string;
+  dni?: string;
+  telefono?: string;
+  email?: string;
+}
+
 export function ClientesView() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
 
   // Modal State
@@ -22,12 +31,16 @@ export function ClientesView() {
     direccion: ''
   });
 
+  const [erroresForm, setErroresForm] = useState<ErroresFormulario>({});
+
   const cargarClientes = async () => {
     setCargando(true);
     setError(null);
     try {
       const data = await api.clientes.getAll();
-      setClientes(data.clientes || []);
+      // Compatibilidad si la API devuelve un array directamente o { clientes: [...] }
+      const lista = Array.isArray(data) ? data : (data?.clientes || []);
+      setClientes(lista);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -43,8 +56,7 @@ export function ClientesView() {
     cargarClientes();
   }, []);
 
-  const abrirModalNuevo = () => {
-    setClienteEditando(null);
+  const resetFormulario = () => {
     setFormData({
       nombre: '',
       apellido: '',
@@ -53,6 +65,13 @@ export function ClientesView() {
       email: '',
       direccion: ''
     });
+    setErroresForm({});
+    setErrorModal(null);
+  };
+
+  const abrirModalNuevo = () => {
+    setClienteEditando(null);
+    resetFormulario();
     setMostrarModal(true);
   };
 
@@ -62,37 +81,63 @@ export function ClientesView() {
       nombre: cliente.nombre,
       apellido: cliente.apellido,
       dni: cliente.dni,
-      telefono: cliente.telefono,
-      email: cliente.email,
-      direccion: cliente.direccion
+      telefono: cliente.telefono || '',
+      email: cliente.email || '',
+      direccion: cliente.direccion || ''
     });
+    setErroresForm({});
+    setErrorModal(null);
     setMostrarModal(true);
+  };
+
+  const validarFormulario = (): boolean => {
+    const nuevosErrores: ErroresFormulario = {};
+
+    if (!formData.nombre.trim() || formData.nombre.trim().length < 2) {
+      nuevosErrores.nombre = 'El nombre es obligatorio (mínimo 2 caracteres).';
+    }
+
+    if (!formData.apellido.trim() || formData.apellido.trim().length < 2) {
+      nuevosErrores.apellido = 'El apellido es obligatorio (mínimo 2 caracteres).';
+    }
+
+    const dniLimpio = formData.dni.trim();
+    if (!/^\d{7,8}$/.test(dniLimpio)) {
+      nuevosErrores.dni = 'El DNI debe tener 7 u 8 dígitos sin puntos.';
+    }
+
+    if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      nuevosErrores.email = 'El formato de correo no es válido.';
+    }
+
+    if (formData.telefono && formData.telefono.trim() && !/^\+?\d{7,15}$/.test(formData.telefono.trim())) {
+      nuevosErrores.telefono = 'Ingrese un número válido (7 a 15 dígitos).';
+    }
+
+    setErroresForm(nuevosErrores);
+    return Object.keys(nuevosErrores).length === 0;
   };
 
   const handleGuardar = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorModal(null);
 
-    if (!formData.nombre.trim() || !formData.apellido.trim() || !formData.dni.trim()) {
-      alert('Por favor, completa los campos obligatorios (*)');
-      return;
-    }
+    if (!validarFormulario()) return;
 
     setGuardando(true);
     try {
       if (clienteEditando?.id_cliente) {
         await api.clientes.update(clienteEditando.id_cliente, formData);
-        alert('Cliente actualizado con éxito');
       } else {
         await api.clientes.create(formData);
-        alert('Cliente registrado con éxito');
       }
       setMostrarModal(false);
       await cargarClientes();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        alert(`Error: ${err.message}`);
+        setErrorModal(err.message);
       } else {
-        alert('Ocurrió un error al guardar el cliente');
+        setErrorModal('Ocurrió un error inesperado al guardar el cliente');
       }
     } finally {
       setGuardando(false);
@@ -106,7 +151,6 @@ export function ClientesView() {
 
     try {
       await api.clientes.delete(id_cliente);
-      alert('Cliente eliminado correctamente');
       await cargarClientes();
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -118,10 +162,10 @@ export function ClientesView() {
   const clientesFiltrados = clientes.filter(c => {
     const termino = busqueda.toLowerCase();
     return (
-      c.nombre.toLowerCase().includes(termino) ||
-      c.apellido.toLowerCase().includes(termino) ||
-      c.dni.toLowerCase().includes(termino) ||
-      c.telefono.toLowerCase().includes(termino)
+      (c.nombre && c.nombre.toLowerCase().includes(termino)) ||
+      (c.apellido && c.apellido.toLowerCase().includes(termino)) ||
+      (c.dni && c.dni.toLowerCase().includes(termino)) ||
+      (c.telefono && c.telefono.toLowerCase().includes(termino))
     );
   });
 
@@ -194,7 +238,7 @@ export function ClientesView() {
         />
       </div>
 
-      {/* ERROR BANNER */}
+      {/* ERROR BANNER EN PANTALLA */}
       {error && (
         <div style={{
           backgroundColor: 'rgba(239, 68, 68, 0.08)',
@@ -246,8 +290,8 @@ export function ClientesView() {
                     {c.apellido}, {c.nombre}
                   </td>
                   <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.dni}</td>
-                  <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.telefono}</td>
-                  <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.email}</td>
+                  <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.telefono || '-'}</td>
+                  <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.email || '-'}</td>
                   <td style={{ padding: '16px', textAlign: 'right' }}>
                     <button
                       onClick={() => abrirModalEditar(c)}
@@ -288,39 +332,115 @@ export function ClientesView() {
               <button onClick={() => setMostrarModal(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
             </div>
 
-            <form onSubmit={handleGuardar} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {errorModal && (
+              <div style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid #ef4444',
+                color: '#ef4444',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.85rem',
+                marginBottom: '16px'
+              }}>
+                {errorModal}
+              </div>
+            )}
+
+            <form onSubmit={handleGuardar} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
-                  <input type="text" value={formData.nombre} onChange={e => setFormData({ ...formData, nombre: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }} required />
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
+                  <input
+                    type="text"
+                    value={formData.nombre}
+                    onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                    style={{
+                      width: '100%', padding: '10px', borderRadius: '8px',
+                      border: `1px solid ${erroresForm.nombre ? '#ef4444' : 'var(--borde-input)'}`,
+                      fontSize: '0.9rem', boxSizing: 'border-box'
+                    }}
+                  />
+                  {erroresForm.nombre && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.nombre}</span>}
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
-                  <input type="text" value={formData.apellido} onChange={e => setFormData({ ...formData, apellido: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }} required />
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
+                  <input
+                    type="text"
+                    value={formData.apellido}
+                    onChange={e => setFormData({ ...formData, apellido: e.target.value })}
+                    style={{
+                      width: '100%', padding: '10px', borderRadius: '8px',
+                      border: `1px solid ${erroresForm.apellido ? '#ef4444' : 'var(--borde-input)'}`,
+                      fontSize: '0.9rem', boxSizing: 'border-box'
+                    }}
+                  />
+                  {erroresForm.apellido && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.apellido}</span>}
                 </div>
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
-                <input type="text" value={formData.dni} onChange={e => setFormData({ ...formData, dni: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }} required />
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
+                <input
+                  type="text"
+                  value={formData.dni}
+                  onChange={e => setFormData({ ...formData, dni: e.target.value })}
+                  placeholder="Ej: 40123456"
+                  style={{
+                    width: '100%', padding: '10px', borderRadius: '8px',
+                    border: `1px solid ${erroresForm.dni ? '#ef4444' : 'var(--borde-input)'}`,
+                    fontSize: '0.9rem', boxSizing: 'border-box'
+                  }}
+                />
+                {erroresForm.dni && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.dni}</span>}
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono *</label>
-                <input type="tel" value={formData.telefono} onChange={e => setFormData({ ...formData, telefono: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }} required />
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono</label>
+                <input
+                  type="tel"
+                  value={formData.telefono}
+                  onChange={e => setFormData({ ...formData, telefono: e.target.value })}
+                  placeholder="Ej: 3421234567"
+                  style={{
+                    width: '100%', padding: '10px', borderRadius: '8px',
+                    border: `1px solid ${erroresForm.telefono ? '#ef4444' : 'var(--borde-input)'}`,
+                    fontSize: '0.9rem', boxSizing: 'border-box'
+                  }}
+                />
+                {erroresForm.telefono && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.telefono}</span>}
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email *</label>
-                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }} required />
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={e => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="ejemplo@correo.com"
+                  style={{
+                    width: '100%', padding: '10px', borderRadius: '8px',
+                    border: `1px solid ${erroresForm.email ? '#ef4444' : 'var(--borde-input)'}`,
+                    fontSize: '0.9rem', boxSizing: 'border-box'
+                  }}
+                />
+                {erroresForm.email && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.email}</span>}
               </div>
 
               <div>
-                <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección *</label>
-                <input type="text" value={formData.direccion} onChange={e => setFormData({ ...formData, direccion: e.target.value })} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }} required />
+                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección</label>
+                <input
+                  type="text"
+                  value={formData.direccion}
+                  onChange={e => setFormData({ ...formData, direccion: e.target.value })}
+                  style={{
+                    width: '100%', padding: '10px', borderRadius: '8px',
+                    border: '1px solid var(--borde-input)',
+                    fontSize: '0.9rem', boxSizing: 'border-box'
+                  }}
+                />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
                 <button
                   type="button"
                   onClick={() => setMostrarModal(false)}
