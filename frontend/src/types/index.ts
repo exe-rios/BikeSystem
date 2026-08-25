@@ -32,8 +32,8 @@ export interface Reparacion {
   fecha_egreso?: string | null;
   estado: 'Recibida' | 'En Reparación' | 'Lista' | 'Entregada';
   descripcion: string;
-  costo_mano_obra?: number;
-  costo_total?: number;
+  costo_mano_obra?: number | string;
+  costo_total?: number | string;
   marca?: string;
   modelo?: string;
   cliente_nombre?: string;
@@ -44,9 +44,9 @@ export interface DetalleReparacionItem {
   id_detalle_rep?: number;
   id_reparacion: number;
   id_producto: number;
-  cantidad: number;
-  precio_unitario: number;
-  costo_total: number;
+  cantidad: number | string;
+  precio_unitario: number | string;
+  costo_total: number | string;
   nombre?: string;
   marca?: string;
   modelo?: string;
@@ -59,13 +59,13 @@ export interface Producto {
   marca?: string;
   modelo?: string;
   tipo_prod: 'bicicleta' | 'repuesto' | 'accesorio' | 'componente';
-  cantidad: number;
+  cantidad: number | string;
   numero_serie?: string;
   color?: string;
   rodado?: string;
   talle?: string;
-  precio: number;
-  stock_minimo: number;
+  precio: number | string;
+  stock_minimo: number | string;
   activo?: boolean;
 }
 
@@ -92,7 +92,7 @@ export interface PagoProveedor {
   id_metodo_pago: number;
   metodo_pago_nombre?: string;
   fecha?: string;
-  monto_total: number;
+  monto_total: number | string;
   observaciones?: string;
 }
 

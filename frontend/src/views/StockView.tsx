@@ -16,14 +16,26 @@ export function StockView() {
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
   const [mostrarModalAlta, setMostrarModalAlta] = useState(false);
 
-  const [nuevoProducto, setNuevoProducto] = useState<Omit<Producto, 'id_producto'>>({
+  const [nuevoProducto, setNuevoProducto] = useState<{
+    nombre: string;
+    marca: string;
+    modelo: string;
+    tipo_prod: Producto['tipo_prod'];
+    cantidad: number | string;
+    precio: number | string;
+    stock_minimo: number | string;
+    color: string;
+    rodado: string;
+    talle: string;
+    activo: boolean;
+  }>({
     nombre: '',
     marca: '',
     modelo: '',
     tipo_prod: 'repuesto',
-    cantidad: 1,
-    precio: 0,
-    stock_minimo: 5,
+    cantidad: '1',
+    precio: '',
+    stock_minimo: '5',
     color: '',
     rodado: '29',
     talle: 'M',
@@ -54,15 +66,20 @@ export function StockView() {
   const handleAgregarProducto = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!nuevoProducto.nombre.trim() || nuevoProducto.precio <= 0) {
+    const precioNum = Number(nuevoProducto.precio);
+    if (!nuevoProducto.nombre.trim() || isNaN(precioNum) || precioNum <= 0) {
       alert('Por favor ingresa un nombre válido y un precio mayor a cero.');
       return;
     }
 
-
     setGuardando(true);
     try {
-      await api.productos.create(nuevoProducto);
+      await api.productos.create({
+        ...nuevoProducto,
+        precio: precioNum,
+        cantidad: Number(nuevoProducto.cantidad) || 0,
+        stock_minimo: Number(nuevoProducto.stock_minimo) || 0
+      } as any);
       alert('Artículo agregado al inventario exitosamente');
       setMostrarModalAlta(false);
       setNuevoProducto({
@@ -70,9 +87,9 @@ export function StockView() {
         marca: '',
         modelo: '',
         tipo_prod: 'repuesto',
-        cantidad: 1,
-        precio: 0,
-        stock_minimo: 5,
+        cantidad: '1',
+        precio: '',
+        stock_minimo: '5',
         color: '',
         rodado: '29',
         talle: 'M',
@@ -99,7 +116,12 @@ export function StockView() {
 
     setGuardando(true);
     try {
-      await api.productos.update(productoEditando.id_producto, productoEditando);
+      await api.productos.update(productoEditando.id_producto, {
+        ...productoEditando,
+        precio: Number(productoEditando.precio) || 0,
+        cantidad: Number(productoEditando.cantidad) || 0,
+        stock_minimo: Number(productoEditando.stock_minimo) || 0
+      } as any);
       alert('Producto actualizado correctamente');
       setMostrarModalEditar(false);
       setProductoEditando(null);
@@ -322,9 +344,10 @@ export function StockView() {
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Precio de Venta ($) *</label>
             <input
               type="number"
+              step="any"
               min="0"
-              value={nuevoProducto.precio || ''}
-              onChange={e => setNuevoProducto({ ...nuevoProducto, precio: Number(e.target.value) })}
+              value={nuevoProducto.precio}
+              onChange={e => setNuevoProducto({ ...nuevoProducto, precio: e.target.value })}
               placeholder="0.00"
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
               required
@@ -338,7 +361,7 @@ export function StockView() {
                 type="number"
                 min="0"
                 value={nuevoProducto.cantidad}
-                onChange={e => setNuevoProducto({ ...nuevoProducto, cantidad: Number(e.target.value) })}
+                onChange={e => setNuevoProducto({ ...nuevoProducto, cantidad: e.target.value })}
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
               />
             </div>
@@ -348,7 +371,7 @@ export function StockView() {
                 type="number"
                 min="0"
                 value={nuevoProducto.stock_minimo}
-                onChange={e => setNuevoProducto({ ...nuevoProducto, stock_minimo: Number(e.target.value) })}
+                onChange={e => setNuevoProducto({ ...nuevoProducto, stock_minimo: e.target.value })}
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
               />
             </div>
@@ -654,9 +677,11 @@ export function StockView() {
                 <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600' }}>Precio de Venta ($) *</label>
                 <input
                   type="number"
+                  step="any"
                   min="0"
-                  value={productoEditando.precio}
-                  onChange={e => setProductoEditando({ ...productoEditando, precio: Number(e.target.value) })}
+                  placeholder="0.00"
+                  value={productoEditando.precio ?? ''}
+                  onChange={e => setProductoEditando({ ...productoEditando, precio: e.target.value })}
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
                   required
                 />
@@ -668,8 +693,8 @@ export function StockView() {
                   <input
                     type="number"
                     min="0"
-                    value={productoEditando.cantidad}
-                    onChange={e => setProductoEditando({ ...productoEditando, cantidad: Number(e.target.value) })}
+                    value={productoEditando.cantidad ?? ''}
+                    onChange={e => setProductoEditando({ ...productoEditando, cantidad: e.target.value })}
                     style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
                     required
                   />
@@ -679,8 +704,8 @@ export function StockView() {
                   <input
                     type="number"
                     min="0"
-                    value={productoEditando.stock_minimo}
-                    onChange={e => setProductoEditando({ ...productoEditando, stock_minimo: Number(e.target.value) })}
+                    value={productoEditando.stock_minimo ?? ''}
+                    onChange={e => setProductoEditando({ ...productoEditando, stock_minimo: e.target.value })}
                     style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
                     required
                   />
