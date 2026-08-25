@@ -1,4 +1,4 @@
-# 🚲 BikeSystem - Sistema de Gestión Integral
+# BikeSystem - Sistema de Gestión Integral
 
 ¡Bienvenido al repositorio de **BikeSystem**! Este proyecto es una aplicación de escritorio diseñada para la gestión de stock, ventas y reparaciones en talleres de bicicletas.
 
@@ -8,7 +8,7 @@ El proyecto está construido bajo una arquitectura de **Monorepo**, separando el
 
 ---
 
-## 🛠️ Tecnologías utilizadas
+## Tecnologías utilizadas
 
 ### Frontend
 
@@ -31,19 +31,18 @@ El proyecto está construido bajo una arquitectura de **Monorepo**, separando el
 
 ---
 
-## 👥 Equipo de Desarrollo
+##  Equipo de Desarrollo
 
 Este proyecto fue desarrollado y mantenido por:
 
 - **Domingues German**
-- **Cordoba Tomas**
 - **Rios Exequiel**
 
 
 
 ---
 
-## 📋 Requisitos Previos
+## Requisitos Previos
 
 Antes de comenzar, asegúrate de tener instalado lo siguiente en tu máquina:
 
@@ -59,7 +58,7 @@ Antes de comenzar, asegúrate de tener instalado lo siguiente en tu máquina:
 
 ---
 
-## 🚀 Instalación y Configuración
+## Instalación y Configuración
 
 Sigue estos pasos para dejar el entorno de desarrollo listo en tu máquina local.
 
@@ -74,7 +73,7 @@ cd BIKESYSTEM
 
 Entra a la carpeta del frontend e instala las dependencias.
 
-> **⚠️ Nota para usuarios de pnpm 10+:** Debido a políticas de seguridad, debemos aprobar manualmente los scripts de Electron.
+> ** Nota para usuarios de pnpm 10+:** Debido a políticas de seguridad, debemos aprobar manualmente los scripts de Electron.
 
 ```bash
 cd frontend
@@ -101,13 +100,13 @@ pnpm approve-builds
 # Seleccionar 'esbuild' con espacio y dar Enter
 ```
 
-> **🔑 Base de Datos:** Configura tus variables de entorno para PostgreSQL. Crea un archivo `.env` en la carpeta `backend/` basándote en un posible `.env.example` o solicita las credenciales al equipo.
+> ** Base de Datos:** Configura tus variables de entorno para PostgreSQL. Crea un archivo `.env` en la carpeta `backend/` basándote en un posible `.env.example` o solicita las credenciales al equipo.
 
 
 
 ---
 
-## 💻 Ejecución en Desarrollo
+## Ejecución en Desarrollo
 
 Para trabajar en el proyecto, debes tener ambos servicios corriendo simultáneamente en terminales separadas.
 
@@ -129,7 +128,7 @@ pnpm dev
 
 ---
 
-## 📂 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```text
 BIKESYSTEM/
@@ -150,7 +149,7 @@ BIKESYSTEM/
 
 ---
 
-## ⚠️ Notas Importantes para Colaboradores
+## Notas Importantes para Colaboradores
 
 1. **Compatibilidad (Windows / Mac / Linux):** El proyecto está configurado para normalizar los saltos de línea a LF. No cambies la configuración de tu editor a CRLF si estás en Windows.
 2. **Archivos Lock (`pnpm-lock.yaml`):** Nunca subas las carpetas `node_modules` al repositorio. Para garantizar que todos tengamos exactamente las mismas versiones y evitar inconsistencias, asegúrate de **SIEMPRE subir el archivo pnpm-lock.yaml** cada vez que instales o actualices una dependencia.
