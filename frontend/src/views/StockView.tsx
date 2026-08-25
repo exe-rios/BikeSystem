@@ -14,6 +14,7 @@ export function StockView() {
   // Modal State for Editing
   const [productoEditando, setProductoEditando] = useState<Producto | null>(null);
   const [mostrarModalEditar, setMostrarModalEditar] = useState(false);
+  const [mostrarModalAlta, setMostrarModalAlta] = useState(false);
 
   const [nuevoProducto, setNuevoProducto] = useState<Omit<Producto, 'id_producto'>>({
     nombre: '',
@@ -23,7 +24,6 @@ export function StockView() {
     cantidad: 1,
     precio: 0,
     stock_minimo: 5,
-    numero_serie: '',
     color: '',
     rodado: '29',
     talle: 'M',
@@ -59,15 +59,12 @@ export function StockView() {
       return;
     }
 
-    if (nuevoProducto.tipo_prod === 'bicicleta' && !nuevoProducto.numero_serie?.trim()) {
-      alert('Por favor ingresa el número de serie / cuadro para la bicicleta.');
-      return;
-    }
 
     setGuardando(true);
     try {
       await api.productos.create(nuevoProducto);
       alert('Artículo agregado al inventario exitosamente');
+      setMostrarModalAlta(false);
       setNuevoProducto({
         nombre: '',
         marca: '',
@@ -76,7 +73,6 @@ export function StockView() {
         cantidad: 1,
         precio: 0,
         stock_minimo: 5,
-        numero_serie: '',
         color: '',
         rodado: '29',
         talle: 'M',
@@ -167,35 +163,58 @@ export function StockView() {
       (p.nombre && p.nombre.toLowerCase().includes(termino)) ||
       (p.marca && p.marca.toLowerCase().includes(termino)) ||
       (p.modelo && p.modelo.toLowerCase().includes(termino)) ||
-      (p.numero_serie && p.numero_serie.toLowerCase().includes(termino)) ||
       (p.tipo_prod && p.tipo_prod.toLowerCase().includes(termino));
 
     return cumpleFiltro && cumpleEstado && cumpleBusqueda;
   });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px', alignItems: 'start' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', position: 'relative' }}>
 
       {/* --- FORMULARIO DE ALTA DE INVENTARIO --- */}
-      <div style={{
-        background: 'var(--bg-tarjeta)',
-        padding: '24px',
-        borderRadius: '14px',
-        border: '1px solid var(--borde-input)',
-        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
-        height: 'fit-content'
-      }}>
-        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.2rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
-          Cargar Nuevo Artículo
-        </h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: 'var(--texto-principal)', margin: 0 }}>Gestión de Stock</h1>
+          <p style={{ color: 'var(--texto-mutado)', fontSize: '0.9rem', marginTop: '4px' }}>Inventario general y disponibilidad en tiempo real</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setMostrarModalAlta(true)}
+          style={{
+            backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none', padding: '12px 20px',
+            borderRadius: '10px', fontWeight: '600', fontSize: '0.9rem', cursor: 'pointer'
+          }}
+        >
+          Ingresar stock
+        </button>
+      </div>
 
-        <form onSubmit={handleAgregarProducto} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+      {mostrarModalAlta && (
+        <div
+          onClick={e => e.target === e.currentTarget && setMostrarModalAlta(false)}
+          style={{
+            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', padding: '20px',
+            backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+            display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, overflowY: 'auto'
+          }}
+        >
+          <div style={{
+            background: 'var(--bg-tarjeta)', width: 'min(560px, 100%)', maxHeight: 'calc(100vh - 40px)', overflowY: 'auto',
+            padding: '24px', borderRadius: '14px', border: '1px solid var(--borde-input)',
+            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700', color: 'var(--texto-principal)' }}>Cargar Nuevo Artículo</h3>
+              <button type="button" onClick={() => setMostrarModalAlta(false)} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+            </div>
+
+            <form onSubmit={handleAgregarProducto} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Tipo de Artículo *</label>
             <select
               value={nuevoProducto.tipo_prod}
-              onChange={e => setNuevoProducto({ ...nuevoProducto, tipo_prod: e.target.value as 'repuesto' | 'bicicleta' | 'accesorio' | 'componente' })}
+              onChange={e => setNuevoProducto({ ...nuevoProducto, tipo_prod: e.target.value as 'repuesto' | 'bicicleta' | 'accesorio' })}
               style={{
                 width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)',
                 backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', fontSize: '0.9rem'
@@ -204,7 +223,6 @@ export function StockView() {
               <option value="repuesto">Repuesto</option>
               <option value="bicicleta">Bicicleta Nueva</option>
               <option value="accesorio">Accesorio</option>
-              <option value="componente">Componente</option>
             </select>
           </div>
 
@@ -258,17 +276,6 @@ export function StockView() {
                 Especificaciones
               </span>
 
-              <div>
-                <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.8rem' }}>N° Serie / Cuadro *</label>
-                <input
-                  type="text"
-                  placeholder="Ej: SN-9482019"
-                  value={nuevoProducto.numero_serie || ''}
-                  onChange={e => setNuevoProducto({ ...nuevoProducto, numero_serie: e.target.value })}
-                  style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid var(--borde-input)', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                  required
-                />
-              </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                 <div>
@@ -326,7 +333,7 @@ export function StockView() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Stock Inicial</label>
+              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Stock a Ingresar</label>
               <input
                 type="number"
                 min="0"
@@ -365,8 +372,10 @@ export function StockView() {
           >
             {guardando ? 'Guardando...' : 'Ingresar a Inventario'}
           </button>
-        </form>
-      </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* --- TABLA DE MONITOREO DE STOCK --- */}
       <div style={{
@@ -392,7 +401,7 @@ export function StockView() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
             {/* Filtros de Tipo */}
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {['todos', 'bicicleta', 'repuesto', 'accesorio', 'componente'].map(tipo => (
+              {['todos', 'bicicleta', 'repuesto', 'accesorio'].map(tipo => (
                 <button
                   key={tipo}
                   type="button"
@@ -510,9 +519,9 @@ export function StockView() {
                             {p.marca} {p.modelo}
                           </div>
                         )}
-                        {p.tipo_prod === 'bicicleta' && p.numero_serie && (
+                        {p.tipo_prod === 'bicicleta' &&  (
                           <span style={{ fontSize: '0.75rem', color: 'var(--azul-oscuro)', fontFamily: 'monospace', fontWeight: '600' }}>
-                            SN: {p.numero_serie} {p.rodado ? `(R${p.rodado})` : ''} {p.talle ? `[${p.talle}]` : ''}
+                            Detalles: {p.rodado ? `(R${p.rodado})` : ''} {p.talle ? `[${p.talle}]` : ''}{p.color ? ` - ${p.color}` : ''}
                           </span>
                         )}
                       </td>
