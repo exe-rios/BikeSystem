@@ -8,18 +8,22 @@ import iconStock from './assets/Fotinhos/icono-stock.png';
 import iconReportes from './assets/Fotinhos/icono-reportes.png';
 import iconPagoProveedores from './assets/Fotinhos/icono-pagoproveedores.png';
 import logoDnBike from './assets/Fotinhos/iconoDnBike.jpeg';
+import iconUsuarios from './assets/Fotinhos/icono-usuario.png';
+import iconAuditoria from './assets/Fotinhos/icono-auditoria.png';
 
-import { InicioView } from './views/InicioView';
-import { ClientesView } from './views/ClientesView';
-import { BicicletasView } from './views/BicicletasView';
-import { VentasView } from './views/VentasView';
-import { ReparacionesView } from './views/ReparacionesView';
-import { StockView } from './views/StockView';
-import { ReportesView } from './views/ReportesView';
-import { PagoProveedores } from './views/PagoProveedores';
-import { UsuariosView } from './views/UsuariosView';
-import { LoginView } from './views/LoginView';
+import { InicioView } from './views/Inicio/InicioView';
+import { ClientesView } from './views/Clientes/ClientesView';
+import { BicicletasView } from './views/Bicicletas/BicicletasView';
+import { VentasView } from './views/Ventas/VentasView';
+import { ReparacionesView } from './views/Reparaciones/ReparacionesView';
+import { StockView } from './views/Stock/StockView';
+import { ReportesView } from './views/Reportes/ReportesView';
+import { PagoProveedores } from './views/PagoProveedores/PagoProveedoresView';
+import { UsuariosView } from './views/Usuarios/UsuariosView';
+import { AuditoriaView } from './views/Auditoria/AuditoriaView';
+import { LoginView } from './views/Login/LoginView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 type VistaTipo =
   | 'inicio'
@@ -30,7 +34,8 @@ type VistaTipo =
   | 'stock'
   | 'pago-proveedores'
   | 'reportes'
-  | 'usuarios';
+  | 'usuarios'
+  | 'auditoria';
 
 function AppContent() {
   const { user, isAuthenticated, login, logout } = useAuth();
@@ -45,7 +50,7 @@ function AppContent() {
   const esAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
 
   // Configuración de menús con restricción por rol
-  const menuItems: Array<{ id: VistaTipo; label: string; icon?: string; emoji?: string; adminOnly?: boolean }> = [
+  const menuItems: Array<{ id: VistaTipo; label: string; icon: string; adminOnly?: boolean }> = [
     { id: 'inicio', label: 'Inicio', icon: iconInicio },
     { id: 'ventas', label: 'Ventas', icon: iconVentas },
     { id: 'reparaciones', label: 'Reparaciones', icon: iconReparaciones },
@@ -54,7 +59,8 @@ function AppContent() {
     { id: 'clientes', label: 'Clientes', icon: iconClientes },
     { id: 'pago-proveedores', label: 'Pagos a Proveedores', icon: iconPagoProveedores, adminOnly: true },
     { id: 'reportes', label: 'Reportes y Métricas', icon: iconReportes, adminOnly: true },
-    { id: 'usuarios', label: 'Empleados / Usuarios', emoji: '', adminOnly: true },
+    { id: 'usuarios', label: 'Empleados / Usuarios', icon: iconUsuarios, adminOnly: true },
+    { id: 'auditoria', label: 'Auditoría', icon: iconAuditoria, adminOnly: true },
   ];
 
   const handleNavigate = (view: string) => {
@@ -140,11 +146,7 @@ function AppContent() {
                 }}
               >
                 <span style={{ display: 'inline-flex', width: '20px', height: '20px', alignItems: 'center', justifyContent: 'center', opacity: activo ? 1 : 0.75, fontSize: '1rem' }}>
-                  {item.icon ? (
-                    <img src={item.icon} alt={`${item.label} icon`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <span>{item.emoji}</span>
-                  )}
+                  <img src={item.icon} alt={`${item.label} icon`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </span>
                 {item.label}
               </button>
@@ -243,6 +245,7 @@ function AppContent() {
         {vistaActual === 'pago-proveedores' && (esAdmin ? <PagoProveedores /> : <InicioView onNavigate={handleNavigate} />)}
         {vistaActual === 'reportes' && (esAdmin ? <ReportesView /> : <InicioView onNavigate={handleNavigate} />)}
         {vistaActual === 'usuarios' && (esAdmin ? <UsuariosView /> : <InicioView onNavigate={handleNavigate} />)}
+        {vistaActual === 'auditoria' && (esAdmin ? <AuditoriaView /> : <InicioView onNavigate={handleNavigate} />)}
       </main>
 
     </div>
@@ -251,8 +254,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

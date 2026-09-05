@@ -67,6 +67,14 @@ export interface Producto {
   precio: number | string;
   stock_minimo: number | string;
   activo?: boolean;
+  estado_stock?: 'optimo' | 'bajo_stock' | 'sin_stock';
+}
+
+export interface ResumenStock {
+  total_articulos: number;
+  total_unidades: number;
+  bajo_stock_count: number;
+  inactivos_count: number;
 }
 
 export interface Proveedor {
@@ -115,43 +123,76 @@ export interface Venta {
   id_venta?: number;
   id_cliente: number;
   id_usuario?: number;
+  id_metodo_pago?: number;
+  metodo_pago_nombre?: string;
   fecha?: string;
   costo_total: number;
+  estado?: 'COMPLETADA' | 'ANULADA';
+  fecha_anulacion?: string | null;
+  motivo_anulacion?: string | null;
   cliente_nombre?: string;
   cliente_apellido?: string;
   vendedor?: string;
   detalles?: DetalleVentaItem[];
 }
 
-export interface DetalleIngresoItem {
-  id_detalle_ing?: number;
-  id_ingreso?: number;
+export interface MovimientoStock {
+  id_movimiento?: number;
   id_producto: number;
+  producto_nombre?: string;
+  producto_marca?: string;
+  producto_modelo?: string;
+  id_usuario: number;
+  usuario_nombre?: string;
+  tipo_movimiento: 'INGRESO' | 'EGRESO';
   cantidad: number;
-  precio_costo: number;
-  nombre?: string;
-  marca?: string;
-  modelo?: string;
+  motivo: string;
+  observaciones?: string;
+  created_at?: string;
 }
 
-export interface IngresoStock {
-  id_ingreso?: number;
-  id_proveedor: number;
-  id_usuario?: number;
-  fecha_ingreso?: string;
-  num_comprobante: string;
-  proveedor?: string;
-  proveedor_telefono?: string;
-  usuario_registro?: string;
-  total_items?: number;
-  monto_total_costo?: number;
-  detalles?: DetalleIngresoItem[];
+export interface BitacoraActividad {
+  id_bitacora?: number;
+  id_usuario?: number | null;
+  nombre_usuario: string;
+  modulo: string;
+  accion: string;
+  descripcion?: string;
+  created_at?: string;
+}
+
+export interface GarantiaBicicleta {
+  id_venta: number;
+  id_bicicleta?: number;
+  fecha_venta: string;
+  fecha_vencimiento: string;
+  dias_restantes?: number;
+  estado_garantia?: 'vigente' | 'por_vencer' | 'vencida';
+  id_detalle_venta: number;
+  id_producto: number;
+  cantidad: number;
+  precio_unitario: number;
+  producto_nombre: string;
+  marca?: string;
+  modelo?: string;
+  color?: string;
+  rodado?: string;
+  talle?: string;
+  id_cliente: number;
+  cliente_nombre: string;
+  cliente_apellido: string;
+  cliente_dni?: string;
+  cliente_telefono?: string;
+  cliente_email?: string;
+  vendedor?: string;
 }
 
 export interface DashboardFinanzas {
   ventas_mostrador: number;
   ingresos_taller: number;
   total_mes: number;
+  egresos_proveedores: number;
+  balance_neto_mes: number;
 }
 
 export interface DashboardTallerActivo {
@@ -167,8 +208,73 @@ export interface DashboardAlertaStock {
   stock_minimo: number;
 }
 
+export interface DashboardTopProducto {
+  id_producto: number;
+  nombre: string;
+  tipo_prod: string;
+  marca: string | null;
+  total_vendido: number;
+  total_recaudado: number;
+}
+
 export interface DashboardData {
   finanzas: DashboardFinanzas;
   taller_activo: DashboardTallerActivo[];
   alertas_stock: DashboardAlertaStock[];
+  top_productos: DashboardTopProducto[];
+}
+
+export interface ReporteKPIs {
+  total_ingresos: number;
+  total_ventas_monto: number;
+  total_ventas_cantidad: number;
+  total_reparaciones_monto: number;
+  total_reparaciones_cantidad: number;
+  total_mano_obra_monto: number;
+  total_egresos_monto: number;
+  total_egresos_cantidad: number;
+  balance_neto: number;
+  margen_rentabilidad: number;
+  total_operaciones_cobradas: number;
+  ticket_promedio: number;
+  porcentaje_ventas: number;
+  porcentaje_taller: number;
+  monto_estimado_en_proceso: number;
+  total_ordenes_en_proceso: number;
+}
+
+export interface ReporteEstadisticasTaller {
+  recibidas: number;
+  en_reparacion: number;
+  listas: number;
+  entregadas: number;
+}
+
+export interface ReporteEstadisticasResponse {
+  kpis: ReporteKPIs;
+  estadisticas_taller: ReporteEstadisticasTaller;
+}
+
+export interface ReporteVentasResponse {
+  total: number;
+  total_facturado: number;
+  ventas_cobradas: number;
+  ventas_anuladas: number;
+  ventas: Venta[];
+}
+
+export interface ReporteReparacionesResponse {
+  total: number;
+  entregadas_count: number;
+  en_proceso_count: number;
+  total_recaudado: number;
+  total_mano_obra: number;
+  monto_estimado_en_proceso: number;
+  reparaciones: Reparacion[];
+}
+
+export interface ReporteEgresosResponse {
+  total: number;
+  total_egresos: number;
+  pagos: PagoProveedor[];
 }
