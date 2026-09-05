@@ -1,134 +1,88 @@
-import type { Request, Response } from 'express';
-import { pool } from '../config/db.js';
+import type { Request, Response, NextFunction } from 'express';
+import type { PeticionConUsuario } from '../middlewares/auth.middleware.js';
+import { BicicletaService } from '../services/bicicleta.service.js';
 
-// 1. Registrar una Bicicleta (POST)
-export const crearBicicleta = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id_cliente, marca, modelo } = req.body;
-
-        // Validamos que envíen los datos obligatorios
-        if (!id_cliente || !marca) {
-            res.status(400).json({ error: 'Faltan datos obligatorios (id_cliente, marca)' });
-            return;
-        }
-
-        // INSERT en PostgreSQL usando los nombres exactos de tu script
-        const query = `
-            INSERT INTO Bicicleta (id_cliente, marca, modelo)
-            VALUES ($1, $2, $3)
-            RETURNING *;
-        `;
-        const result = await pool.query(query, [id_cliente, marca, modelo]);
-
-        res.status(201).json({
-            message: 'Bicicleta registrada con éxito',
-            bicicleta: result.rows[0]
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            error: 'Error al registrar la bicicleta',
-            detalle: error instanceof Error ? error.message : 'Error desconocido'
-        });
-    }
+export const obtenerBicicletas = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id_cliente, busqueda } = req.query as { id_cliente?: string; busqueda?: string };
+    const resultado = await BicicletaService.obtenerBicicletas({ id_cliente, busqueda });
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 2. Obtener todas las bicicletas con los datos de sus dueños (GET)
-// Usamos un INNER JOIN para que Diego pueda ver de quién es cada bici directamente
-export const obtenerBicicletas = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id_cliente } = req.query;
-
-        let query = `
-            SELECT b.*, c.nombre, c.apellido 
-            FROM Bicicleta b
-            INNER JOIN Cliente c ON b.id_cliente = c.id_cliente
-        `;
-
-        const params: any[] = [];
-        if (id_cliente) {
-            query += ` WHERE b.id_cliente = $1`;
-            params.push(id_cliente);
-        }
-
-        query += ` ORDER BY b.id_bicicleta DESC;`;
-
-        const result = await pool.query(query, params);
-        
-        res.status(200).json({ total: result.rowCount, bicicletas: result.rows });
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener la lista de bicicletas' });
-    }
+export const obtenerBicicletaPorId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    const bicicleta = await BicicletaService.obtenerBicicletaPorId(id);
+    res.status(200).json(bicicleta);
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 3. Buscar una bicicleta por ID (GET)
-export const obtenerBicicletaPorId = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const query = `
-            SELECT b.*, c.nombre, c.apellido 
-            FROM Bicicleta b
-            INNER JOIN Cliente c ON b.id_cliente = c.id_cliente
-            WHERE b.id_bicicleta = $1;
-        `;
-        const result = await pool.query(query, [id]);
+export const crearBicicleta = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id_cliente, marca, modelo } = req.body;
+    const nuevaBici = await BicicletaService.crearBicicleta({
+      id_cliente,
+      marca,
+      modelo,
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
 
-        if (result.rowCount === 0) {
-            res.status(404).json({ error: 'Bicicleta no encontrada' });
-            return;
-        }
-        res.status(200).json(result.rows[0]);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al buscar la bicicleta' });
-    }
+    res.status(201).json({
+      message: 'Bicicleta registrada con éxito',
+      bicicleta: nuevaBici
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 4. Actualizar datos de una bicicleta (PUT)
-export const actualizarBicicleta = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const { marca, modelo } = req.body;
+export const actualizarBicicleta = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    const { marca, modelo } = req.body;
 
-        if (!marca) {
-            res.status(400).json({ error: 'La marca es obligatoria para actualizar' });
-            return;
-        }
+    const biciActualizada = await BicicletaService.actualizarBicicleta(id, {
+      marca,
+      modelo,
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
 
-        const query = `
-            UPDATE Bicicleta 
-            SET marca = $1, modelo = $2
-            WHERE id_bicicleta = $3
-            RETURNING *;
-        `;
-        const result = await pool.query(query, [marca, modelo, id]);
-
-        if (result.rowCount === 0) {
-            res.status(404).json({ error: 'Bicicleta no encontrada para actualizar' });
-            return;
-        }
-
-        res.status(200).json({ message: 'Bicicleta actualizada con éxito', bicicleta: result.rows[0] });
-    } catch (error) {
-        res.status(500).json({ error: 'Error al actualizar la bicicleta' });
-    }
+    res.status(200).json({
+      message: 'Bicicleta actualizada con éxito',
+      bicicleta: biciActualizada
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 5. Eliminar una bicicleta (DELETE)
-export const eliminarBicicleta = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const query = 'DELETE FROM Bicicleta WHERE id_bicicleta = $1 RETURNING *';
-        const result = await pool.query(query, [id]);
+export const eliminarBicicleta = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    const resultado = await BicicletaService.eliminarBicicleta(id, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
 
-        if (result.rowCount === 0) {
-            res.status(404).json({ error: 'Bicicleta no encontrada para eliminar' });
-            return;
-        }
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
+};
 
-        res.status(200).json({ message: 'Bicicleta eliminada correctamente' });
-    } catch (error) {
-        res.status(500).json({ 
-            error: 'No se puede eliminar la bicicleta', 
-            detalle: 'Tiene órdenes de reparación registradas en el taller.' 
-        });
-    }
+export const obtenerHistorialBicicleta = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    const resultado = await BicicletaService.obtenerHistorialBicicleta(id);
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
 };

@@ -1,52 +1,60 @@
-import type { Request, Response } from 'express';
-import { pool } from '../config/db.js';
+import type { Request, Response, NextFunction } from 'express';
+import { ReporteService } from '../services/reporte.service.js';
 
-export const obtenerDashboard = async (req: Request, res: Response): Promise<void> => {
-    try {
-        // 1. Calcular las ganancias del mes actual (Ventas + Taller)
-        const queryGanancias = `
-            SELECT 
-                (SELECT COALESCE(SUM(costo_total), 0) FROM Venta WHERE EXTRACT(MONTH FROM fecha) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM CURRENT_DATE)) AS ventas_mes,
-                (SELECT COALESCE(SUM(costo_total), 0) FROM Reparacion WHERE estado = 'Entregada' AND EXTRACT(MONTH FROM fecha_egreso) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM fecha_egreso) = EXTRACT(YEAR FROM CURRENT_DATE)) AS taller_mes
-        `;
-        const resultGanancias = await pool.query(queryGanancias);
-        
-        const ventasMes = Number(resultGanancias.rows[0].ventas_mes);
-        const tallerMes = Number(resultGanancias.rows[0].taller_mes);
-        const recaudacionTotalMes = ventasMes + tallerMes;
+export const obtenerDashboard = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const resultado = await ReporteService.obtenerDashboard();
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
+};
 
-        // 2. Resumen del estado actual del taller
-        const queryTaller = `
-            SELECT estado, COUNT(*) as cantidad 
-            FROM Reparacion 
-            WHERE estado != 'Entregada' 
-            GROUP BY estado;
-        `;
-        const resultTaller = await pool.query(queryTaller);
+export const obtenerEstadisticas = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta } = req.query as { fechaDesde?: string; fechaHasta?: string };
+    const resultado = await ReporteService.obtenerEstadisticas({ fechaDesde, fechaHasta });
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
+};
 
-        // 3. Alertas de inventario (Top 5 productos activos que urgen comprar)
-        const queryStock = `
-            SELECT id_producto, nombre, marca, cantidad, stock_minimo 
-            FROM Productos 
-            WHERE activo = true AND cantidad <= stock_minimo 
-            ORDER BY cantidad ASC 
-            LIMIT 5;
-        `;
-        const resultStock = await pool.query(queryStock);
+export const obtenerVentasReporte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, busqueda } = req.query as { fechaDesde?: string; fechaHasta?: string; busqueda?: string };
+    const resultado = await ReporteService.obtenerVentasReporte({ fechaDesde, fechaHasta, busqueda });
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
+};
 
-        // Enviamos todo empaquetado en un solo JSON para que React arme los gráficos
-        res.status(200).json({
-            finanzas: {
-                ventas_mostrador: ventasMes,
-                ingresos_taller: tallerMes,
-                total_mes: recaudacionTotalMes
-            },
-            taller_activo: resultTaller.rows,
-            alertas_stock: resultStock.rows
-        });
+export const obtenerReparacionesReporte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, busqueda } = req.query as { fechaDesde?: string; fechaHasta?: string; busqueda?: string };
+    const resultado = await ReporteService.obtenerReparacionesReporte({ fechaDesde, fechaHasta, busqueda });
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
+};
 
-    } catch (error) {
-        console.error('[Reportes Error]:', error);
-        res.status(500).json({ error: 'Error al generar las estadísticas del sistema' });
-    }
+export const obtenerEgresosReporte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { fechaDesde, fechaHasta, busqueda } = req.query as { fechaDesde?: string; fechaHasta?: string; busqueda?: string };
+    const resultado = await ReporteService.obtenerEgresosReporte({ fechaDesde, fechaHasta, busqueda });
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const obtenerRankingProductos = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const resultado = await ReporteService.obtenerRankingProductos();
+    res.status(200).json(resultado);
+  } catch (error) {
+    next(error);
+  }
 };
