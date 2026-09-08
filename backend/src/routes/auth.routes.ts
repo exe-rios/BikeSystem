@@ -3,6 +3,7 @@ import { login, healthCheck, dbTest } from '../controllers/auth.controller.js';
 import { loginLimiter } from '../middlewares/rateLimit.middleware.js';
 import { verificarToken } from '../middlewares/auth.middleware.js';
 
+/** Rutas para autenticación de usuarios y diagnóstico del servidor. */
 const router: ReturnType<typeof Router> = Router();
 
 // Rutas de autenticación y diagnóstico

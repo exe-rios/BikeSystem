@@ -1,9 +1,10 @@
 import { pool } from '../config/db.js';
-import { BadRequestError, NotFoundError } from '../utils/errors.js';
+import { BadRequestError, NotFoundError, ConflictError } from '../utils/errors.js';
+import { EMAIL_REGEX, validarId } from '../utils/validation.js';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+/** Servicio de gestión y registro de proveedores comerciales. */
 export class ProveedorService {
+  /** Obtiene listado de proveedores con filtro opcional de búsqueda por nombre, CUIT o datos de contacto. */
   static async obtenerProveedores(busqueda?: string | undefined) {
     let query = `
       SELECT id_proveedor, nombre_empresa, cuit, telefono, email, direccion
@@ -32,10 +33,9 @@ export class ProveedorService {
     };
   }
 
+  /** Obtiene la información de un proveedor por su ID. */
   static async obtenerProveedorPorId(id: number) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese proveedor.');
-    }
+    validarId(id, 'No se encontró ese proveedor.');
 
     const query = `
       SELECT id_proveedor, nombre_empresa, cuit, telefono, email, direccion
@@ -51,6 +51,7 @@ export class ProveedorService {
     return result.rows[0];
   }
 
+  /** Registra un nuevo proveedor validando unicidad por nombre de empresa. */
   static async crearProveedor(datos: {
     nombre_empresa: string;
     cuit?: string | undefined;
@@ -66,8 +67,18 @@ export class ProveedorService {
       throw new BadRequestError('Escribí el nombre de la empresa (al menos 2 letras).');
     }
 
-    const cuitLimpio = cuit ? String(cuit).trim() : null;
-    const emailLimpio = email ? String(email).trim() : null;
+    const nombreLimpio = nombre_empresa.trim();
+
+    // Validar unicidad insensible a mayúsculas
+    const checkDup = await pool.query('SELECT id_proveedor FROM Proveedor WHERE LOWER(nombre_empresa) = LOWER($1);', [nombreLimpio]);
+    if (checkDup.rowCount && checkDup.rowCount > 0) {
+      throw new ConflictError(`Ya existe un proveedor registrado con el nombre "${nombreLimpio}".`);
+    }
+
+    const cuitLimpio = cuit && String(cuit).trim().length > 0 ? String(cuit).trim() : null;
+    const emailLimpio = email && String(email).trim().length > 0 ? String(email).trim() : null;
+    const telefonoLimpio = telefono && String(telefono).trim().length > 0 ? String(telefono).trim() : null;
+    const direccionLimpia = direccion && String(direccion).trim().length > 0 ? String(direccion).trim() : null;
 
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
       throw new BadRequestError('El email no es válido. Ejemplo: nombre@correo.com');
@@ -79,11 +90,11 @@ export class ProveedorService {
       RETURNING *;
     `;
     const result = await pool.query(query, [
-      nombre_empresa.trim(),
+      nombreLimpio,
       cuitLimpio,
-      telefono ? String(telefono).trim() : null,
+      telefonoLimpio,
       emailLimpio,
-      direccion ? String(direccion).trim() : null
+      direccionLimpia
     ]);
 
     const nuevoProveedor = result.rows[0];
@@ -106,6 +117,7 @@ export class ProveedorService {
     return nuevoProveedor;
   }
 
+  /** Modifica los datos de contacto y razón social del proveedor. */
   static async actualizarProveedor(id: number, datos: {
     nombre_empresa?: string | undefined;
     cuit?: string | undefined;
@@ -115,48 +127,62 @@ export class ProveedorService {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese proveedor.');
-    }
+    validarId(id, 'No se encontró ese proveedor.');
 
     const { nombre_empresa, cuit, telefono, email, direccion, idUsuarioOperador, nombreUsuarioOperador } = datos;
 
-    const check = await pool.query('SELECT id_proveedor FROM Proveedor WHERE id_proveedor = $1;', [id]);
+    const check = await pool.query('SELECT id_proveedor, nombre_empresa FROM Proveedor WHERE id_proveedor = $1;', [id]);
     if (check.rowCount === 0) {
       throw new NotFoundError('Ese proveedor no existe.');
     }
 
-    if (nombre_empresa !== undefined && (typeof nombre_empresa !== 'string' || nombre_empresa.trim().length < 2)) {
-      throw new BadRequestError('El nombre de la empresa debe tener al menos 2 letras.');
+    let nombreFinal = check.rows[0].nombre_empresa;
+    if (nombre_empresa !== undefined) {
+      if (typeof nombre_empresa !== 'string' || nombre_empresa.trim().length < 2) {
+        throw new BadRequestError('El nombre de la empresa debe tener al menos 2 letras.');
+      }
+      nombreFinal = nombre_empresa.trim();
+
+      // Validar que el nuevo nombre no esté duplicado en otro proveedor
+      const checkDup = await pool.query(
+        'SELECT id_proveedor FROM Proveedor WHERE LOWER(nombre_empresa) = LOWER($1) AND id_proveedor != $2;',
+        [nombreFinal, id]
+      );
+      if (checkDup.rowCount && checkDup.rowCount > 0) {
+        throw new ConflictError(`Ya existe otro proveedor registrado con el nombre "${nombreFinal}".`);
+      }
     }
 
-    const emailLimpio = email ? String(email).trim() : null;
+    const emailLimpio = email !== undefined ? (email && String(email).trim().length > 0 ? String(email).trim() : null) : undefined;
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
-      throw new BadRequestError('El email no es válido. Ejemplo: nombre@correo.com');
+      throw new BadRequestError('El email no es válido. Ejemplo: contacto@empresa.com');
     }
 
     const query = `
       UPDATE Proveedor
-      SET nombre_empresa = COALESCE($1, nombre_empresa),
-          cuit = COALESCE($2, cuit),
-          telefono = COALESCE($3, telefono),
-          email = COALESCE($4, email),
-          direccion = COALESCE($5, direccion)
-      WHERE id_proveedor = $6
+      SET nombre_empresa = $1,
+          cuit = CASE WHEN $2::boolean THEN $3 ELSE cuit END,
+          telefono = CASE WHEN $4::boolean THEN $5 ELSE telefono END,
+          email = CASE WHEN $6::boolean THEN $7 ELSE email END,
+          direccion = CASE WHEN $8::boolean THEN $9 ELSE direccion END
+      WHERE id_proveedor = $10
       RETURNING *;
     `;
     const result = await pool.query(query, [
-      nombre_empresa ? nombre_empresa.trim() : null,
-      cuit !== undefined ? (cuit ? String(cuit).trim() : null) : null,
-      telefono !== undefined ? (telefono ? String(telefono).trim() : null) : null,
-      email !== undefined ? emailLimpio : null,
-      direccion !== undefined ? (direccion ? String(direccion).trim() : null) : null,
+      nombreFinal,
+      cuit !== undefined,
+      cuit && String(cuit).trim().length > 0 ? String(cuit).trim() : null,
+      telefono !== undefined,
+      telefono && String(telefono).trim().length > 0 ? String(telefono).trim() : null,
+      email !== undefined,
+      emailLimpio ?? null,
+      direccion !== undefined,
+      direccion && String(direccion).trim().length > 0 ? String(direccion).trim() : null,
       id
     ]);
-
     const provActualizado = result.rows[0];
 
-    // Registrar en Bitácora
+    // Registrar en Bitacora_Actividad
     try {
       await pool.query(
         `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
@@ -174,13 +200,12 @@ export class ProveedorService {
     return provActualizado;
   }
 
+  /** Da de baja al proveedor si no posee pagos registrados. */
   static async eliminarProveedor(id: number, operador: {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese proveedor.');
-    }
+    validarId(id, 'No se encontró ese proveedor.');
 
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
 
@@ -189,6 +214,13 @@ export class ProveedorService {
       throw new NotFoundError('Ese proveedor no existe.');
     }
     const datosProv = resProv.rows[0];
+
+    // Verificar si tiene pagos asociados para evitar fallo 500 de clave foránea en PostgreSQL
+    const checkPagos = await pool.query('SELECT COUNT(*)::int AS pagos_count FROM Pago_Proveedor WHERE id_proveedor = $1;', [id]);
+    const pagosCount = checkPagos.rows[0]?.pagos_count || 0;
+    if (pagosCount > 0) {
+      throw new ConflictError(`No se puede eliminar el proveedor porque posee ${pagosCount} pago(s) registrado(s) en el sistema.`);
+    }
 
     await pool.query('DELETE FROM Proveedor WHERE id_proveedor = $1;', [id]);
 

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { VentaDetallada } from '../types';
+import { formatearMoneda, formatearFecha, formatearFechaHora } from '../../../utils/formatters';
 
 interface ModalDetalleVentaProps {
   ventaSeleccionada: VentaDetallada | null;
@@ -9,6 +10,7 @@ interface ModalDetalleVentaProps {
   onClose: () => void;
 }
 
+/** Modal de visualización de comprobante fiscal, ítems vendidos y anulación de venta. */
 export function ModalDetalleVenta({
   ventaSeleccionada,
   cargandoDetalle,
@@ -81,7 +83,7 @@ export function ModalDetalleVenta({
                   FAC-{String(ventaSeleccionada.venta.id_venta).padStart(6, '0')}
                 </h2>
                 <span style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
-                  Fecha: {ventaSeleccionada.venta.fecha ? new Date(ventaSeleccionada.venta.fecha).toLocaleDateString() : 'Hoy'}
+                  Fecha: {formatearFecha(ventaSeleccionada.venta.fecha, 'Hoy')}
                 </span>
               </div>
 
@@ -168,10 +170,10 @@ export function ModalDetalleVenta({
                         {prod.cantidad}
                       </td>
                       <td style={{ padding: '10px 0', textAlign: 'right' }}>
-                        ${Number(prod.precio_unitario).toLocaleString()}
+                        {formatearMoneda(prod.precio_unitario)}
                       </td>
                       <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: '700' }}>
-                        ${Number(prod.costo_total).toLocaleString()}
+                        {formatearMoneda(prod.costo_total)}
                       </td>
                     </tr>
                   ))}
@@ -183,7 +185,7 @@ export function ModalDetalleVenta({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '2px solid var(--borde-input)' }}>
               <span style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--texto-mutado)' }}>Total:</span>
               <span style={{ fontSize: '1.8rem', fontWeight: '800', color: 'var(--texto-principal)' }}>
-                ${Number(ventaSeleccionada.venta.costo_total).toLocaleString()}
+                {formatearMoneda(ventaSeleccionada.venta.costo_total)}
               </span>
             </div>
 
@@ -211,7 +213,7 @@ export function ModalDetalleVenta({
                 <strong>⚠️ Esta venta fue anulada:</strong> {ventaSeleccionada.venta.motivo_anulacion || 'Sin motivo especificado'}.
                 {ventaSeleccionada.venta.fecha_anulacion && (
                   <div style={{ fontSize: '0.78rem', color: '#991b1b', marginTop: '4px' }}>
-                    Fecha: {new Date(ventaSeleccionada.venta.fecha_anulacion).toLocaleString()} — Stock de los productos repuesto al inventario.
+                    Fecha: {formatearFechaHora(ventaSeleccionada.venta.fecha_anulacion)} — Stock de los productos repuesto al inventario.
                   </div>
                 )}
               </div>

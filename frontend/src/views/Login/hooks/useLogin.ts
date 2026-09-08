@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { LoginSuccessUser } from '../types';
 import { api } from '../../../services/api';
 
+/** Hook para la gestión del estado y envío de credenciales de inicio de sesión. */
 export function useLogin(onLoginSuccess: (token: string, usuario: LoginSuccessUser) => void) {
   const [usuario, setUsuario] = useState('');
   const [password, setPassword] = useState('');

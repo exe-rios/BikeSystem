@@ -1,4 +1,5 @@
 import type { ResumenStock } from '../../../types';
+import { usePermisos } from '../../../hooks/usePermisos';
 
 interface StockHeaderProps {
   resumen: ResumenStock;
@@ -7,12 +8,14 @@ interface StockHeaderProps {
   onAbrirHistorial: () => void;
 }
 
+/** Encabezado del inventario con tarjetas KPI resumen y acciones de catálogo. */
 export function StockHeader({
   resumen,
   onAbrirCrear,
   onAbrirAjuste,
   onAbrirHistorial
 }: StockHeaderProps) {
+  const { puedeGestionarCatalogo } = usePermisos();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       {/* Título y Acciones */}
@@ -63,23 +66,25 @@ export function StockHeader({
             Ajuste de Stock
           </button>
 
-          <button
-            type="button"
-            onClick={onAbrirCrear}
-            style={{
-              backgroundColor: 'var(--azul-oscuro)',
-              color: '#ffffff',
-              border: 'none',
-              padding: '10px 18px',
-              borderRadius: '8px',
-              fontWeight: '700',
-              fontSize: '0.88rem',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
-            }}
-          >
-            Nuevo Producto
-          </button>
+          {puedeGestionarCatalogo && (
+            <button
+              type="button"
+              onClick={onAbrirCrear}
+              style={{
+                backgroundColor: 'var(--azul-oscuro)',
+                color: '#ffffff',
+                border: 'none',
+                padding: '10px 18px',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(37, 99, 235, 0.2)'
+              }}
+            >
+              Nuevo Producto
+            </button>
+          )}
         </div>
       </div>
 

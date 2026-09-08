@@ -12,6 +12,7 @@ interface StockFiltrosProps {
   onCambiarFiltroDisponibilidad: (val: FiltroDisponibilidad) => void;
 }
 
+/** Barra de filtros por categoría, disponibilidad, estado y búsqueda por texto. */
 export function StockFiltros({
   busqueda,
   filtroTipo,

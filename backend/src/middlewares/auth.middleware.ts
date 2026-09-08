@@ -1,11 +1,12 @@
 import type { Request, NextFunction, Response } from 'express';
 import jwt from 'jsonwebtoken';
 
-// Molde de TypeScript para que Express reconozca el token dentro de la petición
+/** Extensión de Request de Express para adjuntar los datos del token JWT. */
 export interface PeticionConUsuario extends Request {
     usuarioToken?: { id: number; rol: string; nombre_usuario?: string };
 }
 
+/** Valida el token Bearer JWT en los encabezados y propaga los datos de sesión. */
 export const verificarToken = (req: PeticionConUsuario, res: Response, next: NextFunction): void => {
     const tokenHeader = req.headers['authorization'];
 

@@ -1,3 +1,4 @@
+/** Tipos e interfaces del flujo de inicio de sesión. */
 export interface LoginSuccessUser {
   id: number;
   nombre: string;

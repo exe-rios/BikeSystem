@@ -13,7 +13,9 @@ export interface LoginResult {
   };
 }
 
+/** Servicio de autenticación y verificación de credenciales de usuario. */
 export class AuthService {
+  /** Autentica credenciales, genera el token JWT y registra el ingreso en bitácora. */
   static async login(nombreUsuario: string, contrasena: string): Promise<LoginResult> {
     if (!nombreUsuario?.trim() || !contrasena) {
       throw new BadRequestError('Completá el usuario y la contraseña.');
@@ -72,6 +74,7 @@ export class AuthService {
     };
   }
 
+  /** Verifica la conectividad activa con el motor PostgreSQL. */
   static async testDatabase(): Promise<{ status: string; connected: boolean; time: string; version: string }> {
     const result = await pool.query('SELECT NOW() as hora, version() as version;');
     return {

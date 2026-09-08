@@ -1,4 +1,5 @@
 import type { Reparacion, ColumnaKanban } from '../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface ReparacionesKanbanProps {
   columnas: ColumnaKanban[];
@@ -17,6 +18,7 @@ interface ReparacionesKanbanProps {
   handleEntregarOrden: (id: number) => void;
 }
 
+/** Tablero Kanban con arrastre de órdenes entre estados (Recibida, En Reparación, Lista). */
 export function ReparacionesKanban({
   columnas,
   reparacionesActivas,
@@ -212,7 +214,7 @@ export function ReparacionesKanban({
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px', paddingTop: '6px', borderTop: '1px solid var(--borde-input)' }}>
                           <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)' }}>Total Estimado</span>
                           <span style={{ fontSize: '0.95rem', fontWeight: '800', color: '#10b981' }}>
-                            ${montoTotal.toLocaleString()}
+                            {formatearMoneda(montoTotal)}
                           </span>
                         </div>
 

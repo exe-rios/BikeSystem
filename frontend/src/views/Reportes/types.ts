@@ -1,3 +1,4 @@
+/** Tipos e interfaces para el módulo de analítica y reportes financieros. */
 export type TabTipo = 'general' | 'ventas' | 'reparaciones' | 'balance' | 'top_productos';
 export type RangoRapido = 'todo' | 'hoy' | 'semana' | 'mes' | 'mes_anterior' | 'anio' | 'personalizado';
 

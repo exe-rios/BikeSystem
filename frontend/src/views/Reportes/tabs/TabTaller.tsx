@@ -1,4 +1,6 @@
 import type { Reparacion } from '../../../types';
+import { Paginador } from '../../../components/Paginador';
+import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 
 interface TabTallerProps {
   reparaciones: Reparacion[];
@@ -12,14 +14,25 @@ interface TabTallerProps {
     enProceso: number;
     montoEnProceso: number;
   };
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
+/** Pestaña de auditoría de órdenes de reparación, mano de obra y recaudación. */
 export function TabTaller({
   reparaciones,
   cargando,
   totalManoObraMonto,
   totalReparacionesMonto,
-  reparacionesResumen
+  reparacionesResumen,
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
 }: TabTallerProps) {
   const getBadgeEstado = (estado: string) => {
     switch (estado) {
@@ -75,10 +88,10 @@ export function TabTaller({
                       REP-{String(item.id_reparacion).padStart(6, '0')}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.88rem' }}>
-                      {item.fecha_ingreso ? new Date(item.fecha_ingreso).toLocaleDateString() : 'N/A'}
+                      {formatearFecha(item.fecha_ingreso, 'N/A')}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.88rem', color: item.fecha_egreso ? 'var(--texto-principal)' : '#94a3b8' }}>
-                      {item.fecha_egreso ? new Date(item.fecha_egreso).toLocaleDateString() : '—'}
+                      {formatearFecha(item.fecha_egreso, '—')}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.9rem', fontWeight: '600' }}>
                       {item.cliente_nombre ? `${item.cliente_apellido}, ${item.cliente_nombre}` : `Cliente #${item.id_bicicleta}`}
@@ -100,10 +113,10 @@ export function TabTaller({
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.88rem', textAlign: 'right', color: 'var(--texto-mutado)' }}>
-                      {'$' + Number(item.costo_mano_obra || 0).toLocaleString()}
+                      {formatearMoneda(item.costo_mano_obra)}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.95rem', fontWeight: '700', textAlign: 'right', color: esEntregada ? '#16a34a' : 'var(--texto-mutado)' }}>
-                      {'$' + Number(item.costo_total || item.costo_mano_obra || 0).toLocaleString()}
+                      {formatearMoneda(item.costo_total || item.costo_mano_obra)}
                       {!esEntregada && (
                         <span style={{ display: 'block', fontSize: '0.72rem', color: '#ea580c', fontWeight: '600' }}>
                           (Pendiente)
@@ -118,6 +131,14 @@ export function TabTaller({
         </table>
       </div>
 
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        alCambiarPagina={onCambiarPagina}
+      />
+
       {/* Subtotales al pie de la tabla */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tarjeta)', padding: '14px 20px', borderRadius: '10px', border: '1px solid var(--borde-input)', flexWrap: 'wrap', gap: '12px' }}>
         <span style={{ fontSize: '0.9rem', color: 'var(--texto-mutado)' }}>
@@ -126,11 +147,11 @@ export function TabTaller({
         <div style={{ textAlign: 'right', display: 'flex', gap: '24px', alignItems: 'center' }}>
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', marginRight: '6px' }}>Mano de Obra Cobrada:</span>
-            <strong style={{ fontSize: '1.05rem', color: 'var(--texto-principal)' }}>{'$' + totalManoObraMonto.toLocaleString()}</strong>
+            <strong style={{ fontSize: '1.05rem', color: 'var(--texto-principal)' }}>{formatearMoneda(totalManoObraMonto)}</strong>
           </div>
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', marginRight: '6px' }}>Recaudación Efectiva (Entregadas):</span>
-            <strong style={{ fontSize: '1.25rem', color: '#16a34a' }}>{'$' + totalReparacionesMonto.toLocaleString()}</strong>
+            <strong style={{ fontSize: '1.25rem', color: '#16a34a' }}>{formatearMoneda(totalReparacionesMonto)}</strong>
           </div>
         </div>
       </div>

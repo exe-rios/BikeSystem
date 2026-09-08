@@ -2,7 +2,7 @@ import rateLimit from 'express-rate-limit';
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Limitar intentos de login: en producción 5 intentos / 15 min; en desarrollo permisivo para pruebas
+/** Límite de tasa para endpoints de autenticación (previene ataques de fuerza bruta). */
 export const loginLimiter = rateLimit({
   windowMs: isProd ? 15 * 60 * 1000 : 60 * 1000,
   max: isProd ? 5 : 50,
@@ -13,7 +13,7 @@ export const loginLimiter = rateLimit({
   }
 });
 
-// Limiter general de API: 100 peticiones por minuto por IP
+/** Límite general de peticiones por IP para salvaguardar el servidor. */
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 100,

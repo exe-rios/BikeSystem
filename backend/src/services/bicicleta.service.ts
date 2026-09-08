@@ -1,12 +1,22 @@
 import { pool } from '../config/db.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
+import { validarId } from '../utils/validation.js';
+import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
+/** Servicio de gestión de bicicletas de clientes e historial de reparaciones. */
 export class BicicletaService {
-  static async obtenerBicicletas(filtros: { id_cliente?: string | number | undefined; busqueda?: string | undefined }) {
-    const { id_cliente, busqueda } = filtros;
+  /** Obtiene listado paginado de bicicletas con datos del cliente y filtros de búsqueda. */
+  static async obtenerBicicletas(filtros: { 
+    id_cliente?: string | number | undefined; 
+    busqueda?: string | undefined;
+    limite?: number | string | undefined;
+    pagina?: number | string | undefined;
+  }) {
+    const { id_cliente, busqueda, limite, pagina } = filtros;
 
     let query = `
-      SELECT b.*, c.nombre, c.apellido, c.dni, c.telefono, c.email
+      SELECT b.*, c.nombre, c.apellido, c.dni, c.telefono, c.email,
+             COUNT(*) OVER()::INT AS total_registros
       FROM Bicicleta b
       INNER JOIN Cliente c ON b.id_cliente = c.id_cliente
     `;
@@ -42,19 +52,25 @@ export class BicicletaService {
       query += ' WHERE ' + whereClauses.join(' AND ');
     }
 
-    query += ` ORDER BY b.id_bicicleta DESC;`;
+    query += ` ORDER BY b.id_bicicleta DESC`;
+
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
+    query = aplicarPaginacionSQL(query, params, paginacion);
 
     const result = await pool.query(query, params);
+    const total = result.rows.length > 0 ? Number(result.rows[0].total_registros) : 0;
+    const meta = calcularMetaPaginacion(total, paginacion);
+    const bicicletas = result.rows.map(({ total_registros, ...b }) => b);
+
     return {
-      total: result.rowCount || 0,
-      bicicletas: result.rows
+      ...meta,
+      bicicletas
     };
   }
 
+  /** Obtiene el detalle de una bicicleta por su identificador único. */
   static async obtenerBicicletaPorId(id: number) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró esa bicicleta.');
-    }
+    validarId(id, 'No se encontró esa bicicleta.');
 
     const query = `
       SELECT b.*, c.nombre, c.apellido, c.dni, c.telefono, c.email
@@ -71,6 +87,7 @@ export class BicicletaService {
     return result.rows[0];
   }
 
+  /** Registra una nueva bicicleta asociada a un cliente y audita el evento. */
   static async crearBicicleta(datos: {
     id_cliente: number | string;
     marca: string;
@@ -79,11 +96,8 @@ export class BicicletaService {
     nombreUsuarioOperador?: string | undefined;
   }) {
     const { id_cliente, marca, modelo, idUsuarioOperador, nombreUsuarioOperador } = datos;
+    validarId(id_cliente, 'Seleccioná el dueño de la bicicleta.');
     const idClienteNum = Number(id_cliente);
-
-    if (!id_cliente || isNaN(idClienteNum) || idClienteNum <= 0) {
-      throw new BadRequestError('Seleccioná el dueño de la bicicleta.');
-    }
 
     if (!marca || typeof marca !== 'string' || marca.trim().length === 0) {
       throw new BadRequestError('Escribí la marca de la bicicleta.');
@@ -133,15 +147,14 @@ export class BicicletaService {
     return resCompleta.rows[0] || nuevaBici;
   }
 
+  /** Actualiza los datos descriptivos de una bicicleta registrada. */
   static async actualizarBicicleta(id: number, datos: {
     marca: string;
     modelo?: string | undefined;
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró esa bicicleta.');
-    }
+    validarId(id, 'No se encontró esa bicicleta.');
 
     const { marca, modelo, idUsuarioOperador, nombreUsuarioOperador } = datos;
 
@@ -193,13 +206,12 @@ export class BicicletaService {
     return resCompleta.rows[0] || biciActualizada;
   }
 
+  /** Elimina una bicicleta si no cuenta con órdenes de reparación vinculadas. */
   static async eliminarBicicleta(id: number, operador: {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró esa bicicleta.');
-    }
+    validarId(id, 'No se encontró esa bicicleta.');
 
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
 
@@ -208,6 +220,13 @@ export class BicicletaService {
       throw new NotFoundError('Esa bicicleta no existe.');
     }
     const datosBici = resBici.rows[0];
+
+    // Verificar si posee órdenes de reparación para evitar fallo de FK en PostgreSQL
+    const checkRep = await pool.query('SELECT COUNT(*)::int AS rep_count FROM Reparacion WHERE id_bicicleta = $1;', [id]);
+    const repCount = checkRep.rows[0]?.rep_count || 0;
+    if (repCount > 0) {
+      throw new BadRequestError(`No se puede eliminar la bicicleta porque tiene ${repCount} orden(es) de reparación registradas en el taller.`);
+    }
 
     await pool.query('DELETE FROM Bicicleta WHERE id_bicicleta = $1 RETURNING *;', [id]);
 
@@ -229,10 +248,9 @@ export class BicicletaService {
     return { message: 'Bicicleta eliminada correctamente' };
   }
 
+  /** Recupera el historial completo de intervenciones y repuestos aplicados a la bicicleta. */
   static async obtenerHistorialBicicleta(id: number) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró esa bicicleta.');
-    }
+    validarId(id, 'No se encontró esa bicicleta.');
 
     const queryBici = `
       SELECT b.*, 

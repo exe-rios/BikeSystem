@@ -1,15 +1,20 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
 import type { Venta, Cliente, Producto, GarantiaBicicleta, MetodoPago } from '../../../types';
 import type { TabVentasTipo, FiltroGarantia, VentaDetallada, GarantiaConEstado } from '../types';
 
-export function useVentas() {
-  const { user } = useAuth();
+import { useDebounce } from '../../../hooks/useDebounce';
 
+/** Hook para la gestión del historial de facturación, detalle y seguimiento de garantías. */
+export function useVentas() {
   const [tabActiva, setTabActiva] = useState<TabVentasTipo>('ventas');
 
   const [ventas, setVentas] = useState<Venta[]>([]);
+  const [totalVentas, setTotalVentas] = useState<number>(0);
+  const [paginaVentas, setPaginaVentas] = useState<number>(1);
+  const [totalPaginasVentas, setTotalPaginasVentas] = useState<number>(1);
+  const limiteVentas = 10;
+
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [garantias, setGarantias] = useState<GarantiaBicicleta[]>([]);
@@ -28,6 +33,12 @@ export function useVentas() {
 
   // Filtros - Ventas
   const [busquedaVenta, setBusquedaVenta] = useState<string>('');
+  const busquedaVentaDebounced = useDebounce(busquedaVenta, 300);
+
+  // Reiniciar a página 1 al cambiar el término de búsqueda
+  useEffect(() => {
+    setPaginaVentas(1);
+  }, [busquedaVentaDebounced]);
 
   // Filtros - Garantías
   const [busquedaGarantia, setBusquedaGarantia] = useState<string>('');
@@ -43,20 +54,29 @@ export function useVentas() {
   const cargarDatos = useCallback(async () => {
     try {
       const [dataVentas, dataClientes, dataProds, dataGarantias, dataMetodos] = await Promise.all([
-        api.ventas.getAll().catch(() => ({ total: 0, ventas: [] })),
-        api.clientes.getAll().catch(() => ({ total: 0, clientes: [] })),
-        api.productos.getAll().catch(() => ({ total: 0, productos: [] })),
-        api.ventas.getGarantias().catch(() => ({ total: 0, resumen: { total: 0, vigentes: 0, por_vencer: 0, vencidas: 0 }, garantias: [] })),
-        api.pagosProveedores.getMetodosPago().catch(() => [])
+        api.ventas.getAll({
+          busqueda: busquedaVentaDebounced,
+          limite: limiteVentas,
+          pagina: paginaVentas
+        }),
+        api.clientes.getAll(),
+        api.productos.getAll(),
+        api.ventas.getGarantias(),
+        api.pagosProveedores.getMetodosPago()
       ]);
 
       const listaVentas = Array.isArray(dataVentas) ? dataVentas : (dataVentas?.ventas || []);
+      const totalV = !Array.isArray(dataVentas) && typeof dataVentas?.total === 'number' ? dataVentas.total : listaVentas.length;
+      const totalP = !Array.isArray(dataVentas) && typeof dataVentas?.totalPaginas === 'number' ? dataVentas.totalPaginas : Math.ceil(totalV / limiteVentas) || 1;
+
       const listaClientes = Array.isArray(dataClientes) ? dataClientes : (dataClientes?.clientes || []);
       const listaProductos = Array.isArray(dataProds) ? dataProds : (dataProds?.productos || []);
       const listaGarantias = Array.isArray(dataGarantias) ? dataGarantias : (dataGarantias?.garantias || []);
       const listaMetodos = Array.isArray(dataMetodos) ? dataMetodos : [];
 
       setVentas(listaVentas);
+      setTotalVentas(totalV);
+      setTotalPaginasVentas(totalP);
       setClientes(listaClientes);
       setProductos(listaProductos);
       setGarantias(listaGarantias);
@@ -74,7 +94,7 @@ export function useVentas() {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [busquedaVentaDebounced, paginaVentas, limiteVentas]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -87,26 +107,25 @@ export function useVentas() {
     setMostrarModalDetalle(true);
     try {
       const data = await api.ventas.getById(idVenta);
-      const raw = data as any;
-      const prods = raw?.productos_vendidos || raw?.detalles || [];
-      const normalizedProds = prods.map((p: any) => ({
-        id_detalle_venta: p.id_detalle_venta || p.id_detalle || 0,
+      const prods = data?.productos_vendidos || [];
+      const normalizedProds = prods.map(p => ({
+        id_detalle_venta: p.id_detalle_venta || 0,
         id_producto: p.id_producto || 0,
-        nombre: p.nombre || p.producto_nombre || 'Artículo',
-        marca: p.marca || p.producto_marca || '',
+        nombre: p.nombre || 'Artículo',
+        marca: p.marca || '',
         modelo: p.modelo || '',
-        tipo_prod: p.tipo_prod || p.producto_tipo || '',
+        tipo_prod: p.tipo_prod || '',
         numero_serie: p.numero_serie || '',
-        color: p.color || p.producto_color || '',
-        rodado: p.rodado || p.producto_rodado || '',
-        talle: p.talle || p.producto_talle || '',
+        color: p.color || '',
+        rodado: p.rodado || '',
+        talle: p.talle || '',
         cantidad: Number(p.cantidad) || 1,
         precio_unitario: Number(p.precio_unitario) || 0,
         costo_total: Number(p.costo_total || ((Number(p.cantidad) || 1) * (Number(p.precio_unitario) || 0)))
       }));
 
       setVentaSeleccionada({
-        venta: raw?.venta || raw,
+        venta: data.venta,
         productos_vendidos: normalizedProds
       });
     } catch (err: unknown) {
@@ -141,17 +160,16 @@ export function useVentas() {
     }
   };
 
-  // Enviar Venta
+  // Enviar Venta (sin enviar id_usuario ni forzar precio, el backend usa el token y catálogo oficial)
   const finalizarVenta = async (
     clienteId: number,
     metodoPagoId: number,
-    items: { id_producto: number; cantidad: number; precio_unitario: number }[]
+    items: { id_producto: number; cantidad: number }[]
   ) => {
     setGuardando(true);
     try {
       const payload = {
         id_cliente: clienteId,
-        id_usuario: user?.id_usuario || 1,
         id_metodo_pago: metodoPagoId,
         detalles: items
       };
@@ -258,7 +276,11 @@ export function useVentas() {
     tabActiva,
     setTabActiva,
     ventas: ventasFiltradas,
-    totalVentas: ventas.length,
+    totalVentas,
+    paginaVentas,
+    totalPaginasVentas,
+    limiteVentas,
+    setPaginaVentas,
     garantias: garantiasFiltradas,
     countTotalGarantias: resumenGarantias.total,
     countVigentes: resumenGarantias.vigentes,

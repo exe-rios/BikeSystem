@@ -1,4 +1,5 @@
 import type { ReporteKPIs, ReporteEstadisticasTaller, DashboardData } from '../../../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface TabConsolidadoProps {
   kpis: ReporteKPIs;
@@ -7,6 +8,7 @@ interface TabConsolidadoProps {
   onVerRankingCompleto: () => void;
 }
 
+/** Pestaña de resumen consolidado de ingresos por ventas de mostrador vs. taller. */
 export function TabConsolidado({
   kpis,
   estadisticasTaller,
@@ -53,12 +55,12 @@ export function TabConsolidado({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '12px', height: '12px', backgroundColor: '#2563eb', borderRadius: '3px', display: 'inline-block' }}></span>
             <span style={{ fontWeight: '600' }}>Ventas de Mostrador:</span>
-            <span>{'$' + kpis.total_ventas_monto.toLocaleString() + ' (' + kpis.porcentaje_ventas + '%)'}</span>
+            <span>{formatearMoneda(kpis.total_ventas_monto)} ({kpis.porcentaje_ventas}%)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ width: '12px', height: '12px', backgroundColor: '#ea580c', borderRadius: '3px', display: 'inline-block' }}></span>
             <span style={{ fontWeight: '600' }}>Taller (Entregadas):</span>
-            <span>{'$' + kpis.total_reparaciones_monto.toLocaleString() + ' (' + kpis.porcentaje_taller + '%)'}</span>
+            <span>{formatearMoneda(kpis.total_reparaciones_monto)} ({kpis.porcentaje_taller}%)</span>
           </div>
         </div>
       </div>
@@ -99,7 +101,7 @@ export function TabConsolidado({
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '0.88rem', fontWeight: '700', color: '#16a34a', display: 'block' }}>
-                      {'$' + Number(prod.total_recaudado || 0).toLocaleString()}
+                      {formatearMoneda(prod.total_recaudado)}
                     </span>
                     <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)' }}>
                       {prod.total_vendido} unidades
@@ -130,7 +132,7 @@ export function TabConsolidado({
                   <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--texto-principal)', display: 'block' }}>{item.label}</span>
                   {item.cobrado && (
                     <span style={{ fontSize: '0.78rem', color: '#15803d', fontWeight: '700' }}>
-                      Ingreso efectivo: {'$' + item.monto?.toLocaleString()}
+                      Ingreso efectivo: {formatearMoneda(item.monto)}
                     </span>
                   )}
                 </div>
@@ -143,7 +145,7 @@ export function TabConsolidado({
 
           {kpis.total_ordenes_en_proceso > 0 && (
             <div style={{ marginTop: '14px', padding: '10px 14px', backgroundColor: 'rgba(234, 88, 12, 0.06)', borderRadius: '8px', border: '1px dashed #fdba74', fontSize: '0.82rem', color: '#c2410c' }}>
-              <strong>Pendiente de cobro:</strong> {kpis.total_ordenes_en_proceso} órdenes en taller por un valor estimado de <strong>{'$' + kpis.monto_estimado_en_proceso.toLocaleString()}</strong> (se contabilizan al ser entregadas).
+              <strong>Pendiente de cobro:</strong> {kpis.total_ordenes_en_proceso} órdenes en taller por un valor estimado de <strong>{formatearMoneda(kpis.monto_estimado_en_proceso)}</strong> (se contabilizan al ser entregadas).
             </div>
           )}
         </div>

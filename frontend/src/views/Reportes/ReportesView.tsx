@@ -9,6 +9,7 @@ import { TabTopProductos } from './tabs/TabTopProductos';
 import { TabVentas } from './tabs/TabVentas';
 import { TabTaller } from './tabs/TabTaller';
 
+/** Vista de analítica empresarial, flujo de caja y balance operativo. */
 export function ReportesView() {
   const {
     activeTab,
@@ -28,9 +29,22 @@ export function ReportesView() {
     estadisticasTaller,
     ventas,
     ventasResumen,
+    paginaVentas,
+    setPaginaVentas,
+    totalPaginasVentas,
+    totalVentasRegistros,
     reparaciones,
     reparacionesResumen,
+    paginaReparaciones,
+    setPaginaReparaciones,
+    totalPaginasReparaciones,
+    totalReparacionesRegistros,
     pagos,
+    paginaPagos,
+    setPaginaPagos,
+    totalPaginasPagos,
+    totalPagosRegistros,
+    limitePaginacion,
     topProductosList,
     maxVentasProducto,
     cargando,
@@ -61,8 +75,8 @@ export function ReportesView() {
       {/* 2. Pestañas de Navegación */}
       <ReportesTabs
         activeTab={activeTab}
-        ventasCount={ventas.length}
-        reparacionesCount={reparaciones.length}
+        ventasCount={totalVentasRegistros}
+        reparacionesCount={totalReparacionesRegistros}
         onTabChange={setActiveTab}
       />
 
@@ -98,6 +112,11 @@ export function ReportesView() {
         <TabBalance
           kpis={kpis}
           pagos={pagos}
+          paginaActual={paginaPagos}
+          totalPaginas={totalPaginasPagos}
+          totalRegistros={totalPagosRegistros}
+          limite={limitePaginacion}
+          onCambiarPagina={setPaginaPagos}
         />
       )}
 
@@ -114,6 +133,11 @@ export function ReportesView() {
           cargando={cargando}
           totalVentasMonto={kpis.total_ventas_monto}
           ventasResumen={ventasResumen}
+          paginaActual={paginaVentas}
+          totalPaginas={totalPaginasVentas}
+          totalRegistros={totalVentasRegistros}
+          limite={limitePaginacion}
+          onCambiarPagina={setPaginaVentas}
         />
       )}
 
@@ -124,6 +148,11 @@ export function ReportesView() {
           totalManoObraMonto={kpis.total_mano_obra_monto}
           totalReparacionesMonto={kpis.total_reparaciones_monto}
           reparacionesResumen={reparacionesResumen}
+          paginaActual={paginaReparaciones}
+          totalPaginas={totalPaginasReparaciones}
+          totalRegistros={totalReparacionesRegistros}
+          limite={limitePaginacion}
+          onCambiarPagina={setPaginaReparaciones}
         />
       )}
 

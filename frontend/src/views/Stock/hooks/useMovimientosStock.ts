@@ -11,6 +11,7 @@ const INITIAL_MOVIMIENTO: FormMovimientoData = {
   observaciones: ''
 };
 
+/** Hook para registrar ingresos, egresos y auditar el historial de movimientos de stock. */
 export function useMovimientosStock() {
   const [mostrarModalMovimiento, setMostrarModalMovimiento] = useState(false);
   const [mostrarModalHistorialMov, setMostrarModalHistorialMov] = useState(false);

@@ -9,6 +9,7 @@ interface AuditoriaFiltrosProps {
   onBuscar: (e: React.FormEvent) => void;
 }
 
+/** Filtros de auditoría por módulo del sistema y campo de búsqueda textual. */
 export function AuditoriaFiltros({
   modulos,
   moduloFiltro,

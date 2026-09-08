@@ -1,21 +1,35 @@
 import type { PagoProveedor } from '../types';
+import { Paginador } from '../../../components/Paginador';
+import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 
 interface PagoProveedoresTablaProps {
   pagos: PagoProveedor[];
   pagosFiltrados: PagoProveedor[];
   cargando: boolean;
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
+/** Tabla paginada de registros de pagos efectuados a proveedores. */
 export function PagoProveedoresTabla({
   pagos,
   pagosFiltrados,
-  cargando
+  cargando,
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
 }: PagoProveedoresTablaProps) {
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-tarjeta)',
-      borderRadius: '14px',
-      border: '1px solid var(--borde-input)',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{
+        backgroundColor: 'var(--bg-tarjeta)',
+        borderRadius: '14px',
+        border: '1px solid var(--borde-input)',
       boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)',
       overflow: 'hidden'
     }}>
@@ -47,7 +61,7 @@ export function PagoProveedoresTabla({
             pagosFiltrados.map(p => (
               <tr key={p.id_pago} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
                 <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '500', color: 'var(--texto-principal)' }}>
-                  {p.fecha ? new Date(p.fecha).toLocaleDateString() : 'Hoy'}
+                  {formatearFecha(p.fecha, 'Hoy')}
                 </td>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-principal)', fontWeight: '600' }}>
                   {p.proveedor_nombre}
@@ -59,7 +73,7 @@ export function PagoProveedoresTabla({
                 </td>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{p.usuario_nombre}</td>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: '#10b981', fontWeight: '700' }}>
-                  ${Number(p.monto_total).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  {formatearMoneda(p.monto_total, { conDecimales: true })}
                 </td>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', textAlign: 'right' }}>
                   {p.observaciones || '-'}
@@ -69,6 +83,15 @@ export function PagoProveedoresTabla({
           )}
         </tbody>
       </table>
+      </div>
+
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={onCambiarPagina}
+      />
     </div>
   );
 }

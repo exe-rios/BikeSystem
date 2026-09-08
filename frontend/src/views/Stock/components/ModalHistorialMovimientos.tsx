@@ -1,4 +1,5 @@
 import type { MovimientoStock } from '../../../types';
+import { formatearFechaHora } from '../../../utils/formatters';
 
 interface ModalHistorialMovimientosProps {
   visible: boolean;
@@ -7,6 +8,7 @@ interface ModalHistorialMovimientosProps {
   onClose: () => void;
 }
 
+/** Modal con listado cronológico de movimientos de entrada y salida de stock. */
 export function ModalHistorialMovimientos({
   visible,
   movimientos,
@@ -113,7 +115,7 @@ export function ModalHistorialMovimientos({
                   return (
                     <tr key={m.id_movimiento} style={{ borderBottom: '1px solid var(--borde-input)' }}>
                       <td style={{ padding: '12px 14px', color: 'var(--texto-mutado)', whiteSpace: 'nowrap' }}>
-                        {m.created_at ? new Date(m.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'N/D'}
+                        {formatearFechaHora(m.created_at, 'N/D', { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                       <td style={{ padding: '12px 14px', fontWeight: '600' }}>
                         <div>{m.producto_nombre}</div>

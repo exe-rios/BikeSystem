@@ -1,4 +1,6 @@
 import type { Venta } from '../../../types';
+import { Paginador } from '../../../components/Paginador';
+import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 
 interface TabVentasProps {
   ventas: Venta[];
@@ -9,13 +11,24 @@ interface TabVentasProps {
     cobradas: number;
     anuladas: number;
   };
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
+/** Pestaña con detalle transaccional de facturación por ventas de mostrador. */
 export function TabVentas({
   ventas,
   cargando,
   totalVentasMonto,
-  ventasResumen
+  ventasResumen,
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
 }: TabVentasProps) {
 
   return (
@@ -54,7 +67,7 @@ export function TabVentas({
                       FAC-{String(item.id_venta).padStart(6, '0')}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.88rem' }}>
-                      {item.fecha ? new Date(item.fecha).toLocaleDateString() : 'N/A'}
+                      {formatearFecha(item.fecha, 'N/A')}
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.9rem', fontWeight: '600' }}>
                       {item.cliente_nombre ? `${item.cliente_apellido}, ${item.cliente_nombre}` : `Cliente #${item.id_cliente}`}
@@ -75,7 +88,7 @@ export function TabVentas({
                       </span>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.95rem', fontWeight: '700', textAlign: 'right', color: esAnulada ? 'var(--texto-mutado)' : '#16a34a', textDecoration: esAnulada ? 'line-through' : 'none' }}>
-                      {'$' + Number(item.costo_total).toLocaleString()}
+                      {formatearMoneda(item.costo_total)}
                     </td>
                   </tr>
                 );
@@ -85,6 +98,14 @@ export function TabVentas({
         </table>
       </div>
 
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        alCambiarPagina={onCambiarPagina}
+      />
+
       {/* Subtotales al pie de la tabla */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tarjeta)', padding: '14px 20px', borderRadius: '10px', border: '1px solid var(--borde-input)', flexWrap: 'wrap', gap: '12px' }}>
         <span style={{ fontSize: '0.9rem', color: 'var(--texto-mutado)' }}>
@@ -92,7 +113,7 @@ export function TabVentas({
         </span>
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)', marginRight: '12px' }}>Total Facturado (Cobrado):</span>
-          <strong style={{ fontSize: '1.2rem', color: '#16a34a' }}>{'$' + totalVentasMonto.toLocaleString()}</strong>
+          <strong style={{ fontSize: '1.2rem', color: '#16a34a' }}>{formatearMoneda(totalVentasMonto)}</strong>
         </div>
       </div>
     </div>

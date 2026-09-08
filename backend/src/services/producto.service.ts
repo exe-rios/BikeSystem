@@ -1,7 +1,9 @@
 import { pool } from '../config/db.js';
-import { BadRequestError, NotFoundError } from '../utils/errors.js';
+import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
+import { validarId } from '../utils/validation.js';
+import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
-const TIPOS_PRODUCTO_VALIDOS = ['bicicleta', 'repuesto', 'accesorio', 'componente'];
+const TIPOS_PRODUCTO_VALIDOS = ['bicicleta', 'repuesto', 'accesorio'];
 
 export const PRODUCTO_SELECT = `
   SELECT p.*, 
@@ -16,6 +18,7 @@ export const PRODUCTO_SELECT = `
   LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
 `;
 
+/** Valida formato y restricciones de los campos del artículo. */
 const validarDatosProducto = (body: any) => {
   const { nombre, tipo_prod, cantidad, precio, stock_minimo } = body;
   const errores: string[] = [];
@@ -26,7 +29,7 @@ const validarDatosProducto = (body: any) => {
 
   const tipoLimpio = String(tipo_prod || '').trim().toLowerCase();
   if (!tipoLimpio || !TIPOS_PRODUCTO_VALIDOS.includes(tipoLimpio)) {
-    errores.push('Elegí un tipo válido: Bicicleta, Repuesto, Accesorio o Componente.');
+    errores.push('Elegí un tipo válido: Bicicleta, Repuesto o Accesorio.');
   }
 
   if (precio !== undefined && precio !== null && precio !== '') {
@@ -53,7 +56,9 @@ const validarDatosProducto = (body: any) => {
   return errores;
 };
 
+/** Servicio de catálogo de productos, control de stock y trazabilidad de inventario. */
 export class ProductoService {
+  /** Obtiene listado paginado de productos con filtros de categoría, stock y métricas resumidas. */
   static async obtenerProductos(filtros: { 
     tipo_prod?: string | undefined; 
     tipo?: string | undefined;
@@ -62,10 +67,12 @@ export class ProductoService {
     disponibilidad?: string | undefined;
     estado?: string | undefined;
     solo_activos?: boolean | string | undefined;
+    limite?: number | string | undefined;
+    pagina?: number | string | undefined;
   }) {
-    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos } = filtros;
+    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina } = filtros;
     
-    // Obtener resumen global de inventario en una sola consulta eficiente
+    // Consulta para resumen global de inventario
     const queryResumen = `
       SELECT 
         COUNT(*) FILTER (WHERE activo = true)::INT AS total_articulos,
@@ -74,15 +81,21 @@ export class ProductoService {
         COUNT(*) FILTER (WHERE activo = false)::INT AS inactivos_count
       FROM Productos;
     `;
-    const resResumen = await pool.query(queryResumen);
-    const resumen = resResumen.rows[0] || {
-      total_articulos: 0,
-      total_unidades: 0,
-      bajo_stock_count: 0,
-      inactivos_count: 0
-    };
 
-    let query = `${PRODUCTO_SELECT} WHERE 1=1`;
+    let query = `
+      SELECT p.*, 
+             COALESCE(pb.marca, p.marca) AS marca, 
+             pb.color, pb.rodado, pb.talle,
+             CASE 
+                 WHEN p.cantidad <= 0 THEN 'sin_stock'
+                 WHEN p.cantidad <= p.stock_minimo OR p.cantidad <= 5 THEN 'bajo_stock'
+                 ELSE 'optimo'
+             END AS estado_stock,
+             COUNT(*) OVER()::INT AS total_registros
+      FROM Productos p
+      LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
+      WHERE 1=1
+    `;
     const params: any[] = [];
     let paramIndex = 1;
 
@@ -128,25 +141,43 @@ export class ProductoService {
       }
     }
 
-    query += ` ORDER BY p.id_producto DESC;`;
+    query += ` ORDER BY p.id_producto DESC`;
 
-    const result = await pool.query(query, params);
+    const paginacion = normalizarPaginacion({ limite, pagina });
+    query = aplicarPaginacionSQL(query, params, paginacion);
+
+    // Ejecución paralela de resumen y listado paginado
+    const [resResumen, result] = await Promise.all([
+      pool.query(queryResumen),
+      pool.query(query, params)
+    ]);
+
+    const resumen = resResumen.rows[0] || {
+      total_articulos: 0,
+      total_unidades: 0,
+      bajo_stock_count: 0,
+      inactivos_count: 0
+    };
+
+    const total = result.rows.length > 0 ? Number(result.rows[0].total_registros) : 0;
+    const meta = calcularMetaPaginacion(total, paginacion);
+    const productos = result.rows.map(({ total_registros, ...prod }) => prod);
+
     return {
-      total: result.rowCount || 0,
+      ...meta,
       resumen: {
         total_articulos: Number(resumen.total_articulos) || 0,
         total_unidades: Number(resumen.total_unidades) || 0,
         bajo_stock_count: Number(resumen.bajo_stock_count) || 0,
         inactivos_count: Number(resumen.inactivos_count) || 0
       },
-      productos: result.rows
+      productos
     };
   }
 
+  /** Obtiene el detalle completo de un producto por su ID. */
   static async obtenerProductoPorId(id: number) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese producto.');
-    }
+    validarId(id, 'No se encontró ese producto.');
 
     const query = `${PRODUCTO_SELECT} WHERE p.id_producto = $1;`;
     const result = await pool.query(query, [id]);
@@ -158,6 +189,7 @@ export class ProductoService {
     return result.rows[0];
   }
 
+  /** Da de alta un nuevo artículo en catálogo y registra el stock inicial en Kardex si aplica. */
   static async crearProducto(datos: any, operador: { idUsuarioOperador?: number | undefined; nombreUsuarioOperador?: string | undefined }) {
     const errores = validarDatosProducto(datos);
     if (errores.length > 0) {
@@ -244,10 +276,9 @@ export class ProductoService {
     }
   }
 
+  /** Actualiza los datos de un artículo y registra diferencias de stock en Kardex si cambiaron. */
   static async actualizarProducto(id: number, datos: any, operador: { idUsuarioOperador?: number | undefined; nombreUsuarioOperador?: string | undefined }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese producto.');
-    }
+    validarId(id, 'No se encontró ese producto.');
 
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
     const client = await pool.connect();
@@ -260,13 +291,37 @@ export class ProductoService {
         throw new NotFoundError('Ese producto no existe.');
       }
 
+      const prodAnterior = checkProd.rows[0];
+      const stockAnterior = Number(prodAnterior.cantidad);
+
       const { nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, precio, stock_minimo, activo } = datos;
 
       let tipoLimpio: string | null = null;
       if (tipo_prod) {
         tipoLimpio = String(tipo_prod).trim().toLowerCase();
         if (!TIPOS_PRODUCTO_VALIDOS.includes(tipoLimpio)) {
-          throw new BadRequestError('Elegí un tipo válido: Bicicleta, Repuesto, Accesorio o Componente.');
+          throw new BadRequestError('Elegí un tipo válido: Bicicleta, Repuesto o Accesorio.');
+        }
+      }
+
+      if (cantidad !== undefined && cantidad !== null && cantidad !== '') {
+        const cantNum = Number(cantidad);
+        if (isNaN(cantNum) || cantNum < 0 || !Number.isInteger(cantNum)) {
+          throw new BadRequestError('La cantidad debe ser un número entero mayor o igual a 0.');
+        }
+      }
+
+      if (precio !== undefined && precio !== null && precio !== '') {
+        const precioNum = Number(precio);
+        if (isNaN(precioNum) || precioNum < 0) {
+          throw new BadRequestError('El precio no puede ser negativo.');
+        }
+      }
+
+      if (stock_minimo !== undefined && stock_minimo !== null && stock_minimo !== '') {
+        const stockMinNum = Number(stock_minimo);
+        if (isNaN(stockMinNum) || stockMinNum < 0 || !Number.isInteger(stockMinNum)) {
+          throw new BadRequestError('El stock mínimo debe ser un número entero mayor o igual a 0.');
         }
       }
 
@@ -296,6 +351,19 @@ export class ProductoService {
       ]);
 
       const productoActualizado = resultProd.rows[0];
+      const stockNuevo = Number(productoActualizado.cantidad);
+      const deltaStock = stockNuevo - stockAnterior;
+
+      // Mantener trazabilidad en Kardex (Movimiento_Stock) si se editó la cantidad directamente
+      if (deltaStock !== 0 && idUsuarioOperador) {
+        const tipoMovDb = deltaStock > 0 ? 'INGRESO' : 'EGRESO';
+        const cantMovDb = Math.abs(deltaStock);
+        await client.query(
+          `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
+           VALUES ($1, $2, $3, $4, 'Ajuste en edición de catálogo', $5);`,
+          [id, idUsuarioOperador, tipoMovDb, cantMovDb, `Stock modificado de ${stockAnterior} a ${stockNuevo} un.`]
+        );
+      }
 
       if (productoActualizado.tipo_prod === 'bicicleta') {
         const queryBici = `
@@ -343,10 +411,9 @@ export class ProductoService {
     }
   }
 
+  /** Realiza la baja lógica (desactivación) de un producto del catálogo activo. */
   static async eliminarProducto(id: number, operador: { idUsuarioOperador?: number | undefined; nombreUsuarioOperador?: string | undefined }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese producto.');
-    }
+    validarId(id, 'No se encontró ese producto.');
 
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
 
@@ -376,10 +443,9 @@ export class ProductoService {
     return { message: 'Producto desactivado del inventario exitosamente' };
   }
 
+  /** Reactiva un producto previamente dado de baja en el catálogo. */
   static async reactivarProducto(id: number, operador: { idUsuarioOperador?: number | undefined; nombreUsuarioOperador?: string | undefined }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese producto.');
-    }
+    validarId(id, 'No se encontró ese producto.');
 
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
 
@@ -412,6 +478,7 @@ export class ProductoService {
     };
   }
 
+  /** Realiza ajustes manuales de inventario (ingreso, egreso o corrección de stock) con Kardex. */
   static async ajustarStock(id: number, datos: {
     cantidad_ajuste: number | string;
     tipo_movimiento: 'INGRESO' | 'EGRESO' | 'AJUSTE';
@@ -420,69 +487,97 @@ export class ProductoService {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese producto.');
-    }
+    validarId(id, 'No se encontró ese producto.');
 
     const { cantidad_ajuste, tipo_movimiento, motivo, observaciones, idUsuarioOperador, nombreUsuarioOperador } = datos;
     const cantNum = Number(cantidad_ajuste);
-
-    if (isNaN(cantNum) || cantNum <= 0 || !Number.isInteger(cantNum)) {
-      throw new BadRequestError('La cantidad debe ser al menos 1.');
-    }
 
     const tipoNorm = String(tipo_movimiento || '').trim().toUpperCase();
     if (!['INGRESO', 'EGRESO', 'AJUSTE'].includes(tipoNorm)) {
       throw new BadRequestError('El tipo de movimiento debe ser INGRESO, EGRESO o AJUSTE.');
     }
 
+    if (tipoNorm === 'AJUSTE') {
+      if (isNaN(cantNum) || cantNum < 0 || !Number.isInteger(cantNum)) {
+        throw new BadRequestError('El stock de ajuste debe ser un número entero mayor o igual a 0.');
+      }
+    } else {
+      if (isNaN(cantNum) || cantNum <= 0 || !Number.isInteger(cantNum)) {
+        throw new BadRequestError('La cantidad debe ser al menos 1.');
+      }
+    }
+
     if (!motivo || typeof motivo !== 'string' || motivo.trim().length < 3) {
       throw new BadRequestError('Escribí el motivo del ajuste (al menos 3 letras).');
+    }
+
+    if (!idUsuarioOperador || isNaN(Number(idUsuarioOperador)) || Number(idUsuarioOperador) <= 0) {
+      throw new UnauthorizedError('No se pudo identificar al usuario que realiza el ajuste.');
     }
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
-      const resProd = await client.query('SELECT id_producto, nombre, cantidad FROM Productos WHERE id_producto = $1 FOR UPDATE;', [id]);
+      const resProd = await client.query('SELECT id_producto, nombre, cantidad, activo FROM Productos WHERE id_producto = $1 FOR UPDATE;', [id]);
       if (resProd.rowCount === 0) {
         throw new NotFoundError('Ese producto no existe.');
       }
 
+      if (resProd.rows[0].activo === false) {
+        throw new BadRequestError(`El producto "${resProd.rows[0].nombre}" está inactivo. Debe reactivarlo antes de registrar movimientos de stock.`);
+      }
+
       const stockActual = Number(resProd.rows[0].cantidad);
       let nuevoStock = stockActual;
+      let tipoMovimientoDb: 'INGRESO' | 'EGRESO' = 'INGRESO';
+      let cantidadMovimientoDb = cantNum;
 
       if (tipoNorm === 'INGRESO') {
         nuevoStock = stockActual + cantNum;
+        tipoMovimientoDb = 'INGRESO';
+        cantidadMovimientoDb = cantNum;
       } else if (tipoNorm === 'EGRESO') {
         if (stockActual < cantNum) {
           throw new BadRequestError(`No hay suficiente stock. Hay ${stockActual} unidades.`);
         }
         nuevoStock = stockActual - cantNum;
+        tipoMovimientoDb = 'EGRESO';
+        cantidadMovimientoDb = cantNum;
       } else if (tipoNorm === 'AJUSTE') {
         nuevoStock = cantNum;
+        if (nuevoStock > stockActual) {
+          tipoMovimientoDb = 'INGRESO';
+          cantidadMovimientoDb = nuevoStock - stockActual;
+        } else if (nuevoStock < stockActual) {
+          tipoMovimientoDb = 'EGRESO';
+          cantidadMovimientoDb = stockActual - nuevoStock;
+        } else {
+          // El stock es el mismo, no requiere alteración
+          cantidadMovimientoDb = 0;
+        }
       }
 
       const queryUpdate = 'UPDATE Productos SET cantidad = $1 WHERE id_producto = $2 RETURNING *;';
       const resUpdate = await client.query(queryUpdate, [nuevoStock, id]);
 
-      if (idUsuarioOperador) {
-        try {
-          await client.query(
-            `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
-             VALUES ($1, $2, $3, $4, $5, $6);`,
-            [
-              id,
-              idUsuarioOperador,
-              tipoNorm,
-              cantNum,
-              motivo.trim(),
-              observaciones ? String(observaciones).trim() : null
-            ]
-          );
-        } catch {
-          // Ignorar
-        }
+      // Registrar en Movimiento_Stock asegurando longitud máxima de 100 caracteres
+      if (cantidadMovimientoDb > 0) {
+        const motivoBase = tipoNorm === 'AJUSTE' ? `Ajuste de inventario: ${motivo.trim()}` : motivo.trim();
+        const motivoDb = motivoBase.slice(0, 100);
+
+        await client.query(
+          `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
+           VALUES ($1, $2, $3, $4, $5, $6);`,
+          [
+            id,
+            idUsuarioOperador,
+            tipoMovimientoDb,
+            cantidadMovimientoDb,
+            motivoDb,
+            observaciones ? String(observaciones).trim() : null
+          ]
+        );
       }
 
       try {
@@ -516,26 +611,32 @@ export class ProductoService {
     }
   }
 
+  /** Recupera el historial de movimientos de inventario con filtros por artículo o búsqueda libre. */
   static async obtenerMovimientosStock(filtros: { id_producto?: number | string | undefined; busqueda?: string | undefined }) {
     const { id_producto, busqueda } = filtros;
     let query = `
-      SELECT ms.*, u.nombre_usuario, p.nombre AS producto_nombre
+      SELECT 
+        ms.*, 
+        u.nombre_usuario, 
+        u.nombre_usuario AS usuario_nombre, 
+        p.nombre AS producto_nombre,
+        COALESCE(pb.marca, p.marca) AS producto_marca,
+        p.modelo AS producto_modelo
       FROM Movimiento_Stock ms
       INNER JOIN Usuario u ON ms.id_usuario = u.id_usuario
       INNER JOIN Productos p ON ms.id_producto = p.id_producto
+      LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
     `;
 
     const whereClauses: string[] = [];
     const params: any[] = [];
     let paramIdx = 1;
 
-    if (id_producto) {
-      const idNum = Number(id_producto);
-      if (!isNaN(idNum) && idNum > 0) {
-        whereClauses.push(`ms.id_producto = $${paramIdx}`);
-        params.push(idNum);
-        paramIdx++;
-      }
+    if (id_producto !== undefined && id_producto !== null && id_producto !== '') {
+      const idNum = validarId(id_producto, 'El ID del artículo no es válido.');
+      whereClauses.push(`ms.id_producto = $${paramIdx}`);
+      params.push(idNum);
+      paramIdx++;
     }
 
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
@@ -554,7 +655,7 @@ export class ProductoService {
       query += ` WHERE ` + whereClauses.join(' AND ');
     }
 
-    query += ` ORDER BY ms.id_movimiento DESC;`;
+    query += ` ORDER BY ms.id_movimiento DESC LIMIT 500;`;
 
     const result = await pool.query(query, params);
     return {
@@ -563,6 +664,7 @@ export class ProductoService {
     };
   }
 
+  /** Obtiene la sábana de movimientos de Kardex para un producto determinado. */
   static async obtenerKardex(id: number) {
     return this.obtenerMovimientosStock({ id_producto: id });
   }

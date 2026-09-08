@@ -5,6 +5,7 @@ interface InicioAccionesRapidasProps {
   onNavigate: (view: string) => void;
 }
 
+/** Accesos directos para iniciar nueva venta o registrar ingreso al taller. */
 export function InicioAccionesRapidas({ onNavigate }: InicioAccionesRapidasProps) {
   return (
     <div>

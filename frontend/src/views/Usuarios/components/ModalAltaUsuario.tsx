@@ -9,6 +9,7 @@ interface ModalAltaUsuarioProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Modal con formulario para registrar una nueva cuenta de usuario en el sistema. */
 export function ModalAltaUsuario({
   mostrar,
   onCerrar,

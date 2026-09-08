@@ -1,3 +1,4 @@
+/** Tipos e interfaces para la administración de usuarios y roles del sistema. */
 import type { Usuario } from '../../types';
 
 export type RolUsuario = 'EMPLEADO' | 'ADMIN' | 'SUPERADMIN';

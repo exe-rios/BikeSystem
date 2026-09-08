@@ -6,6 +6,7 @@ import { ModalAltaReparacion } from './components/ModalAltaReparacion';
 import { ModalEditarReparacion } from './components/ModalEditarReparacion';
 import { ModalDetalleReparacion } from './components/ModalDetalleReparacion';
 
+/** Vista de taller mecánico con tablero Kanban y pestaña de historial de entregas. */
 export function ReparacionesView() {
   const {
     bicicletas,
@@ -26,11 +27,18 @@ export function ReparacionesView() {
     repuestoSeleccionadoId,
     cantidadRepuesto,
     guardandoRepuesto,
+    mensajeRepuesto,
     draggingId,
     reparacionesActivas,
     reparacionesEntregadas,
     reparacionesActivasFiltradas,
     reparacionesEntregadasFiltradas,
+    paginaHistorial,
+    totalPaginasHistorial,
+    totalHistorial,
+    limiteHistorial,
+    setPaginaHistorial,
+    resumen,
     totalMontoHistorico,
     promedioPorOrden,
     repuestosDisponibles,
@@ -54,7 +62,6 @@ export function ReparacionesView() {
     handleGuardarEdicion,
     handleCambiarEstado,
     handleEntregarOrden,
-    handleReabrirOrden,
     handleDropEnColumna
   } = useReparaciones();
 
@@ -64,8 +71,8 @@ export function ReparacionesView() {
       <ReparacionesHeader
         vistaTab={vistaTab}
         setVistaTab={setVistaTab}
-        activasCount={reparacionesActivas.length}
-        entregadasCount={reparacionesEntregadas.length}
+        activasCount={resumen.total_activas || reparacionesActivas.length}
+        entregadasCount={resumen.total_entregadas || totalHistorial}
         onAbrirAlta={() => {
           setNuevaReparacion({ id_bicicleta: 0, descripcion: '', costo_mano_obra: '', estado: 'Recibida' });
           setMostrarModalAlta(true);
@@ -109,9 +116,11 @@ export function ReparacionesView() {
           setBusquedaHistorial={setBusquedaHistorial}
           cargando={cargando}
           handleAbrirDetalle={handleAbrirDetalle}
-          setOrdenEditando={setOrdenEditando}
-          setMostrarModalEditar={setMostrarModalEditar}
-          handleReabrirOrden={handleReabrirOrden}
+          paginaActual={paginaHistorial}
+          totalPaginas={totalPaginasHistorial}
+          totalRegistros={totalHistorial}
+          limite={limiteHistorial}
+          onCambiarPagina={setPaginaHistorial}
         />
       )}
 
@@ -153,6 +162,7 @@ export function ReparacionesView() {
         setCantidadRepuesto={setCantidadRepuesto}
         productoRepuestoSeleccionado={productoRepuestoSeleccionado}
         guardandoRepuesto={guardandoRepuesto}
+        mensajeRepuesto={mensajeRepuesto}
         totalRepuestosCosto={totalRepuestosCosto}
         onAgregarRepuesto={handleAgregarRepuesto}
         onEliminarRepuesto={handleEliminarRepuesto}

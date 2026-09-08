@@ -3,6 +3,7 @@ import { AuditoriaHeader } from './components/AuditoriaHeader';
 import { AuditoriaFiltros } from './components/AuditoriaFiltros';
 import { AuditoriaTabla } from './components/AuditoriaTabla';
 
+/** Vista principal de auditoría y bitácora del sistema. */
 export function AuditoriaView() {
   const {
     registros,
@@ -11,6 +12,11 @@ export function AuditoriaView() {
     moduloFiltro,
     busqueda,
     modulos,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     setModuloFiltro,
     setBusqueda,
     handleBuscar,
@@ -42,6 +48,11 @@ export function AuditoriaView() {
         registros={registros}
         cargando={cargando}
         getModuloBadge={getModuloBadge}
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={setPaginaActual}
       />
     </div>
   );

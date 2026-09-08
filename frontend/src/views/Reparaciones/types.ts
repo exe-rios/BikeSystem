@@ -1,3 +1,4 @@
+/** Tipos e interfaces del módulo de reparaciones y taller mecánico. */
 import type { Reparacion, Bicicleta, Producto, DetalleReparacionItem } from '../../types';
 
 export type VistaTabReparaciones = 'activo' | 'historial';

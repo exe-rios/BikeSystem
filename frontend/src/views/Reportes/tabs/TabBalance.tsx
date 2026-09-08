@@ -1,11 +1,27 @@
 import type { ReporteKPIs, PagoProveedor } from '../../../types';
+import { Paginador } from '../../../components/Paginador';
+import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 
 interface TabBalanceProps {
   kpis: ReporteKPIs;
   pagos: PagoProveedor[];
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
-export function TabBalance({ kpis, pagos }: TabBalanceProps) {
+/** Pestaña de balance financiero con desglose de pagos efectuados a proveedores. */
+export function TabBalance({
+  kpis,
+  pagos,
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
+}: TabBalanceProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
@@ -13,15 +29,15 @@ export function TabBalance({ kpis, pagos }: TabBalanceProps) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
         <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', padding: '20px' }}>
           <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Ingresos Brutos</span>
-          <h3 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#16a34a', margin: '8px 0 4px 0' }}>{'$' + kpis.total_ingresos.toLocaleString()}</h3>
+          <h3 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#16a34a', margin: '8px 0 4px 0' }}>{formatearMoneda(kpis.total_ingresos)}</h3>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--texto-mutado)' }}>
-            Ventas: {'$' + kpis.total_ventas_monto.toLocaleString()} | Taller: {'$' + kpis.total_reparaciones_monto.toLocaleString()}
+            Ventas: {formatearMoneda(kpis.total_ventas_monto)} | Taller: {formatearMoneda(kpis.total_reparaciones_monto)}
           </p>
         </div>
 
         <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', padding: '20px' }}>
           <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Egresos Operativos</span>
-          <h3 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#dc2626', margin: '8px 0 4px 0' }}>{'$' + kpis.total_egresos_monto.toLocaleString()}</h3>
+          <h3 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#dc2626', margin: '8px 0 4px 0' }}>{formatearMoneda(kpis.total_egresos_monto)}</h3>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--texto-mutado)' }}>
             {pagos.length} comprobantes abonados a proveedores
           </p>
@@ -30,7 +46,7 @@ export function TabBalance({ kpis, pagos }: TabBalanceProps) {
         <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', padding: '20px' }}>
           <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Flujo Neto (Beneficio)</span>
           <h3 style={{ fontSize: '1.8rem', fontWeight: '800', color: kpis.balance_neto >= 0 ? '#16a34a' : '#dc2626', margin: '8px 0 4px 0' }}>
-            {'$' + kpis.balance_neto.toLocaleString()}
+            {formatearMoneda(kpis.balance_neto)}
           </h3>
           <p style={{ margin: 0, fontSize: '0.82rem', color: kpis.balance_neto >= 0 ? '#15803d' : '#b91c1c', fontWeight: '600' }}>
             Rentabilidad sobre ventas: {kpis.margen_rentabilidad}%
@@ -41,7 +57,7 @@ export function TabBalance({ kpis, pagos }: TabBalanceProps) {
       {/* Tabla de Desglose de Egresos a Proveedores */}
       <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--borde-input)' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--borde-input)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700' }}>Detalle de Egresos a Proveedores ({pagos.length} registros)</h3>
+          <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700' }}>Detalle de Egresos a Proveedores ({totalRegistros} registros)</h3>
         </div>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
@@ -68,7 +84,7 @@ export function TabBalance({ kpis, pagos }: TabBalanceProps) {
                     PAG-{String(p.id_pago).padStart(6, '0')}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '0.88rem' }}>
-                    {p.fecha ? new Date(p.fecha).toLocaleDateString() : 'N/A'}
+                    {formatearFecha(p.fecha, 'N/A')}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '0.9rem', fontWeight: '600' }}>
                     {p.proveedor_nombre || ('Proveedor #' + p.id_proveedor)}
@@ -80,7 +96,7 @@ export function TabBalance({ kpis, pagos }: TabBalanceProps) {
                     {p.usuario_nombre || 'Administrador'}
                   </td>
                   <td style={{ padding: '12px 16px', fontSize: '0.95rem', fontWeight: '700', textAlign: 'right', color: '#dc2626' }}>
-                    {'$' + Number(p.monto_total).toLocaleString()}
+                    {formatearMoneda(p.monto_total)}
                   </td>
                 </tr>
               ))
@@ -88,6 +104,14 @@ export function TabBalance({ kpis, pagos }: TabBalanceProps) {
           </tbody>
         </table>
       </div>
+
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        alCambiarPagina={onCambiarPagina}
+      />
     </div>
   );
 }

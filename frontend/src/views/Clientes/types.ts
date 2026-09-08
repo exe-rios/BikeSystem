@@ -1,3 +1,4 @@
+/** Tipos de datos e interfaces para la gestión de clientes. */
 import type { Cliente } from '../../types';
 
 export interface ErroresFormulario {

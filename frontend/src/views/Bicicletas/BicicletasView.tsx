@@ -5,12 +5,18 @@ import { ModalAltaBicicleta } from './components/ModalAltaBicicleta';
 import { ModalEditarBicicleta } from './components/ModalEditarBicicleta';
 import { ModalHistorialBicicleta } from './components/ModalHistorialBicicleta';
 
+/** Vista principal de gestión de bicicletas de clientes. */
 export function BicicletasView() {
   const {
     bicicletas,
     clientes,
     bicicletasFiltradas,
     totalBicicletas,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     cargando,
     guardando,
     error,
@@ -60,6 +66,11 @@ export function BicicletasView() {
         onVerHistorial={handleVerHistorial}
         onEditar={handleAbrirEditar}
         onEliminar={handleEliminarBici}
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={setPaginaActual}
       />
 
       {/* MODAL 1: REGISTRAR BICICLETA NUEVA */}

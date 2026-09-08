@@ -1,24 +1,38 @@
 import type { BitacoraActividad, BadgeModuloStyle } from '../types';
+import { Paginador } from '../../../components/Paginador';
+import { formatearFechaHora } from '../../../utils/formatters';
 
 interface AuditoriaTablaProps {
   registros: BitacoraActividad[];
   cargando: boolean;
   getModuloBadge: (modulo: string) => BadgeModuloStyle;
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
+/** Tabla con registros históricos de actividad, usuario y paginación. */
 export function AuditoriaTabla({
   registros,
   cargando,
-  getModuloBadge
+  getModuloBadge,
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
 }: AuditoriaTablaProps) {
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-tarjeta)',
-      borderRadius: '14px',
-      border: '1px solid var(--borde-input)',
-      boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
-      overflow: 'hidden'
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{
+        backgroundColor: 'var(--bg-tarjeta)',
+        borderRadius: '14px',
+        border: '1px solid var(--borde-input)',
+        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
+        overflow: 'hidden'
+      }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
           <tr style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid var(--borde-input)' }}>
@@ -53,7 +67,7 @@ export function AuditoriaTabla({
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)', whiteSpace: 'nowrap' }}>
-                    {item.created_at ? new Date(item.created_at).toLocaleString([], { dateStyle: 'short', timeStyle: 'medium' }) : 'N/D'}
+                    {formatearFechaHora(item.created_at, 'N/D')}
                   </td>
                   <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                     <span style={{
@@ -83,6 +97,15 @@ export function AuditoriaTabla({
           )}
         </tbody>
       </table>
+      </div>
+
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={onCambiarPagina}
+      />
     </div>
   );
 }

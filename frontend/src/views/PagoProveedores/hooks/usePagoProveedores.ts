@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { PagoProveedor, Proveedor, MetodoPago, NuevoPagoData } from '../types';
 import { api } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useDebounce } from '../../../hooks/useDebounce';
 
 const INITIAL_NUEVO_PAGO: NuevoPagoData = {
   nombre_proveedor: '',
@@ -10,6 +11,7 @@ const INITIAL_NUEVO_PAGO: NuevoPagoData = {
   observaciones: ''
 };
 
+/** Hook para la consulta, paginación y alta de comprobantes de pago a proveedores. */
 export function usePagoProveedores() {
   const { user } = useAuth();
 
@@ -21,6 +23,17 @@ export function usePagoProveedores() {
   const [guardando, setGuardando] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState<string>('');
+  const busquedaDebounced = useDebounce(busqueda, 300);
+
+  // Paginación de 10 en 10
+  const [paginaActual, setPaginaActual] = useState<number>(1);
+  const [totalPaginas, setTotalPaginas] = useState<number>(1);
+  const [totalRegistros, setTotalRegistros] = useState<number>(0);
+  const limite = 10;
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busquedaDebounced]);
 
   const [mostrarModal, setMostrarModal] = useState<boolean>(false);
   const [nuevoPago, setNuevoPago] = useState<NuevoPagoData>(INITIAL_NUEVO_PAGO);
@@ -30,12 +43,18 @@ export function usePagoProveedores() {
     setError(null);
     try {
       const [resPagos, resProv, resMetodos] = await Promise.all([
-        api.pagosProveedores.getAll(),
+        api.pagosProveedores.getAll({
+          busqueda: busquedaDebounced,
+          limite,
+          pagina: paginaActual
+        }),
         api.proveedores.getAll(),
         api.pagosProveedores.getMetodosPago()
       ]);
 
       setPagos(resPagos.pagos || []);
+      setTotalRegistros(resPagos.total || 0);
+      setTotalPaginas(resPagos.totalPaginas || 1);
       if (resPagos.total_monto !== undefined) {
         setTotalMontoBackend(resPagos.total_monto);
       }
@@ -50,12 +69,14 @@ export function usePagoProveedores() {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [busquedaDebounced, paginaActual, limite]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarDatos();
   }, [cargarDatos]);
 
+  /** Valida y envía el nuevo pago al backend, asociándolo al usuario en sesión. */
   const handleGuardar = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -108,7 +129,12 @@ export function usePagoProveedores() {
   return {
     pagos,
     pagosFiltrados,
-    totalPagos: pagos.length,
+    totalPagos: totalRegistros,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     totalMontoBackend,
     proveedores,
     metodosPago,

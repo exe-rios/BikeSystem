@@ -1,10 +1,13 @@
 import bcrypt from 'bcrypt';
 import { pool } from '../config/db.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
+import { validarId } from '../utils/validation.js';
 
 const ROLES_VALIDOS = ['ADMIN', 'EMPLEADO', 'SUPERADMIN'];
 
+/** Servicio para la administración de cuentas de usuario, roles y credenciales. */
 export class UsuarioService {
+  /** Lista usuarios registrados con filtros opcionales por rol o coincidencia de nombre. */
   static async obtenerUsuarios(filtros: { busqueda?: string | undefined; rol?: string | undefined }) {
     const { busqueda, rol } = filtros;
     let query = `
@@ -16,7 +19,7 @@ export class UsuarioService {
     const params: any[] = [];
     let paramIdx = 1;
 
-    if (rol && typeof rol === 'string' && rol.trim() !== 'todos') {
+    if (rol && typeof rol === 'string' && rol.trim() && rol.trim() !== 'TODOS') {
       whereClauses.push(`rol = $${paramIdx}`);
       params.push(rol.trim().toUpperCase());
       paramIdx++;
@@ -46,10 +49,9 @@ export class UsuarioService {
     };
   }
 
+  /** Obtiene un usuario específico por su ID. */
   static async obtenerUsuarioPorId(id: number) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese usuario.');
-    }
+    validarId(id, 'No se encontró ese usuario.');
 
     const query = `
       SELECT id_usuario, nombre_usuario, rol
@@ -65,6 +67,7 @@ export class UsuarioService {
     return result.rows[0];
   }
 
+  /** Crea una nueva cuenta de usuario con contraseña hasheada y asignación de rol. */
   static async crearUsuario(datos: {
     nombre_usuario: string;
     contrasena: string;
@@ -135,6 +138,7 @@ export class UsuarioService {
     return nuevoUsuario;
   }
 
+  /** Modifica nombre de usuario, contraseña o rol de un usuario existente. */
   static async actualizarUsuario(id: number, datos: {
     nombre_usuario?: string | undefined;
     contrasena?: string | undefined;
@@ -143,9 +147,7 @@ export class UsuarioService {
     nombreUsuarioOperador?: string | undefined;
     rolOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese usuario.');
-    }
+    validarId(id, 'No se encontró ese usuario.');
 
     const { nombre_usuario, contrasena, rol, idUsuarioOperador, nombreUsuarioOperador, rolOperador } = datos;
 
@@ -158,7 +160,6 @@ export class UsuarioService {
     if (checkPrevio.rowCount === 0) {
       throw new NotFoundError('Ese usuario no existe.');
     }
-
     // Si modifica el nombre_usuario, validar unicidad
     if (nombre_usuario && typeof nombre_usuario === 'string') {
       const checkNombre = await pool.query(
@@ -221,6 +222,7 @@ export class UsuarioService {
     return usuarioActualizado;
   }
 
+  /** Elimina un usuario si no posee historial de operaciones registrado en el sistema. */
   static async eliminarUsuario(id: number, operador: {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
@@ -245,6 +247,20 @@ export class UsuarioService {
       throw new NotFoundError('Ese usuario no existe.');
     }
     const usuarioAEliminar = resUser.rows[0];
+
+    // Verificar si posee historial operativo en el sistema para evitar fallo de FK en PostgreSQL
+    const checkHistorial = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM Venta WHERE id_usuario = $1)::int +
+        (SELECT COUNT(*) FROM Reparacion WHERE id_usuario = $1)::int +
+        (SELECT COUNT(*) FROM Pago_Proveedor WHERE id_usuario = $1)::int +
+        (SELECT COUNT(*) FROM Movimiento_Stock WHERE id_usuario = $1)::int AS total_movimientos;
+    `, [id]);
+
+    const totalMovimientos = Number(checkHistorial.rows[0]?.total_movimientos || 0);
+    if (totalMovimientos > 0) {
+      throw new ConflictError(`No se puede eliminar el usuario porque posee ${totalMovimientos} registro(s) históricos (ventas, reparaciones, pagos o movimientos de inventario).`);
+    }
 
     await pool.query('DELETE FROM Usuario WHERE id_usuario = $1;', [id]);
 

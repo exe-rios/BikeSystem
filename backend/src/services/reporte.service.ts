@@ -1,17 +1,29 @@
 import { pool } from '../config/db.js';
+import { BadRequestError } from '../utils/errors.js';
+import { DATE_REGEX } from '../utils/validation.js';
+import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
+/** Genera cláusula SQL parametrizada para rango de fechas (desde / hasta). */
 const construirFiltroFecha = (columna: string, desde?: string | undefined, hasta?: string | undefined, paramOffset: number = 1): { sql: string; params: any[] } => {
   const condiciones: string[] = [];
   const params: any[] = [];
   let idx = paramOffset;
 
   if (desde && typeof desde === 'string' && desde.trim()) {
-    condiciones.push(`DATE(${columna}) >= $${idx++}`);
-    params.push(desde.trim());
+    const desdeLimpio = desde.trim();
+    if (!DATE_REGEX.test(desdeLimpio)) {
+      throw new BadRequestError('El formato de fecha "desde" no es válido. Usá AAAA-MM-DD (ej: 2026-05-01).');
+    }
+    condiciones.push(`${columna} >= $${idx++}`);
+    params.push(desdeLimpio);
   }
   if (hasta && typeof hasta === 'string' && hasta.trim()) {
-    condiciones.push(`DATE(${columna}) <= $${idx++}`);
-    params.push(hasta.trim());
+    const hastaLimpio = hasta.trim();
+    if (!DATE_REGEX.test(hastaLimpio)) {
+      throw new BadRequestError('El formato de fecha "hasta" no es válido. Usá AAAA-MM-DD (ej: 2026-05-31).');
+    }
+    condiciones.push(`${columna} <= $${idx++}`);
+    params.push(hastaLimpio);
   }
 
   return {
@@ -20,21 +32,16 @@ const construirFiltroFecha = (columna: string, desde?: string | undefined, hasta
   };
 };
 
+/** Servicio de analítica, balances financieros consolidados y reportes del sistema. */
 export class ReporteService {
+  /** Obtiene métricas en tiempo real para el panel de inicio (finanzas del mes, alertas y ranking). */
   static async obtenerDashboard() {
     const queryGanancias = `
       SELECT 
         (SELECT COALESCE(SUM(costo_total), 0) FROM Venta WHERE (estado IS NULL OR estado != 'ANULADA') AND EXTRACT(MONTH FROM fecha) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM CURRENT_DATE)) AS ventas_mes,
-        (SELECT COALESCE(SUM(costo_total), 0) FROM Reparacion WHERE estado = 'Entregada' AND EXTRACT(MONTH FROM fecha_egreso) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM fecha_egreso) = EXTRACT(YEAR FROM CURRENT_DATE)) AS taller_mes,
+        (SELECT COALESCE(SUM(costo_total), 0) FROM Reparacion WHERE estado = 'Entregada' AND EXTRACT(MONTH FROM COALESCE(fecha_egreso, fecha_ingreso)) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM COALESCE(fecha_egreso, fecha_ingreso)) = EXTRACT(YEAR FROM CURRENT_DATE)) AS taller_mes,
         (SELECT COALESCE(SUM(monto_total), 0) FROM Pago_Proveedor WHERE EXTRACT(MONTH FROM fecha) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM CURRENT_DATE)) AS egresos_proveedores_mes;
     `;
-    const resultGanancias = await pool.query(queryGanancias);
-
-    const ventasMes = Number(resultGanancias.rows[0].ventas_mes);
-    const tallerMes = Number(resultGanancias.rows[0].taller_mes);
-    const egresosMes = Number(resultGanancias.rows[0].egresos_proveedores_mes);
-    const recaudacionTotalMes = ventasMes + tallerMes;
-    const balanceNetoMes = recaudacionTotalMes - egresosMes;
 
     const queryTaller = `
       SELECT estado, COUNT(*) as cantidad 
@@ -42,7 +49,6 @@ export class ReporteService {
       WHERE estado != 'Entregada' 
       GROUP BY estado;
     `;
-    const resultTaller = await pool.query(queryTaller);
 
     const queryStock = `
       SELECT id_producto, nombre, marca, cantidad, stock_minimo 
@@ -51,7 +57,6 @@ export class ReporteService {
       ORDER BY cantidad ASC 
       LIMIT 5;
     `;
-    const resultStock = await pool.query(queryStock);
 
     const queryTopProductos = `
       SELECT 
@@ -70,7 +75,22 @@ export class ReporteService {
       ORDER BY total_vendido DESC
       LIMIT 10;
     `;
-    const resultTopProd = await pool.query(queryTopProductos);
+
+    // Ejecución paralela de las 4 consultas independientes del dashboard
+    const [resultGanancias, resultTaller, resultStock, resultTopProd] = await Promise.all([
+      pool.query(queryGanancias),
+      pool.query(queryTaller),
+      pool.query(queryStock),
+      pool.query(queryTopProductos)
+    ]);
+
+    const ventasMes = Math.round(Number(resultGanancias.rows[0].ventas_mes) * 100) / 100;
+    const tallerMes = Math.round(Number(resultGanancias.rows[0].taller_mes) * 100) / 100;
+    const egresosMes = Math.round(Number(resultGanancias.rows[0].egresos_proveedores_mes) * 100) / 100;
+    const recaudacionTotalMes = Math.round((ventasMes + tallerMes) * 100) / 100;
+    const balanceNetoMes = Math.round((recaudacionTotalMes - egresosMes) * 100) / 100;
+
+    const totalTallerActivo = resultTaller.rows.reduce((acc, row) => acc + (parseInt(row.cantidad, 10) || 0), 0);
 
     return {
       finanzas: {
@@ -81,11 +101,13 @@ export class ReporteService {
         balance_neto_mes: balanceNetoMes
       },
       taller_activo: resultTaller.rows,
+      total_taller_activo: totalTallerActivo,
       alertas_stock: resultStock.rows,
       top_productos: resultTopProd.rows
     };
   }
 
+  /** Calcula KPIs consolidados (ventas, taller, egresos, rentabilidad y ticket promedio) en un período. */
   static async obtenerEstadisticas(filtros: { fechaDesde?: string | undefined; fechaHasta?: string | undefined }) {
     const { fechaDesde, fechaHasta } = filtros;
 
@@ -97,9 +119,6 @@ export class ReporteService {
       FROM Venta
       WHERE (estado IS NULL OR estado != 'ANULADA') ${fVentas.sql};
     `;
-    const resVentas = await pool.query(queryVentas, fVentas.params);
-    const totalVentasMonto = Number(resVentas.rows[0].total_ventas);
-    const totalVentasCantidad = Number(resVentas.rows[0].cantidad_ventas);
 
     const fTaller = construirFiltroFecha('COALESCE(fecha_egreso, fecha_ingreso)', fechaDesde, fechaHasta, 1);
     const queryTaller = `
@@ -110,10 +129,6 @@ export class ReporteService {
       FROM Reparacion
       WHERE estado = 'Entregada' ${fTaller.sql};
     `;
-    const resTaller = await pool.query(queryTaller, fTaller.params);
-    const totalReparacionesMonto = Number(resTaller.rows[0].total_taller);
-    const totalManoObraMonto = Number(resTaller.rows[0].total_mano_obra);
-    const totalReparacionesEntregadas = Number(resTaller.rows[0].cantidad_entregadas);
 
     const fPagos = construirFiltroFecha('fecha', fechaDesde, fechaHasta, 1);
     const queryPagos = `
@@ -123,9 +138,6 @@ export class ReporteService {
       FROM Pago_Proveedor
       WHERE 1=1 ${fPagos.sql};
     `;
-    const resPagos = await pool.query(queryPagos, fPagos.params);
-    const totalPagosProveedoresMonto = Number(resPagos.rows[0].total_egresos);
-    const totalPagosCantidad = Number(resPagos.rows[0].cantidad_pagos);
 
     const fTallerGeneral = construirFiltroFecha('fecha_ingreso', fechaDesde, fechaHasta, 1);
     const queryEstadosTaller = `
@@ -137,7 +149,24 @@ export class ReporteService {
       WHERE 1=1 ${fTallerGeneral.sql}
       GROUP BY estado;
     `;
-    const resEstadosTaller = await pool.query(queryEstadosTaller, fTallerGeneral.params);
+
+    // Ejecución paralela de las 4 consultas independientes de estadísticas
+    const [resVentas, resTaller, resPagos, resEstadosTaller] = await Promise.all([
+      pool.query(queryVentas, fVentas.params),
+      pool.query(queryTaller, fTaller.params),
+      pool.query(queryPagos, fPagos.params),
+      pool.query(queryEstadosTaller, fTallerGeneral.params)
+    ]);
+
+    const totalVentasMonto = Number(resVentas.rows[0]?.total_ventas || 0);
+    const totalVentasCantidad = Number(resVentas.rows[0]?.cantidad_ventas || 0);
+
+    const totalReparacionesMonto = Number(resTaller.rows[0]?.total_taller || 0);
+    const totalManoObraMonto = Number(resTaller.rows[0]?.total_mano_obra || 0);
+    const totalReparacionesEntregadas = Number(resTaller.rows[0]?.cantidad_entregadas || 0);
+
+    const totalPagosProveedoresMonto = Number(resPagos.rows[0]?.total_egresos || 0);
+    const totalPagosCantidad = Number(resPagos.rows[0]?.cantidad_pagos || 0);
 
     let recibidasCount = 0;
     let enReparacionCount = 0;
@@ -159,14 +188,14 @@ export class ReporteService {
       }
     });
 
-    const totalIngresos = totalVentasMonto + totalReparacionesMonto;
-    const balanceNetoPeriodo = totalIngresos - totalPagosProveedoresMonto;
+    const totalIngresos = Math.round((totalVentasMonto + totalReparacionesMonto) * 100) / 100;
+    const balanceNetoPeriodo = Math.round((totalIngresos - totalPagosProveedoresMonto) * 100) / 100;
     const margenRentabilidad = totalIngresos > 0 
       ? Number(((balanceNetoPeriodo / totalIngresos) * 100).toFixed(1)) 
       : 0;
     const totalOperacionesCobradas = totalVentasCantidad + totalReparacionesEntregadas;
     const ticketPromedio = totalOperacionesCobradas > 0 
-      ? Math.round(totalIngresos / totalOperacionesCobradas) 
+      ? Math.round((totalIngresos / totalOperacionesCobradas) * 100) / 100 
       : 0;
     const porcentajeVentas = totalIngresos > 0 
       ? Math.round((totalVentasMonto / totalIngresos) * 100) 
@@ -203,18 +232,25 @@ export class ReporteService {
     };
   }
 
-  static async obtenerVentasReporte(filtros: { fechaDesde?: string | undefined; fechaHasta?: string | undefined; busqueda?: string | undefined }) {
-    const { fechaDesde, fechaHasta, busqueda } = filtros;
+  /** Genera reporte paginado de ventas con filtros de fecha, totales facturados y estado. */
+  static async obtenerVentasReporte(filtros: { 
+    fechaDesde?: string | undefined; 
+    fechaHasta?: string | undefined; 
+    busqueda?: string | undefined;
+    limite?: number | string | undefined;
+    pagina?: number | string | undefined;
+  }) {
+    const { fechaDesde, fechaHasta, busqueda, limite, pagina } = filtros;
     const condiciones: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
     if (fechaDesde && typeof fechaDesde === 'string' && fechaDesde.trim()) {
-      condiciones.push(`DATE(v.fecha) >= $${idx++}`);
+      condiciones.push(`v.fecha >= $${idx++}`);
       params.push(fechaDesde.trim());
     }
     if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
-      condiciones.push(`DATE(v.fecha) <= $${idx++}`);
+      condiciones.push(`v.fecha <= $${idx++}`);
       params.push(fechaHasta.trim());
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
@@ -242,56 +278,67 @@ export class ReporteService {
         COALESCE(v.estado, 'COMPLETADA') AS estado,
         c.nombre AS cliente_nombre, 
         c.apellido AS cliente_apellido,
-        u.nombre_usuario AS vendedor
+        u.nombre_usuario AS vendedor,
+        COUNT(*) OVER()::INT AS total_registros,
+        COUNT(*) FILTER (WHERE v.estado != 'ANULADA') OVER()::INT AS total_cobradas_resumen,
+        COUNT(*) FILTER (WHERE v.estado = 'ANULADA') OVER()::INT AS total_anuladas_resumen,
+        COALESCE(SUM(v.costo_total) FILTER (WHERE v.estado != 'ANULADA') OVER(), 0)::NUMERIC AS total_facturado_resumen
       FROM Venta v
       INNER JOIN Cliente c ON v.id_cliente = c.id_cliente
       INNER JOIN Usuario u ON v.id_usuario = u.id_usuario
       LEFT JOIN Metodo_Pago mp ON v.id_metodo_pago = mp.id_metodo_pago
       ${whereSql}
-      ORDER BY v.id_venta DESC;
+      ORDER BY v.id_venta DESC
     `;
-    const result = await pool.query(query, params);
 
-    let totalFacturado = 0;
-    let ventasCobradas = 0;
-    let ventasAnuladas = 0;
+    const paginacion = normalizarPaginacion({ limite, pagina });
+    const queryPaginada = aplicarPaginacionSQL(query, params, paginacion);
 
-    result.rows.forEach(v => {
-      if (v.estado === 'ANULADA') {
-        ventasAnuladas++;
-      } else {
-        ventasCobradas++;
-        totalFacturado += Number(v.costo_total);
-      }
-    });
+    const result = await pool.query(queryPaginada, params);
+
+    const firstRow = result.rows[0];
+    const total = firstRow ? Number(firstRow.total_registros) : 0;
+    const totalFacturado = firstRow ? Math.round(Number(firstRow.total_facturado_resumen) * 100) / 100 : 0;
+    const ventasCobradas = firstRow ? Number(firstRow.total_cobradas_resumen) : 0;
+    const ventasAnuladas = firstRow ? Number(firstRow.total_anuladas_resumen) : 0;
+    const meta = calcularMetaPaginacion(total, paginacion);
+
+    const ventas = result.rows.map(({ total_registros, total_cobradas_resumen, total_anuladas_resumen, total_facturado_resumen, ...v }) => v);
 
     return {
-      total: result.rowCount || 0,
+      ...meta,
       total_facturado: totalFacturado,
       ventas_cobradas: ventasCobradas,
       ventas_anuladas: ventasAnuladas,
       resumen: {
-        total_ventas: result.rowCount || 0,
+        total_ventas: total,
         ventas_cobradas: ventasCobradas,
         ventas_anuladas: ventasAnuladas,
         total_facturado: totalFacturado
       },
-      ventas: result.rows
+      ventas
     };
   }
 
-  static async obtenerReparacionesReporte(filtros: { fechaDesde?: string | undefined; fechaHasta?: string | undefined; busqueda?: string | undefined }) {
-    const { fechaDesde, fechaHasta, busqueda } = filtros;
+  /** Genera reporte paginado de reparaciones con recaudación de taller y mano de obra. */
+  static async obtenerReparacionesReporte(filtros: { 
+    fechaDesde?: string | undefined; 
+    fechaHasta?: string | undefined; 
+    busqueda?: string | undefined;
+    limite?: number | string | undefined;
+    pagina?: number | string | undefined;
+  }) {
+    const { fechaDesde, fechaHasta, busqueda, limite, pagina } = filtros;
     const condiciones: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
     if (fechaDesde && typeof fechaDesde === 'string' && fechaDesde.trim()) {
-      condiciones.push(`DATE(COALESCE(r.fecha_egreso, r.fecha_ingreso)) >= $${idx++}`);
+      condiciones.push(`COALESCE(r.fecha_egreso, r.fecha_ingreso) >= $${idx++}`);
       params.push(fechaDesde.trim());
     }
     if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
-      condiciones.push(`DATE(COALESCE(r.fecha_egreso, r.fecha_ingreso)) <= $${idx++}`);
+      condiciones.push(`COALESCE(r.fecha_egreso, r.fecha_ingreso) <= $${idx++}`);
       params.push(fechaHasta.trim());
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
@@ -321,63 +368,77 @@ export class ReporteService {
         r.costo_mano_obra, 
         r.costo_total,
         b.marca, 
-        b.modelo,
+        b.modelo, 
         c.nombre AS cliente_nombre, 
         c.apellido AS cliente_apellido,
-        u.nombre_usuario AS mecanico
+        u.nombre_usuario AS mecanico,
+        COUNT(*) OVER()::INT AS total_registros,
+        COUNT(*) FILTER (WHERE r.estado = 'Entregada') OVER()::INT AS total_entregadas_resumen,
+        COUNT(*) FILTER (WHERE r.estado != 'Entregada') OVER()::INT AS total_en_proceso_resumen,
+        COALESCE(SUM(r.costo_total) FILTER (WHERE r.estado = 'Entregada') OVER(), 0)::NUMERIC AS total_recaudado_resumen,
+        COALESCE(SUM(r.costo_mano_obra) FILTER (WHERE r.estado = 'Entregada') OVER(), 0)::NUMERIC AS total_mano_obra_resumen
       FROM Reparacion r
       INNER JOIN Bicicleta b ON r.id_bicicleta = b.id_bicicleta
       INNER JOIN Cliente c ON b.id_cliente = c.id_cliente
       INNER JOIN Usuario u ON r.id_usuario = u.id_usuario
       ${whereSql}
-      ORDER BY r.id_reparacion DESC;
+      ORDER BY r.id_reparacion DESC
     `;
-    const result = await pool.query(query, params);
 
-    let totalRecaudadoEntregadas = 0;
-    let totalManoObra = 0;
-    let totalEntregadas = 0;
-    let totalEnTaller = 0;
+    const paginacion = normalizarPaginacion({ limite, pagina });
+    const queryPaginada = aplicarPaginacionSQL(query, params, paginacion);
 
-    result.rows.forEach(r => {
-      if (r.estado === 'Entregada') {
-        totalEntregadas++;
-        totalRecaudadoEntregadas += Number(r.costo_total);
-        totalManoObra += Number(r.costo_mano_obra);
-      } else {
-        totalEnTaller++;
-      }
-    });
+    const result = await pool.query(queryPaginada, params);
+
+    const firstRow = result.rows[0];
+    const total = firstRow ? Number(firstRow.total_registros) : 0;
+    const totalEntregadas = firstRow ? Number(firstRow.total_entregadas_resumen) : 0;
+    const totalEnTaller = firstRow ? Number(firstRow.total_en_proceso_resumen) : 0;
+    const totalRecaudadoEntregadas = firstRow ? Math.round(Number(firstRow.total_recaudado_resumen) * 100) / 100 : 0;
+    const totalManoObra = firstRow ? Math.round(Number(firstRow.total_mano_obra_resumen) * 100) / 100 : 0;
+    const meta = calcularMetaPaginacion(total, paginacion);
+
+    const reparaciones = result.rows.map(({ total_registros, total_entregadas_resumen, total_en_proceso_resumen, total_recaudado_resumen, total_mano_obra_resumen, ...r }) => r);
 
     return {
-      total: result.rowCount || 0,
+      ...meta,
       entregadas_count: totalEntregadas,
       en_proceso_count: totalEnTaller,
       total_recaudado: totalRecaudadoEntregadas,
+      total_entregadas: totalEntregadas,
+      total_en_proceso: totalEnTaller,
+      total_recaudado_entregadas: totalRecaudadoEntregadas,
       total_mano_obra: totalManoObra,
       resumen: {
-        total_ordenes: result.rowCount || 0,
+        total_ordenes: total,
         entregadas: totalEntregadas,
         en_taller: totalEnTaller,
         total_recaudado: totalRecaudadoEntregadas,
         total_mano_obra: totalManoObra
       },
-      reparaciones: result.rows
+      reparaciones
     };
   }
 
-  static async obtenerEgresosReporte(filtros: { fechaDesde?: string | undefined; fechaHasta?: string | undefined; busqueda?: string | undefined }) {
-    const { fechaDesde, fechaHasta, busqueda } = filtros;
+  /** Genera reporte paginado de egresos a proveedores con filtros de fecha y texto. */
+  static async obtenerEgresosReporte(filtros: { 
+    fechaDesde?: string | undefined; 
+    fechaHasta?: string | undefined; 
+    busqueda?: string | undefined;
+    limite?: number | string | undefined;
+    pagina?: number | string | undefined;
+  }) {
+    const { fechaDesde, fechaHasta, busqueda, limite, pagina } = filtros;
     const condiciones: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
     if (fechaDesde && typeof fechaDesde === 'string' && fechaDesde.trim()) {
-      condiciones.push(`DATE(p.fecha) >= $${idx++}`);
+      condiciones.push(`p.fecha >= $${idx++}`);
       params.push(fechaDesde.trim());
     }
     if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
-      condiciones.push(`DATE(p.fecha) <= $${idx++}`);
+      condiciones.push(`p.fecha <= $${idx++}`);
       params.push(fechaHasta.trim());
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
@@ -406,30 +467,42 @@ export class ReporteService {
         mp.nombre AS metodo_pago_nombre,
         p.fecha,
         p.monto_total,
-        p.observaciones
+        p.observaciones,
+        COUNT(*) OVER()::INT AS total_registros,
+        COALESCE(SUM(p.monto_total) OVER(), 0)::NUMERIC AS total_egresos_resumen
       FROM Pago_Proveedor p
       JOIN Proveedor prov ON p.id_proveedor = prov.id_proveedor
       JOIN Usuario u ON p.id_usuario = u.id_usuario
       JOIN Metodo_Pago mp ON p.id_metodo_pago = mp.id_metodo_pago
       ${whereSql}
-      ORDER BY p.id_pago DESC;
+      ORDER BY p.id_pago DESC
     `;
-    const result = await pool.query(query, params);
 
-    const totalEgresos = result.rows.reduce((acc, curr) => acc + Number(curr.monto_total || 0), 0);
+    const paginacion = normalizarPaginacion({ limite, pagina });
+    const queryPaginada = aplicarPaginacionSQL(query, params, paginacion);
+
+    const result = await pool.query(queryPaginada, params);
+
+    const firstRow = result.rows[0];
+    const total = firstRow ? Number(firstRow.total_registros) : 0;
+    const totalEgresos = firstRow ? Math.round(Number(firstRow.total_egresos_resumen) * 100) / 100 : 0;
+    const meta = calcularMetaPaginacion(total, paginacion);
+
+    const egresos = result.rows.map(({ total_registros, total_egresos_resumen, ...p }) => p);
 
     return {
-      total: result.rowCount || 0,
+      ...meta,
       total_egresos: totalEgresos,
       resumen: {
-        total_pagos: result.rowCount || 0,
+        total_pagos: total,
         total_monto_egresos: totalEgresos
       },
-      egresos: result.rows,
-      pagos: result.rows
+      egresos,
+      pagos: egresos
     };
   }
 
+  /** Retorna el ranking de los 20 artículos con mayor volumen de venta e ingresos. */
   static async obtenerRankingProductos() {
     const query = `
       SELECT 

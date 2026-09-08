@@ -9,7 +9,8 @@ import type {
   ColumnaKanban 
 } from '../types';
 import { api } from '../../../services/api';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { formatearMoneda } from '../../../utils/formatters';
 
 export const COLUMNAS_KANBAN: ColumnaKanban[] = [
   { titulo: 'Recibida', estado: 'Recibida', colorBg: '#f59e0b' },
@@ -17,9 +18,8 @@ export const COLUMNAS_KANBAN: ColumnaKanban[] = [
   { titulo: 'Lista para Entrega', estado: 'Lista', colorBg: '#0d9488' }
 ];
 
+/** Hook de gestión del taller mecánico, drag and drop en Kanban, repuestos e historial. */
 export function useReparaciones() {
-  const { user } = useAuth();
-
   const [reparaciones, setReparaciones] = useState<Reparacion[]>([]);
   const [resumen, setResumen] = useState<{
     total_activas: number;
@@ -49,6 +49,17 @@ export function useReparaciones() {
   const [vistaTab, setVistaTab] = useState<VistaTabReparaciones>('activo');
   const [busquedaTaller, setBusquedaTaller] = useState<string>('');
   const [busquedaHistorial, setBusquedaHistorial] = useState<string>('');
+  const busquedaHistorialDebounced = useDebounce(busquedaHistorial, 300);
+
+  // Paginación Historial
+  const [paginaHistorial, setPaginaHistorial] = useState<number>(1);
+  const [totalPaginasHistorial, setTotalPaginasHistorial] = useState<number>(1);
+  const [totalHistorial, setTotalHistorial] = useState<number>(0);
+  const limiteHistorial = 10;
+
+  useEffect(() => {
+    setPaginaHistorial(1);
+  }, [busquedaHistorialDebounced]);
 
   // Modal Alta
   const [mostrarModalAlta, setMostrarModalAlta] = useState<boolean>(false);
@@ -73,6 +84,7 @@ export function useReparaciones() {
   const [repuestoSeleccionadoId, setRepuestoSeleccionadoId] = useState<number>(0);
   const [cantidadRepuesto, setCantidadRepuesto] = useState<number | string>(1);
   const [guardandoRepuesto, setGuardandoRepuesto] = useState<boolean>(false);
+  const [mensajeRepuesto, setMensajeRepuesto] = useState<{ texto: string; tipo: 'exito' | 'error' } | null>(null);
 
   // Drag state
   const [draggingId, setDraggingId] = useState<number | null>(null);
@@ -81,14 +93,28 @@ export function useReparaciones() {
     setCargando(true);
     setError(null);
     try {
-      const [resRep, resBicis, resProds] = await Promise.all([
-        api.reparaciones.getAll(),
+      const [resRepActivas, resRepHistorial, resBicis, resProds] = await Promise.all([
+        api.reparaciones.getAll({ estado: 'activas', limite: 100 }),
+        api.reparaciones.getAll({
+          estado: 'Entregada',
+          limite: limiteHistorial,
+          pagina: paginaHistorial,
+          busqueda: busquedaHistorialDebounced
+        }),
         api.bicicletas.getAll(),
         api.productos.getAll()
       ]);
-      setReparaciones(resRep.reparaciones || []);
-      if (resRep.resumen) {
-        setResumen(resRep.resumen);
+
+      const activas = resRepActivas.reparaciones || [];
+      const entregadas = resRepHistorial.reparaciones || [];
+      setReparaciones([...activas, ...entregadas]);
+      setTotalHistorial(resRepHistorial.total || 0);
+      setTotalPaginasHistorial(resRepHistorial.totalPaginas || 1);
+
+      if (resRepHistorial.resumen) {
+        setResumen(resRepHistorial.resumen);
+      } else if (resRepActivas.resumen) {
+        setResumen(resRepActivas.resumen);
       }
       setBicicletas(resBicis.bicicletas || []);
       setProductos(resProds.productos || []);
@@ -101,12 +127,14 @@ export function useReparaciones() {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [paginaHistorial, busquedaHistorialDebounced, limiteHistorial]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarDatos();
   }, [cargarDatos]);
 
+  /** Registra el ingreso de una nueva orden de servicio técnico al taller. */
   const handleGuardarReparacion = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -119,7 +147,6 @@ export function useReparaciones() {
     try {
       await api.reparaciones.create({
         id_bicicleta: nuevaReparacion.id_bicicleta,
-        id_usuario: user?.id_usuario || 1,
         estado: nuevaReparacion.estado,
         descripcion: nuevaReparacion.descripcion.trim(),
         costo_mano_obra: Number(nuevaReparacion.costo_mano_obra) || 0
@@ -136,14 +163,16 @@ export function useReparaciones() {
     } finally {
       setGuardando(false);
     }
-  }, [nuevaReparacion, user, cargarDatos]);
+  }, [nuevaReparacion, cargarDatos]);
 
+  /** Abre el modal de detalle de la orden y carga sus repuestos asociados. */
   const handleAbrirDetalle = useCallback(async (rep: Reparacion) => {
     setOrdenDetalle(rep);
     setMostrarModalDetalle(true);
     setCargandoRepuestos(true);
     setRepuestoSeleccionadoId(0);
     setCantidadRepuesto(1);
+    setMensajeRepuesto(null);
 
     try {
       if (rep.id_reparacion) {
@@ -158,11 +187,12 @@ export function useReparaciones() {
     }
   }, []);
 
+  /** Asocia un repuesto a la orden descontando automáticamente su stock en bodega. */
   const handleAgregarRepuesto = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ordenDetalle || !ordenDetalle.id_reparacion) return;
     if (repuestoSeleccionadoId === 0) {
-      alert('Selecciona un repuesto del inventario.');
+      setMensajeRepuesto({ texto: 'Por favor selecciona un repuesto del inventario.', tipo: 'error' });
       return;
     }
 
@@ -172,47 +202,60 @@ export function useReparaciones() {
     const cantRep = Number(cantidadRepuesto) || 1;
 
     setGuardandoRepuesto(true);
+    setMensajeRepuesto(null);
     try {
       await api.reparaciones.agregarRepuesto({
         id_reparacion: ordenDetalle.id_reparacion,
         id_producto: prod.id_producto!,
-        cantidad: cantRep,
-        precio_unitario: Number(prod.precio)
+        cantidad: cantRep
       });
 
-      alert(`Repuesto "${prod.nombre}" asignado a la orden. Stock descontado.`);
-      setRepuestoSeleccionadoId(0);
-      setCantidadRepuesto(1);
-
-      // Recargar detalle y listado
+      // Recargar datos actualizados de la orden y repuestos
       const res = await api.reparaciones.getById(ordenDetalle.id_reparacion);
       setOrdenDetalle(res.reparacion);
       setRepuestosUtilizados(res.repuestos_utilizados || []);
-      await cargarDatos();
+
+      // Resetear campos del selector
+      setRepuestoSeleccionadoId(0);
+      setCantidadRepuesto(1);
+
+      // Feedback visual sin congelar el event loop de Electron
+      setMensajeRepuesto({
+        texto: `✓ Repuesto "${prod.nombre}" asignado a la orden con éxito. Stock descontado.`,
+        tipo: 'exito'
+      });
+
+      // Sincronizar catálogo global de fondo sin bloquear el modal
+      void cargarDatos();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        alert(err.message);
+        setMensajeRepuesto({ texto: err.message, tipo: 'error' });
+      } else {
+        setMensajeRepuesto({ texto: 'Error al asignar repuesto a la orden', tipo: 'error' });
       }
     } finally {
       setGuardandoRepuesto(false);
     }
   }, [ordenDetalle, repuestoSeleccionadoId, productos, cantidadRepuesto, cargarDatos]);
 
+  /** Remueve un repuesto de la orden y reintegra las unidades al stock disponible. */
   const handleEliminarRepuesto = useCallback(async (idDetalle: number) => {
     if (!ordenDetalle || !ordenDetalle.id_reparacion) return;
-    const confirmacion = window.confirm('¿Deseas retirar este repuesto de la orden? El stock se devolverá automáticamente al inventario.');
-    if (!confirmacion) return;
 
     setCargandoRepuestos(true);
+    setMensajeRepuesto(null);
     try {
       await api.reparaciones.eliminarRepuesto(idDetalle);
       const res = await api.reparaciones.getById(ordenDetalle.id_reparacion);
       setOrdenDetalle(res.reparacion);
       setRepuestosUtilizados(res.repuestos_utilizados || []);
-      await cargarDatos();
+      setMensajeRepuesto({ texto: '✓ Repuesto retirado de la orden y devuelto al inventario.', tipo: 'exito' });
+      void cargarDatos();
     } catch (err: unknown) {
       if (err instanceof Error) {
-        alert(`Error al eliminar repuesto: ${err.message}`);
+        setMensajeRepuesto({ texto: `Error al eliminar repuesto: ${err.message}`, tipo: 'error' });
+      } else {
+        setMensajeRepuesto({ texto: 'Error al eliminar repuesto', tipo: 'error' });
       }
     } finally {
       setCargandoRepuestos(false);
@@ -264,21 +307,12 @@ export function useReparaciones() {
     const orden = reparaciones.find(r => r.id_reparacion === id);
     const monto = Number(orden?.costo_total || orden?.costo_mano_obra || 0);
     const confirmacion = window.confirm(
-      `¿Confirmar la ENTREGA de la Orden #${id}?\n\nTotal a liquidar: $${monto.toLocaleString()}\n\nLa orden se registrará con fecha de egreso de hoy y se trasladará a la pestaña 'Historial de Entregas'.`
+      `¿Confirmar la ENTREGA de la Orden #${id}?\n\nTotal a liquidar: ${formatearMoneda(monto)}\n\nLa orden se registrará con fecha de egreso de hoy y se trasladará a la pestaña 'Historial de Entregas'.`
     );
     if (!confirmacion) return;
 
     await handleCambiarEstado(id, 'Entregada');
   }, [reparaciones, handleCambiarEstado]);
-
-  const handleReabrirOrden = useCallback(async (id: number) => {
-    const confirmacion = window.confirm(
-      `¿Deseas reactivar la Orden #${id} y devolverla al taller activo?\nQuedará en estado 'En Reparación'.`
-    );
-    if (!confirmacion) return;
-
-    await handleCambiarEstado(id, 'En Reparación');
-  }, [handleCambiarEstado]);
 
   const handleDropEnColumna = useCallback((nuevoEstado: Reparacion['estado'], idReparacionStr: string) => {
     const id = Number(idReparacionStr);
@@ -362,11 +396,18 @@ export function useReparaciones() {
     repuestoSeleccionadoId,
     cantidadRepuesto,
     guardandoRepuesto,
+    mensajeRepuesto,
     draggingId,
     reparacionesActivas,
     reparacionesEntregadas,
     reparacionesActivasFiltradas,
     reparacionesEntregadasFiltradas,
+    paginaHistorial,
+    totalPaginasHistorial,
+    totalHistorial,
+    limiteHistorial,
+    setPaginaHistorial,
+    resumen,
     totalMontoHistorico,
     promedioPorOrden,
     repuestosDisponibles,
@@ -390,7 +431,6 @@ export function useReparaciones() {
     handleGuardarEdicion,
     handleCambiarEstado,
     handleEntregarOrden,
-    handleReabrirOrden,
     handleDropEnColumna,
     recargar: cargarDatos
   };

@@ -1,4 +1,5 @@
 import type { FichaHistorialBicicleta } from '../types';
+import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 
 interface ModalHistorialBicicletaProps {
   mostrar: boolean;
@@ -7,6 +8,7 @@ interface ModalHistorialBicicletaProps {
   datosHistorial: FichaHistorialBicicleta | null;
 }
 
+/** Modal que visualiza la ficha técnica y las reparaciones históricas de la bicicleta. */
 export function ModalHistorialBicicleta({
   mostrar,
   onCerrar,
@@ -101,8 +103,8 @@ export function ModalHistorialBicicleta({
                       </p>
 
                       <div style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', display: 'flex', gap: '16px', margin: '6px 0' }}>
-                        <span>Ingreso: {rep.fecha_ingreso ? new Date(rep.fecha_ingreso).toLocaleDateString() : 'N/D'}</span>
-                        {rep.fecha_egreso && <span>Egreso: {new Date(rep.fecha_egreso).toLocaleDateString()}</span>}
+                        <span>Ingreso: {formatearFecha(rep.fecha_ingreso)}</span>
+                        {rep.fecha_egreso && <span>Egreso: {formatearFecha(rep.fecha_egreso)}</span>}
                         <span>Mecánico: {rep.mecanico || 'Taller'}</span>
                       </div>
 
@@ -113,7 +115,7 @@ export function ModalHistorialBicicleta({
                           <ul style={{ margin: '4px 0 0 18px', padding: 0 }}>
                             {rep.repuestos_utilizados.map((det, dIdx) => (
                               <li key={dIdx}>
-                                {det.repuesto_nombre} ({det.cantidad} un.) — ${Number(det.costo_total).toLocaleString()}
+                                {det.repuesto_nombre} ({det.cantidad} un.) — {formatearMoneda(det.costo_total)}
                               </li>
                             ))}
                           </ul>
@@ -121,7 +123,7 @@ export function ModalHistorialBicicleta({
                       )}
 
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px', paddingTop: '6px', borderTop: '1px solid #f1f5f9', fontWeight: '800', color: '#16a34a' }}>
-                        Total: ${Number(rep.costo_total).toLocaleString()}
+                        Total: {formatearMoneda(rep.costo_total)}
                       </div>
                     </div>
                   ))}

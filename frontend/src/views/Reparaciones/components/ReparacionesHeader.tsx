@@ -8,6 +8,7 @@ interface ReparacionesHeaderProps {
   onAbrirAlta: () => void;
 }
 
+/** Encabezado del taller con conmutador entre vista activa e historial entregado. */
 export function ReparacionesHeader({
   vistaTab,
   setVistaTab,

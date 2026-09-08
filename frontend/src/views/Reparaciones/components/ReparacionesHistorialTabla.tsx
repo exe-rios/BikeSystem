@@ -1,4 +1,6 @@
 import type { Reparacion } from '../types';
+import { Paginador } from '../../../components/Paginador';
+import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 
 interface ReparacionesHistorialTablaProps {
   reparacionesEntregadas: Reparacion[];
@@ -9,11 +11,15 @@ interface ReparacionesHistorialTablaProps {
   setBusquedaHistorial: (v: string) => void;
   cargando: boolean;
   handleAbrirDetalle: (rep: Reparacion) => void;
-  setOrdenEditando: (rep: Reparacion) => void;
-  setMostrarModalEditar: (v: boolean) => void;
-  handleReabrirOrden: (id: number) => void;
+  // Paginación
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
+/** Tabla de reparaciones finalizadas y entregadas con métricas de facturación. */
 export function ReparacionesHistorialTabla({
   reparacionesEntregadas,
   reparacionesEntregadasFiltradas,
@@ -23,9 +29,11 @@ export function ReparacionesHistorialTabla({
   setBusquedaHistorial,
   cargando,
   handleAbrirDetalle,
-  setOrdenEditando,
-  setMostrarModalEditar,
-  handleReabrirOrden
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
 }: ReparacionesHistorialTablaProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -35,21 +43,21 @@ export function ReparacionesHistorialTabla({
         <div style={{ backgroundColor: 'var(--bg-tarjeta)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--borde-input)' }}>
           <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '600' }}>Órdenes Entregadas</span>
           <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--texto-principal)', marginTop: '4px' }}>
-            {reparacionesEntregadas.length}
+            {totalRegistros}
           </div>
         </div>
 
         <div style={{ backgroundColor: 'var(--bg-tarjeta)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--borde-input)' }}>
           <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '600' }}>Facturación Total Taller</span>
           <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--texto-principal)', marginTop: '4px' }}>
-            ${totalMontoHistorico.toLocaleString()}
+            {formatearMoneda(totalMontoHistorico)}
           </div>
         </div>
 
         <div style={{ backgroundColor: 'var(--bg-tarjeta)', padding: '16px 20px', borderRadius: '12px', border: '1px solid var(--borde-input)' }}>
           <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '600' }}>Promedio por ingresos</span>
           <div style={{ fontSize: '1.6rem', fontWeight: '800', color: 'var(--azul-oscuro)', marginTop: '4px' }}>
-            ${Math.round(promedioPorOrden).toLocaleString()}
+            {formatearMoneda(Math.round(promedioPorOrden))}
           </div>
         </div>
       </div>
@@ -116,8 +124,8 @@ export function ReparacionesHistorialTabla({
             ) : (
               reparacionesEntregadasFiltradas.map(rep => {
                 const montoTotal = Number(rep.costo_total || rep.costo_mano_obra || 0);
-                const fechaIngresoStr = rep.fecha_ingreso ? new Date(rep.fecha_ingreso).toLocaleDateString() : '-';
-                const fechaEgresoStr = rep.fecha_egreso ? new Date(rep.fecha_egreso).toLocaleDateString() : 'Entregada';
+                const fechaIngresoStr = formatearFecha(rep.fecha_ingreso, '-');
+                const fechaEgresoStr = formatearFecha(rep.fecha_egreso, 'Entregada');
 
                 return (
                   <tr
@@ -143,79 +151,32 @@ export function ReparacionesHistorialTabla({
                       {rep.descripcion}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', color: 'var(--texto-principal)' }}>
-                      ${Number(rep.costo_mano_obra || 0).toLocaleString()}
+                      {formatearMoneda(rep.costo_mano_obra)}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '800', color: 'var(--texto-mutado)', fontSize: '1rem' }}>
-                      ${montoTotal.toLocaleString()}
+                      {formatearMoneda(montoTotal)}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleAbrirDetalle(rep)}
-                          title="Ver detalle de la orden y repuestos"
-                          style={{
-                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                            color: 'var(--azul-oscuro)',
-                            border: '1px solid rgba(37, 99, 235, 0.2)',
-                            borderRadius: '8px',
-                            padding: '5px 10px',
-                            fontSize: '0.82rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          Detalle
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setOrdenEditando(rep);
-                            setMostrarModalEditar(true);
-                          }}
-                          title="Editar orden"
-                          style={{
-                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                            color: 'var(--azul-oscuro)',
-                            border: '1px solid rgba(37, 99, 235, 0.2)',
-                            borderRadius: '8px',
-                            padding: '5px 10px',
-                            fontSize: '0.82rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          Editar
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => rep.id_reparacion && handleReabrirOrden(rep.id_reparacion)}
-                          title="Reabrir orden y devolver al taller activo"
-                          style={{
-                            backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                            color: 'var(--azul-oscuro)',
-                            border: '1px solid rgba(37, 99, 235, 0.2)',
-                            borderRadius: '8px',
-                            padding: '5px 10px',
-                            fontSize: '0.82rem',
-                            fontWeight: '600',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          Volver al taller
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleAbrirDetalle(rep)}
+                        title="Ver detalle de la orden y repuestos liquidados"
+                        style={{
+                          backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                          color: 'var(--azul-oscuro)',
+                          border: '1px solid rgba(37, 99, 235, 0.2)',
+                          borderRadius: '8px',
+                          padding: '6px 14px',
+                          fontSize: '0.82rem',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        Ver Detalle
+                      </button>
                     </td>
                   </tr>
                 );
@@ -224,6 +185,14 @@ export function ReparacionesHistorialTabla({
           </tbody>
         </table>
       </div>
+
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        alCambiarPagina={onCambiarPagina}
+      />
 
     </div>
   );

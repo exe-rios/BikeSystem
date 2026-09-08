@@ -19,6 +19,9 @@ import bitacoraRoutes from './routes/bitacora.routes.js';
 
 import { manejarErrores } from './middlewares/error.middleware.js';
 
+import compression from 'compression';
+import { cerrarPool } from './config/db.js';
+
 // Validación de variables de entorno obligatorias (fail-fast)
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
 for (const key of REQUIRED_ENV) {
@@ -34,23 +37,27 @@ const PORT = process.env.PORT || 3000;
 // Cabeceras de seguridad HTTP
 app.use(helmet());
 
+// Compresión HTTP Gzip/Deflate para optimizar transferencias de payloads
+app.use(compression());
+
 // CONFIGURACIÓN DE SEGURIDAD CORS
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',  // Vite dev server
   'http://localhost:4173',  // Vite preview
   'app://-',                // Electron producción
+  'null',                   // Electron file:// en producción
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir peticiones sin origin (Electron, Postman, cURL en dev)
+    // Permitir peticiones sin origin (Electron, Postman, cURL en dev) o autorizadas
     if (!origin || ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Bloqueado por política CORS'));
     }
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -74,6 +81,19 @@ app.use('/api/bitacora', bitacoraRoutes);
 // Middleware de captura global de errores
 app.use(manejarErrores);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`[Server]: Backend de BikeSystem corriendo en http://localhost:${PORT}`);
 });
+
+// Cierre ordenado (Graceful Shutdown)
+const gracefulShutdown = (signal: string) => {
+  console.log(`\n[Server]: Recibida señal ${signal}. Cerrando servidor HTTP y conexiones a PostgreSQL...`);
+  server.close(async () => {
+    console.log('[Server]: Servidor HTTP cerrado.');
+    await cerrarPool();
+    process.exit(0);
+  });
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

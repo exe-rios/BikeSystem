@@ -14,6 +14,7 @@ interface ReportesFiltrosProps {
   onCambiarEstadoTaller: (estado: string) => void;
 }
 
+/** Selector de rangos temporales predefinidos y filtros específicos por módulo. */
 export function ReportesFiltros({
   activeTab,
   rangoRapido,

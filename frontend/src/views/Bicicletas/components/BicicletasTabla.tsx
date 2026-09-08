@@ -1,4 +1,6 @@
 import type { Bicicleta } from '../types';
+import { usePermisos } from '../../../hooks/usePermisos';
+import { Paginador } from '../../../components/Paginador';
 
 interface BicicletasTablaProps {
   bicicletas: Bicicleta[];
@@ -7,21 +9,34 @@ interface BicicletasTablaProps {
   onVerHistorial: (idBici: number) => void;
   onEditar: (bici: Bicicleta) => void;
   onEliminar: (idBici: number) => void;
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
+/** Tabla paginada de bicicletas con opciones de historial, edición y borrado. */
 export function BicicletasTabla({
   bicicletas,
   bicicletasFiltradas,
   cargando,
   onVerHistorial,
   onEditar,
-  onEliminar
+  onEliminar,
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
 }: BicicletasTablaProps) {
+  const { puedeEliminarBicicletas } = usePermisos();
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-tarjeta)',
-      borderRadius: '14px',
-      border: '1px solid var(--borde-input)',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{
+        backgroundColor: 'var(--bg-tarjeta)',
+        borderRadius: '14px',
+        border: '1px solid var(--borde-input)',
       boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
       overflow: 'hidden'
     }}>
@@ -103,22 +118,24 @@ export function BicicletasTabla({
                     </button>
 
                     {/* Botón Eliminar */}
-                    <button
-                      type="button"
-                      onClick={() => b.id_bicicleta && onEliminar(b.id_bicicleta)}
-                      style={{
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                        color: 'var(--azul-oscuro)',
-                        border: '1px solid rgba(37, 99, 235, 0.2)',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
-                        fontSize: '0.8rem',
-                        fontWeight: '600',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Eliminar
-                    </button>
+                    {puedeEliminarBicicletas && (
+                      <button
+                        type="button"
+                        onClick={() => b.id_bicicleta && onEliminar(b.id_bicicleta)}
+                        style={{
+                          backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                          color: 'var(--azul-oscuro)',
+                          border: '1px solid rgba(37, 99, 235, 0.2)',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </td>
                 </tr>
               );
@@ -126,6 +143,15 @@ export function BicicletasTabla({
           )}
         </tbody>
       </table>
+      </div>
+
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={onCambiarPagina}
+      />
     </div>
   );
 }

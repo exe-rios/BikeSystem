@@ -1,4 +1,5 @@
 import type { FiltroGarantia, GarantiaConEstado } from '../types';
+import { formatearFecha } from '../../../utils/formatters';
 
 interface TabGarantiasListadoProps {
   garantias: GarantiaConEstado[];
@@ -14,6 +15,7 @@ interface TabGarantiasListadoProps {
   onVerDetalle: (idVenta: number) => void;
 }
 
+/** Pestaña de seguimiento de pólizas de garantía de bicicletas vendidas. */
 export function TabGarantiasListado({
   garantias,
   countTotalGarantias,
@@ -175,8 +177,8 @@ export function TabGarantiasListado({
               </tr>
             ) : (
               garantias.map((g, index) => {
-                const fVenta = g.fecha_venta ? new Date(g.fecha_venta).toLocaleDateString() : 'N/A';
-                const fVenc = g.infoGarantia.fechaVencimiento ? new Date(g.infoGarantia.fechaVencimiento).toLocaleDateString() : 'N/A';
+                const fVenta = formatearFecha(g.fecha_venta, 'N/A');
+                const fVenc = formatearFecha(g.infoGarantia.fechaVencimiento, 'N/A');
                 const esAlerta = g.infoGarantia.estado === 'por_vencer';
                 const uniqueKey = g.id_detalle_venta 
                   ? `garantia-detalle-${g.id_detalle_venta}` 

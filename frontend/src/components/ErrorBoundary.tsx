@@ -9,6 +9,7 @@ interface State {
   error: Error | null;
 }
 
+/** Capturador de excepciones React que previene caídas totales del árbol de componentes. */
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
