@@ -1,3 +1,4 @@
+/** Tipos de datos e interfaces para la gestión de bicicletas e historial. */
 import type { Bicicleta, Cliente } from '../../types';
 
 export interface NuevaBicicletaData {

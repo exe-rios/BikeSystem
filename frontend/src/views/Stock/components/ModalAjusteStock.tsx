@@ -12,6 +12,7 @@ interface ModalAjusteStockProps {
   onClose: () => void;
 }
 
+/** Modal de ajuste manual de stock (ingreso o egreso) con motivo de movimiento. */
 export function ModalAjusteStock({
   visible,
   productos,

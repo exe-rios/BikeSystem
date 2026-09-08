@@ -1,9 +1,11 @@
 import type { ReporteKPIs } from '../../../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface ReportesKPIsProps {
   kpis: ReporteKPIs;
 }
 
+/** Tarjetas de indicadores clave: ingresos brutos, egresos, balance neto y ticket promedio. */
 export function ReportesKPIs({ kpis }: ReportesKPIsProps) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
@@ -14,7 +16,7 @@ export function ReportesKPIs({ kpis }: ReportesKPIsProps) {
           Ingresos Brutos (Período)
         </p>
         <h3 style={{ fontSize: '1.7rem', fontWeight: '800', color: '#16a34a', margin: 0 }}>
-          {'$' + (kpis.total_ingresos || 0).toLocaleString()}
+          {formatearMoneda(kpis.total_ingresos)}
         </h3>
         <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', marginTop: '4px', display: 'block' }}>
           {kpis.total_operaciones_cobradas} operaciones cobradas
@@ -27,7 +29,7 @@ export function ReportesKPIs({ kpis }: ReportesKPIsProps) {
           Pagos a Proveedores (Egresos)
         </p>
         <h3 style={{ fontSize: '1.7rem', fontWeight: '800', color: '#dc2626', margin: 0 }}>
-          {'$' + (kpis.total_egresos_monto || 0).toLocaleString()}
+          {formatearMoneda(kpis.total_egresos_monto)}
         </h3>
         <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', marginTop: '4px', display: 'block' }}>
           {kpis.total_egresos_cantidad} comprobantes de pago
@@ -40,7 +42,7 @@ export function ReportesKPIs({ kpis }: ReportesKPIsProps) {
           Balance Neto Real (Ganancia)
         </p>
         <h3 style={{ fontSize: '1.7rem', fontWeight: '800', color: kpis.balance_neto >= 0 ? '#16a34a' : '#dc2626', margin: 0 }}>
-          {'$' + (kpis.balance_neto || 0).toLocaleString()}
+          {formatearMoneda(kpis.balance_neto)}
         </h3>
         <span style={{ fontSize: '0.78rem', color: kpis.balance_neto >= 0 ? '#15803d' : '#b91c1c', marginTop: '4px', display: 'block', fontWeight: '700' }}>
           Margen operativo: {kpis.margen_rentabilidad}%
@@ -53,7 +55,7 @@ export function ReportesKPIs({ kpis }: ReportesKPIsProps) {
           Ticket Promedio Efectivo
         </p>
         <h3 style={{ fontSize: '1.7rem', fontWeight: '800', color: 'var(--texto-principal)', margin: 0 }}>
-          {'$' + Math.round(kpis.ticket_promedio || 0).toLocaleString()}
+          {formatearMoneda(Math.round(kpis.ticket_promedio || 0))}
         </h3>
         <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', marginTop: '4px', display: 'block' }}>
           Por venta / orden entregada

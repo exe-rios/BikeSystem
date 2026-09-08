@@ -10,6 +10,7 @@ interface ModalAltaReparacionProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Modal de ingreso de una nueva orden de servicio al taller. */
 export function ModalAltaReparacion({
   mostrar,
   onCerrar,

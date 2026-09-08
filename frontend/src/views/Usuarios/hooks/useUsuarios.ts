@@ -14,6 +14,7 @@ const INITIAL_FORM_EDITAR: EditarUsuarioData = {
   contrasena: ''
 };
 
+/** Hook para la gestión de usuarios, asignación de roles y actualización de claves. */
 export function useUsuarios() {
   const { user: usuarioActual } = useAuth();
 
@@ -50,6 +51,7 @@ export function useUsuarios() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarUsuarios();
   }, [cargarUsuarios]);
 

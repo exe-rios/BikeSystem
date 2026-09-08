@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Cliente, ClienteFormData, ErroresFormulario } from '../types';
 import { api } from '../../../services/api';
+import { useDebounce } from '../../../hooks/useDebounce';
 
 const INITIAL_FORM: ClienteFormData = {
   nombre: '',
@@ -11,6 +12,7 @@ const INITIAL_FORM: ClienteFormData = {
   direccion: ''
 };
 
+/** Hook para la administración del listado de clientes, validación de formularios y CRUD. */
 export function useClientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -18,6 +20,17 @@ export function useClientes() {
   const [error, setError] = useState<string | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const busquedaDebounced = useDebounce(busqueda, 300);
+
+  // Paginación de 10 en 10
+  const [paginaActual, setPaginaActual] = useState<number>(1);
+  const [totalPaginas, setTotalPaginas] = useState<number>(1);
+  const [totalRegistros, setTotalRegistros] = useState<number>(0);
+  const limite = 10;
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busquedaDebounced]);
 
   // Modal State
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -29,9 +42,18 @@ export function useClientes() {
     setCargando(true);
     setError(null);
     try {
-      const data = await api.clientes.getAll();
+      const data = await api.clientes.getAll({
+        busqueda: busquedaDebounced,
+        limite,
+        pagina: paginaActual
+      });
       const lista = Array.isArray(data) ? data : (data?.clientes || []);
+      const total = !Array.isArray(data) && typeof data?.total === 'number' ? data.total : lista.length;
+      const totalP = !Array.isArray(data) && typeof data?.totalPaginas === 'number' ? data.totalPaginas : Math.ceil(total / limite) || 1;
+
       setClientes(lista);
+      setTotalRegistros(total);
+      setTotalPaginas(totalP);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -41,9 +63,10 @@ export function useClientes() {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [busquedaDebounced, paginaActual, limite]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarClientes();
   }, [cargarClientes]);
 
@@ -80,6 +103,7 @@ export function useClientes() {
     resetFormulario();
   }, [resetFormulario]);
 
+  /** Valida los campos del formulario y persiste el alta o actualización del cliente. */
   const handleGuardar = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorModal(null);
@@ -135,6 +159,7 @@ export function useClientes() {
     }
   }, [formData, clienteEditando, cargarClientes]);
 
+  /** Confirma y ejecuta la eliminación del cliente seleccionado. */
   const handleEliminar = useCallback(async (id_cliente: number, nombreCompleto: string) => {
     if (!window.confirm(`¿Estás seguro de que deseas eliminar al cliente "${nombreCompleto}"?`)) {
       return;
@@ -167,7 +192,12 @@ export function useClientes() {
   return {
     clientes,
     clientesFiltrados,
-    totalClientes: clientes.length,
+    totalClientes: totalRegistros,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     cargando,
     guardando,
     error,

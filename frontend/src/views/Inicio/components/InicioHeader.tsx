@@ -3,6 +3,7 @@ interface InicioHeaderProps {
   error: string | null;
 }
 
+/** Cabecera del panel de control con bienvenida diferenciada por rol. */
 export function InicioHeader({ esAdmin, error }: InicioHeaderProps) {
   return (
     <>

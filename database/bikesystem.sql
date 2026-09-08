@@ -213,16 +213,23 @@ CREATE INDEX idx_venta_id_usuario ON Venta(id_usuario);
 CREATE INDEX idx_reparacion_id_bicicleta ON Reparacion(id_bicicleta);
 CREATE INDEX idx_reparacion_id_usuario ON Reparacion(id_usuario);
 CREATE INDEX idx_pago_prov_id_proveedor ON Pago_Proveedor(id_proveedor);
+CREATE INDEX idx_pago_prov_id_usuario ON Pago_Proveedor(id_usuario);
 CREATE INDEX idx_pago_prov_id_metodo ON Pago_Proveedor(id_metodo_pago);
+CREATE INDEX idx_venta_id_metodo ON Venta(id_metodo_pago);
+CREATE INDEX idx_bitacora_id_usuario ON Bitacora_Actividad(id_usuario);
 
 -- Índices en Fechas y Estados (Acelera generación de Dashboard y Reportes)
 CREATE INDEX idx_venta_fecha ON Venta(fecha);
 CREATE INDEX idx_venta_estado ON Venta(estado);
+CREATE INDEX idx_venta_fecha_activas ON Venta(fecha DESC) WHERE estado != 'ANULADA';
+CREATE INDEX idx_pago_prov_fecha ON Pago_Proveedor(fecha DESC);
 CREATE INDEX idx_mov_producto ON Movimiento_Stock(id_producto);
 CREATE INDEX idx_bitacora_fecha ON Bitacora_Actividad(created_at DESC);
 CREATE INDEX idx_bitacora_modulo ON Bitacora_Actividad(modulo);
 CREATE INDEX idx_reparacion_estado ON Reparacion(estado);
 CREATE INDEX idx_reparacion_fechas ON Reparacion(fecha_ingreso, fecha_egreso);
+CREATE INDEX idx_reparacion_entregadas_fecha ON Reparacion(fecha_egreso DESC) WHERE estado = 'Entregada';
+CREATE INDEX idx_bicicleta_marca_modelo ON Bicicleta(marca, modelo);
 
 -- Índice Parcial (Acelera catálogo visible en stock/ventas ocupando mínima RAM)
 CREATE INDEX idx_productos_activos ON Productos(tipo_prod) WHERE activo = true;
@@ -234,6 +241,7 @@ CREATE INDEX idx_productos_marca_trgm ON Productos USING gin (marca gin_trgm_ops
 CREATE INDEX idx_productos_modelo_trgm ON Productos USING gin (modelo gin_trgm_ops);
 CREATE INDEX idx_cliente_busqueda_trgm ON Cliente USING gin ((nombre || ' ' || apellido) gin_trgm_ops);
 CREATE INDEX idx_cliente_dni_trgm ON Cliente USING gin (dni gin_trgm_ops);
+CREATE INDEX idx_proveedor_nombre_trgm ON Proveedor USING gin (nombre_empresa gin_trgm_ops);
 
 -- INSTRUCCIONES DE DESPLIEGUE:
 -- 1. Clonar el proyecto

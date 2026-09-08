@@ -7,6 +7,7 @@ interface InicioAlertasStockProps {
   onNavigate: (view: string) => void;
 }
 
+/** Panel de advertencias de productos que alcanzaron o superaron el stock mínimo. */
 export function InicioAlertasStock({
   cargando,
   dashboard,

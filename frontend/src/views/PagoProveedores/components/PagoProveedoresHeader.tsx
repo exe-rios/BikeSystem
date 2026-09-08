@@ -5,6 +5,7 @@ interface PagoProveedoresHeaderProps {
   onAbrirNuevo: () => void;
 }
 
+/** Encabezado del listado de pagos a proveedores con total acumulado y buscador. */
 export function PagoProveedoresHeader({
   totalPagos,
   busqueda,

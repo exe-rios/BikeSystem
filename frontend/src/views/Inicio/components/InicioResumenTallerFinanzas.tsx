@@ -1,6 +1,7 @@
 import iconGrafico from '../../../assets/Fotinhos/grafico-de-barras.png';
 import iconReparar from '../../../assets/Fotinhos/reparar.png';
 import type { DashboardData } from '../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface InicioResumenTallerFinanzasProps {
   esAdmin: boolean;
@@ -8,6 +9,7 @@ interface InicioResumenTallerFinanzasProps {
   totalReparacionesActivas: number;
 }
 
+/** Métricas financieras mensuales y desglose de reparaciones en curso. */
 export function InicioResumenTallerFinanzas({
   esAdmin,
   dashboard,
@@ -31,19 +33,19 @@ export function InicioResumenTallerFinanzas({
             <div style={{ padding: '16px', backgroundColor: 'var(--bg-principal)', borderRadius: '10px', border: '1px solid var(--borde-input)' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--texto-mutado)' }}>Ventas Mostrador</p>
               <p style={{ margin: '6px 0 0 0', fontSize: '1.5rem', fontWeight: '700', color: '#2563eb' }}>
-                ${Number(dashboard?.finanzas?.ventas_mostrador || 0).toLocaleString()}
+                {formatearMoneda(dashboard?.finanzas?.ventas_mostrador)}
               </p>
             </div>
             <div style={{ padding: '16px', backgroundColor: 'var(--bg-principal)', borderRadius: '10px', border: '1px solid var(--borde-input)' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--texto-mutado)' }}>Ingresos Taller</p>
               <p style={{ margin: '6px 0 0 0', fontSize: '1.5rem', fontWeight: '700', color: '#ea580c' }}>
-                ${Number(dashboard?.finanzas?.ingresos_taller || 0).toLocaleString()}
+                {formatearMoneda(dashboard?.finanzas?.ingresos_taller)}
               </p>
             </div>
             <div style={{ padding: '16px', backgroundColor: 'var(--bg-principal)', borderRadius: '10px', border: '1px solid var(--borde-input)' }}>
               <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--texto-mutado)' }}>Total Recaudado Mes</p>
               <p style={{ margin: '6px 0 0 0', fontSize: '1.5rem', fontWeight: '700', color: '#16a34a' }}>
-                ${Number(dashboard?.finanzas?.total_mes || 0).toLocaleString()}
+                {formatearMoneda(dashboard?.finanzas?.total_mes)}
               </p>
             </div>
             <div style={{ padding: '16px', backgroundColor: 'var(--bg-principal)', borderRadius: '10px', border: '1px solid var(--borde-input)' }}>

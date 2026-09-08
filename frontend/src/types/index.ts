@@ -1,3 +1,4 @@
+/** Definiciones de tipos e interfaces TypeScript compartidas en el frontend. */
 export interface Usuario {
   id_usuario?: number;
   nombre_usuario: string;
@@ -105,6 +106,7 @@ export interface PagoProveedor {
 }
 
 export interface DetalleVentaItem {
+  id_detalle_venta?: number;
   id_producto: number;
   cantidad: number;
   precio_unitario: number;
@@ -220,6 +222,7 @@ export interface DashboardTopProducto {
 export interface DashboardData {
   finanzas: DashboardFinanzas;
   taller_activo: DashboardTallerActivo[];
+  total_taller_activo?: number;
   alertas_stock: DashboardAlertaStock[];
   top_productos: DashboardTopProducto[];
 }
@@ -257,6 +260,9 @@ export interface ReporteEstadisticasResponse {
 
 export interface ReporteVentasResponse {
   total: number;
+  pagina?: number;
+  limite?: number;
+  totalPaginas?: number;
   total_facturado: number;
   ventas_cobradas: number;
   ventas_anuladas: number;
@@ -265,16 +271,22 @@ export interface ReporteVentasResponse {
 
 export interface ReporteReparacionesResponse {
   total: number;
+  pagina?: number;
+  limite?: number;
+  totalPaginas?: number;
   entregadas_count: number;
   en_proceso_count: number;
   total_recaudado: number;
   total_mano_obra: number;
-  monto_estimado_en_proceso: number;
+  monto_estimado_en_proceso?: number;
   reparaciones: Reparacion[];
 }
 
 export interface ReporteEgresosResponse {
   total: number;
+  pagina?: number;
+  limite?: number;
+  totalPaginas?: number;
   total_egresos: number;
   pagos: PagoProveedor[];
 }

@@ -4,6 +4,7 @@ interface AuditoriaHeaderProps {
   error: string | null;
 }
 
+/** Encabezado del módulo de auditoría con botón de actualización manual. */
 export function AuditoriaHeader({
   cargando,
   onActualizar,

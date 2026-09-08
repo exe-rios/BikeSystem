@@ -3,6 +3,7 @@ import type {
   Bicicleta,
   Producto,
   Venta,
+  DetalleVentaItem,
   Reparacion,
   Proveedor,
   PagoProveedor,
@@ -22,11 +23,12 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-class ApiError extends Error {
+/** Error personalizado para respuestas no exitosas o fallos de red en la API. */
+export class ApiError extends Error {
   status: number;
-  data: any;
+  data: unknown;
 
-  constructor(message: string, status: number, data?: any) {
+  constructor(message: string, status: number, data?: unknown) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
@@ -34,6 +36,7 @@ class ApiError extends Error {
   }
 }
 
+/** Ejecuta peticiones fetch con inyección de token JWT, control de timeout y deserialización. */
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('token');
   const headers: Record<string, string> = {
@@ -45,14 +48,24 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal || AbortSignal.timeout(10000),
+    });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new ApiError('La solicitud al servidor expiró por tiempo de espera (10 segundos).', 408);
+    }
+    throw new ApiError('No se pudo establecer conexión con el servidor backend (puerto 3000). Verificá que el servicio esté iniciado.', 0);
+  }
 
   const contentType = response.headers.get('content-type');
   const isJson = contentType && contentType.includes('application/json');
-  const data = isJson ? await response.json() : null;
+  const rawData: unknown = isJson ? await response.json() : null;
+  const data = rawData as Record<string, unknown> | null;
 
   if (response.status === 401) {
     if (endpoint !== '/api/login') {
@@ -60,18 +73,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       localStorage.removeItem('usuario');
       window.dispatchEvent(new Event('auth:logout'));
     }
-    const errorMsg = data?.error || data?.mensaje || data?.message || (endpoint === '/api/login' ? 'Contraseña incorrecta.' : 'Tu sesión expiró. Volvé a iniciar sesión.');
+    const errorMsg = (data?.error as string) || (data?.mensaje as string) || (data?.message as string) || (endpoint === '/api/login' ? 'Contraseña incorrecta.' : 'Tu sesión expiró. Volvé a iniciar sesión.');
     throw new ApiError(errorMsg, 401, data);
   }
 
   if (!response.ok) {
-    const errorMsg = data?.error || data?.mensaje || data?.message || `Error del servidor (${response.status})`;
+    const errorMsg = (data?.error as string) || (data?.mensaje as string) || (data?.message as string) || `Error del servidor (${response.status})`;
     throw new ApiError(errorMsg, response.status, data);
   }
 
-  return data as T;
+  return rawData as T;
 }
 
+/** Cliente HTTP centralizado del frontend para interactuar con los endpoints de la API. */
 export const api = {
   // Auth
   auth: {
@@ -108,9 +122,17 @@ export const api = {
 
   // Clientes
   clientes: {
-    getAll: (busqueda?: string) => {
-      const q = busqueda && busqueda.trim() ? `?busqueda=${encodeURIComponent(busqueda.trim())}` : '';
-      return request<{ total: number; clientes: Cliente[] }>(`/api/clientes${q}`);
+    getAll: (params?: string | { busqueda?: string; limite?: number | string; pagina?: number }) => {
+      const q = new URLSearchParams();
+      if (typeof params === 'string') {
+        if (params.trim()) q.append('busqueda', params.trim());
+      } else if (params) {
+        if (params.busqueda && params.busqueda.trim()) q.append('busqueda', params.busqueda.trim());
+        if (params.limite !== undefined && params.limite !== null) q.append('limite', String(params.limite));
+        if (params.pagina !== undefined && params.pagina !== null) q.append('pagina', String(params.pagina));
+      }
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      return request<{ total: number; pagina?: number; limite?: number; totalPaginas?: number; clientes: Cliente[] }>(`/api/clientes${qs}`);
     },
     getById: (id: number) => request<Cliente>(`/api/clientes/${id}`),
     create: (cliente: Omit<Cliente, 'id_cliente'>) =>
@@ -128,15 +150,17 @@ export const api = {
 
   // Bicicletas (De Clientes para Taller)
   bicicletas: {
-    getAll: (params?: number | { id_cliente?: number; busqueda?: string }) => {
+    getAll: (params?: number | { id_cliente?: number; busqueda?: string; limite?: number | string; pagina?: number }) => {
       if (typeof params === 'number') {
-        return request<{ total: number; bicicletas: Bicicleta[] }>(`/api/bicicletas?id_cliente=${params}`);
+        return request<{ total: number; pagina?: number; limite?: number; totalPaginas?: number; bicicletas: Bicicleta[] }>(`/api/bicicletas?id_cliente=${params}`);
       }
       const q = new URLSearchParams();
       if (params?.id_cliente) q.append('id_cliente', String(params.id_cliente));
       if (params?.busqueda && params.busqueda.trim()) q.append('busqueda', params.busqueda.trim());
+      if (params?.limite !== undefined && params.limite !== null) q.append('limite', String(params.limite));
+      if (params?.pagina !== undefined && params.pagina !== null) q.append('pagina', String(params.pagina));
       const qs = q.toString() ? `?${q.toString()}` : '';
-      return request<{ total: number; bicicletas: Bicicleta[] }>(`/api/bicicletas${qs}`);
+      return request<{ total: number; pagina?: number; limite?: number; totalPaginas?: number; bicicletas: Bicicleta[] }>(`/api/bicicletas${qs}`);
     },
     getById: (id: number) => request<Bicicleta>(`/api/bicicletas/${id}`),
     create: (bicicleta: { id_cliente: number; marca: string; modelo: string }) =>
@@ -177,9 +201,9 @@ export const api = {
 
   // Productos (Inventario / Stock, incluye bicicletas nuevas a la venta)
   productos: {
-    getAll: (params?: boolean | { soloActivos?: boolean; tipo?: string; estado?: string; disponibilidad?: string; busqueda?: string }) => {
+    getAll: (params?: boolean | { soloActivos?: boolean; tipo?: string; estado?: string; disponibilidad?: string; busqueda?: string; limite?: number; pagina?: number }) => {
       if (typeof params === 'boolean') {
-        return request<{ total: number; resumen?: ResumenStock; productos: Producto[] }>(
+        return request<{ total: number; pagina?: number; limite?: number; totalPaginas?: number; resumen?: ResumenStock; productos: Producto[] }>(
           params ? '/api/productos?solo_activos=true' : '/api/productos'
         );
       }
@@ -189,8 +213,10 @@ export const api = {
       if (params?.estado && params.estado !== 'todos') q.append('estado', params.estado);
       if (params?.disponibilidad && params.disponibilidad !== 'todos') q.append('disponibilidad', params.disponibilidad);
       if (params?.busqueda && params.busqueda.trim()) q.append('busqueda', params.busqueda.trim());
+      if (params?.limite) q.append('limite', String(params.limite));
+      if (params?.pagina) q.append('pagina', String(params.pagina));
       const queryStr = q.toString() ? `?${q.toString()}` : '';
-      return request<{ total: number; resumen?: ResumenStock; productos: Producto[] }>(`/api/productos${queryStr}`);
+      return request<{ total: number; pagina?: number; limite?: number; totalPaginas?: number; resumen?: ResumenStock; productos: Producto[] }>(`/api/productos${queryStr}`);
     },
     getById: (id: number) => request<Producto>(`/api/productos/${id}`),
     create: (producto: Omit<Producto, 'id_producto'>) =>
@@ -227,7 +253,14 @@ export const api = {
 
   // Ventas
   ventas: {
-    getAll: () => request<{ total: number; ventas: Venta[] }>('/api/ventas'),
+    getAll: (params?: { busqueda?: string; limite?: number; pagina?: number }) => {
+      const q = new URLSearchParams();
+      if (params?.busqueda && params.busqueda.trim()) q.append('busqueda', params.busqueda.trim());
+      if (params?.limite) q.append('limite', String(params.limite));
+      if (params?.pagina) q.append('pagina', String(params.pagina));
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      return request<{ total: number; pagina?: number; limite?: number; totalPaginas?: number; ventas: Venta[] }>(`/api/ventas${qs}`);
+    },
     getMetodosPago: () => request<MetodoPago[]>('/api/ventas/metodos-pago'),
     getGarantias: (params?: { busqueda?: string; estado?: string }) => {
       const q = new URLSearchParams();
@@ -241,9 +274,9 @@ export const api = {
       }>(qs ? `/api/ventas/garantias?${qs}` : '/api/ventas/garantias');
     },
     getById: (id: number) =>
-      request<{ venta: Venta; productos_vendidos: any[] }>(`/api/ventas/${id}`),
-    create: (payload: { id_cliente: number; id_usuario?: number; id_metodo_pago?: number; detalles: Array<{ id_producto: number; cantidad: number; precio_unitario: number }> }) =>
-      request<{ message: string; venta: Venta; detalles?: any[] }>('/api/ventas', {
+      request<{ venta: Venta; productos_vendidos: DetalleVentaItem[] }>(`/api/ventas/${id}`),
+    create: (payload: { id_cliente: number; id_metodo_pago?: number; detalles: Array<{ id_producto: number; cantidad: number; precio_unitario?: number }> }) =>
+      request<{ message: string; venta: Venta; detalles?: DetalleVentaItem[] }>('/api/ventas', {
         method: 'POST',
         body: JSON.stringify(payload),
       }),
@@ -256,13 +289,18 @@ export const api = {
 
   // Reparaciones / Taller
   reparaciones: {
-    getAll: (params?: { estado?: string; busqueda?: string }) => {
+    getAll: (params?: { estado?: string; busqueda?: string; limite?: number; pagina?: number }) => {
       const q = new URLSearchParams();
       if (params?.estado && params.estado !== 'todos') q.append('estado', params.estado);
       if (params?.busqueda && params.busqueda.trim()) q.append('busqueda', params.busqueda.trim());
+      if (params?.limite) q.append('limite', String(params.limite));
+      if (params?.pagina) q.append('pagina', String(params.pagina));
       const qs = q.toString() ? `?${q.toString()}` : '';
       return request<{
         total: number;
+        pagina?: number;
+        limite?: number;
+        totalPaginas?: number;
         resumen?: {
           total_activas: number;
           recibidas_count: number;
@@ -277,7 +315,7 @@ export const api = {
     },
     getById: (id: number) =>
       request<{ reparacion: Reparacion; repuestos_utilizados: DetalleReparacionItem[] }>(`/api/reparaciones/${id}`),
-    create: (reparacion: { id_bicicleta: number; id_usuario?: number; estado: string; descripcion: string; costo_mano_obra?: number }) =>
+    create: (reparacion: { id_bicicleta: number; estado: string; descripcion: string; costo_mano_obra?: number }) =>
       request<{ message: string; reparacion: Reparacion }>('/api/reparaciones', {
         method: 'POST',
         body: JSON.stringify(reparacion),
@@ -289,7 +327,7 @@ export const api = {
       }),
     getRepuestos: (id_reparacion: number) =>
       request<{ repuestos: DetalleReparacionItem[] }>(`/api/detalle-reparacion/${id_reparacion}`),
-    agregarRepuesto: (payload: { id_reparacion: number; id_producto: number; cantidad: number; precio_unitario: number }) =>
+    agregarRepuesto: (payload: { id_reparacion: number; id_producto: number; cantidad: number; precio_unitario?: number }) =>
       request<{ message: string; detalle: DetalleReparacionItem }>('/api/detalle-reparacion', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -319,9 +357,17 @@ export const api = {
 
   // Pagos a Proveedores
   pagosProveedores: {
-    getAll: (busqueda?: string) => {
-      const q = busqueda && busqueda.trim() ? `?busqueda=${encodeURIComponent(busqueda.trim())}` : '';
-      return request<{ total: number; total_monto?: number; pagos: PagoProveedor[] }>(`/api/pagos-proveedores${q}`);
+    getAll: (params?: string | { busqueda?: string; limite?: number | string; pagina?: number }) => {
+      const q = new URLSearchParams();
+      if (typeof params === 'string') {
+        if (params.trim()) q.append('busqueda', params.trim());
+      } else if (params) {
+        if (params.busqueda && params.busqueda.trim()) q.append('busqueda', params.busqueda.trim());
+        if (params.limite !== undefined && params.limite !== null) q.append('limite', String(params.limite));
+        if (params.pagina !== undefined && params.pagina !== null) q.append('pagina', String(params.pagina));
+      }
+      const qs = q.toString() ? `?${q.toString()}` : '';
+      return request<{ total: number; total_monto?: number; pagina?: number; limite?: number; totalPaginas?: number; pagos: PagoProveedor[] }>(`/api/pagos-proveedores${qs}`);
     },
     getMetodosPago: () => request<MetodoPago[]>('/api/pagos-proveedores/metodos-pago'),
     create: (pago: { id_proveedor?: number; nombre_proveedor?: string; id_usuario: number; id_metodo_pago: number; monto_total: number; observaciones?: string }) =>
@@ -341,28 +387,34 @@ export const api = {
       const qs = params.toString();
       return request<ReporteEstadisticasResponse>(qs ? `/api/reportes/estadisticas?${qs}` : '/api/reportes/estadisticas');
     },
-    getVentas: (filtros?: { fechaDesde?: string; fechaHasta?: string; busqueda?: string }) => {
+    getVentas: (filtros?: { fechaDesde?: string; fechaHasta?: string; busqueda?: string; limite?: number; pagina?: number }) => {
       const params = new URLSearchParams();
       if (filtros?.fechaDesde) params.append('fechaDesde', filtros.fechaDesde);
       if (filtros?.fechaHasta) params.append('fechaHasta', filtros.fechaHasta);
       if (filtros?.busqueda) params.append('busqueda', filtros.busqueda);
+      if (filtros?.limite) params.append('limite', String(filtros.limite));
+      if (filtros?.pagina) params.append('pagina', String(filtros.pagina));
       const qs = params.toString();
       return request<ReporteVentasResponse>(qs ? `/api/reportes/ventas?${qs}` : '/api/reportes/ventas');
     },
-    getReparaciones: (filtros?: { fechaDesde?: string; fechaHasta?: string; estado?: string; busqueda?: string }) => {
+    getReparaciones: (filtros?: { fechaDesde?: string; fechaHasta?: string; estado?: string; busqueda?: string; limite?: number; pagina?: number }) => {
       const params = new URLSearchParams();
       if (filtros?.fechaDesde) params.append('fechaDesde', filtros.fechaDesde);
       if (filtros?.fechaHasta) params.append('fechaHasta', filtros.fechaHasta);
       if (filtros?.estado) params.append('estado', filtros.estado);
       if (filtros?.busqueda) params.append('busqueda', filtros.busqueda);
+      if (filtros?.limite) params.append('limite', String(filtros.limite));
+      if (filtros?.pagina) params.append('pagina', String(filtros.pagina));
       const qs = params.toString();
       return request<ReporteReparacionesResponse>(qs ? `/api/reportes/reparaciones?${qs}` : '/api/reportes/reparaciones');
     },
-    getEgresos: (filtros?: { fechaDesde?: string; fechaHasta?: string; busqueda?: string }) => {
+    getEgresos: (filtros?: { fechaDesde?: string; fechaHasta?: string; busqueda?: string; limite?: number; pagina?: number }) => {
       const params = new URLSearchParams();
       if (filtros?.fechaDesde) params.append('fechaDesde', filtros.fechaDesde);
       if (filtros?.fechaHasta) params.append('fechaHasta', filtros.fechaHasta);
       if (filtros?.busqueda) params.append('busqueda', filtros.busqueda);
+      if (filtros?.limite) params.append('limite', String(filtros.limite));
+      if (filtros?.pagina) params.append('pagina', String(filtros.pagina));
       const qs = params.toString();
       return request<ReporteEgresosResponse>(qs ? `/api/reportes/egresos?${qs}` : '/api/reportes/egresos');
     },
@@ -370,13 +422,16 @@ export const api = {
 
   // Bitácora de Auditoría (CU28)
   bitacora: {
-    getAll: (filtros?: { modulo?: string; busqueda?: string; limite?: number }) => {
+    getAll: (filtros?: { modulo?: string; busqueda?: string; limite?: number | string; pagina?: number }) => {
       const params = new URLSearchParams();
       if (filtros?.modulo) params.append('modulo', filtros.modulo);
       if (filtros?.busqueda) params.append('busqueda', filtros.busqueda);
       if (filtros?.limite) params.append('limite', String(filtros.limite));
+      if (filtros?.pagina) params.append('pagina', String(filtros.pagina));
       const qs = params.toString();
-      return request<{ total: number; registros: BitacoraActividad[] }>(qs ? `/api/bitacora?${qs}` : '/api/bitacora');
+      return request<{ total: number; totalPaginas?: number; pagina?: number; limite?: number; registros: BitacoraActividad[] }>(
+        qs ? `/api/bitacora?${qs}` : '/api/bitacora'
+      );
     },
   },
 };

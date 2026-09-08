@@ -9,6 +9,7 @@ interface ModalEditarBicicletaProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Modal de edición rápida de marca y modelo para la bicicleta seleccionada. */
 export function ModalEditarBicicleta({
   mostrar,
   onCerrar,

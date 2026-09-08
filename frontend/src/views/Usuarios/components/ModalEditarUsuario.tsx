@@ -10,6 +10,7 @@ interface ModalEditarUsuarioProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Modal para modificar el rol o restablecer la contraseña de un usuario. */
 export function ModalEditarUsuario({
   mostrar,
   onCerrar,

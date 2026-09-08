@@ -10,6 +10,7 @@ interface UsuariosTablaProps {
   onEliminar: (id: number, nombre: string) => void;
 }
 
+/** Tabla de usuarios con badges de rol y acciones de edición/baja. */
 export function UsuariosTabla({
   usuarios,
   usuariosFiltrados,

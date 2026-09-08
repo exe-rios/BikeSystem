@@ -4,6 +4,7 @@ import { UsuariosTabla } from './components/UsuariosTabla';
 import { ModalAltaUsuario } from './components/ModalAltaUsuario';
 import { ModalEditarUsuario } from './components/ModalEditarUsuario';
 
+/** Vista principal de administración de usuarios, roles y credenciales. */
 export function UsuariosView() {
   const {
     usuarios,

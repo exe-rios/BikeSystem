@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { Cliente, Producto, MetodoPago, DetalleVentaItem } from '../../../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface ModalNuevaVentaProps {
   clientes: Cliente[];
@@ -13,6 +14,7 @@ interface ModalNuevaVentaProps {
   carritoDetalle: DetalleVentaItem[];
   totalVenta: number;
   guardando: boolean;
+  errorCarrito?: string | null;
   onCambiarCliente: (id: number) => void;
   onCambiarMetodoPago: (id: number) => void;
   onCambiarProductoBuscado: (id: number) => void;
@@ -25,6 +27,7 @@ interface ModalNuevaVentaProps {
   onClose: () => void;
 }
 
+/** Modal con flujo completo de punto de venta (carrito, cliente y método de pago). */
 export function ModalNuevaVenta({
   clientes,
   productos,
@@ -37,6 +40,7 @@ export function ModalNuevaVenta({
   carritoDetalle,
   totalVenta,
   guardando,
+  errorCarrito,
   onCambiarCliente,
   onCambiarMetodoPago,
   onCambiarProductoBuscado,
@@ -199,6 +203,20 @@ export function ModalNuevaVenta({
               }}
             />
 
+            {errorCarrito && (
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                color: '#dc2626',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                fontSize: '0.85rem',
+                fontWeight: '600'
+              }}>
+                {errorCarrito}
+              </div>
+            )}
+
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 100px auto', gap: '10px' }}>
               <select
                 value={productoBuscadoId}
@@ -217,7 +235,7 @@ export function ModalNuevaVenta({
                   const sinStock = Number(p.cantidad) <= 0;
                   return (
                     <option key={p.id_producto} value={p.id_producto} disabled={sinStock}>
-                      {p.nombre} {p.marca ? `(${p.marca})` : ''} — ${Number(p.precio).toLocaleString()} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
+                      {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
                     </option>
                   );
                 })}
@@ -267,7 +285,7 @@ export function ModalNuevaVenta({
                 alignItems: 'center'
               }}>
                 <span>
-                  <strong>Stock disponible:</strong> {productoSeleccionado.cantidad} unidades | <strong>Precio Unitario:</strong> ${Number(productoSeleccionado.precio).toLocaleString()}
+                  <strong>Stock disponible:</strong> {productoSeleccionado.cantidad} unidades | <strong>Precio Unitario:</strong> {formatearMoneda(productoSeleccionado.precio)}
                 </span>
                 {productoSeleccionado.tipo_prod === 'bicicleta' && (
                   <span style={{ color: '#2563eb', fontWeight: '700' }}>
@@ -359,10 +377,10 @@ export function ModalNuevaVenta({
                           </div>
                         </td>
                         <td style={{ padding: '10px 12px', textAlign: 'right' }}>
-                          ${item.precio_unitario.toLocaleString()}
+                          {formatearMoneda(item.precio_unitario)}
                         </td>
                         <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: '800', color: 'var(--texto-principal)' }}>
-                          ${((item.costo_total || (item.cantidad * item.precio_unitario))).toLocaleString()}
+                          {formatearMoneda(item.costo_total || (item.cantidad * item.precio_unitario))}
                         </td>
                         <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                           <button
@@ -389,7 +407,7 @@ export function ModalNuevaVenta({
                 Total a Facturar:
               </span>
               <div style={{ fontSize: '1.6rem', fontWeight: '800', color: '#16a34a' }}>
-                ${totalVenta.toLocaleString()}
+                {formatearMoneda(totalVenta)}
               </div>
             </div>
 

@@ -7,13 +7,19 @@ import {
     eliminarProveedor 
 } from '../controllers/proveedor.controller.js';
 import { verificarToken } from '../middlewares/auth.middleware.js';
+import { autorizarRoles } from '../middlewares/roles.middleware.js';
 
+/** Rutas para la administración de proveedores comerciales. */
 const router: ReturnType<typeof Router> = Router();
 
-router.post('/', verificarToken, crearProveedor);
-router.get('/', verificarToken, obtenerProveedores);
-router.get('/:id', verificarToken, obtenerProveedorPorId);
-router.put('/:id', verificarToken, actualizarProveedor);
-router.delete('/:id', verificarToken, eliminarProveedor);
+// Gestión de proveedores (Exclusivo Administradores)
+router.use(verificarToken);
+router.use(autorizarRoles('ADMIN', 'SUPERADMIN'));
+
+router.post('/', crearProveedor);
+router.get('/', obtenerProveedores);
+router.get('/:id', obtenerProveedorPorId);
+router.put('/:id', actualizarProveedor);
+router.delete('/:id', eliminarProveedor);
 
 export default router;

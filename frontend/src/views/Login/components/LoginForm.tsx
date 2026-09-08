@@ -8,6 +8,7 @@ interface LoginFormProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Formulario controlado de acceso con usuario y contraseña. */
 export function LoginForm({
   usuario,
   setUsuario,

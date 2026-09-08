@@ -1,5 +1,6 @@
 import type { Venta, Reparacion, PagoProveedor, DashboardTopProducto } from '../../../types';
 import type { TabTipo } from '../types';
+import { formatearFecha } from '../../../utils/formatters';
 
 interface ExportarCSVParams {
   activeTab: TabTipo;
@@ -23,17 +24,18 @@ interface ExportarCSVParams {
   topProductos: DashboardTopProducto[];
 }
 
+/** Exportador de reportes contables a formato CSV con cabecera BOM para Excel. */
 export const exportarCSV = (params: ExportarCSVParams): void => {
   const { activeTab, kpis, ventas, reparaciones, topProductos } = params;
   let csvContent = '';
-  const fechaReporte = new Date().toLocaleDateString().replace(/\//g, '-');
+  const fechaReporte = formatearFecha(new Date()).replace(/\//g, '-');
 
   if (activeTab === 'ventas') {
     csvContent = 'Comprobante;Fecha;Cliente;Vendedor;Estado;Importe Total\n';
     const ventasActivas = ventas.filter(v => v.estado !== 'ANULADA');
     ventas.forEach(v => {
       const comp = 'FAC-' + String(v.id_venta).padStart(6, '0');
-      const fecha = v.fecha ? new Date(v.fecha).toLocaleDateString() : '';
+      const fecha = formatearFecha(v.fecha, '');
       const cliente = v.cliente_nombre ? `${v.cliente_apellido} ${v.cliente_nombre}` : `Cliente #${v.id_cliente}`;
       const vendedor = v.vendedor || 'Sistema';
       const estado = v.estado || 'COMPLETADA';
@@ -47,8 +49,8 @@ export const exportarCSV = (params: ExportarCSVParams): void => {
     const enProceso = reparaciones.filter(r => r.estado !== 'Entregada');
     reparaciones.forEach(r => {
       const idRep = 'REP-' + String(r.id_reparacion).padStart(6, '0');
-      const fIngreso = r.fecha_ingreso ? new Date(r.fecha_ingreso).toLocaleDateString() : '';
-      const fEgreso = r.fecha_egreso ? new Date(r.fecha_egreso).toLocaleDateString() : 'Pendiente';
+      const fIngreso = formatearFecha(r.fecha_ingreso, '');
+      const fEgreso = formatearFecha(r.fecha_egreso, 'Pendiente');
       const cliente = r.cliente_nombre ? `${r.cliente_apellido} ${r.cliente_nombre}` : `Cliente #${r.id_bicicleta}`;
       const bici = `${r.marca || ''} ${r.modelo || ''}`.trim() || 'Bicicleta';
       const estado = r.estado;

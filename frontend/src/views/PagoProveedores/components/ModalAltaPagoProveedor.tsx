@@ -11,6 +11,7 @@ interface ModalAltaPagoProveedorProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Modal con formulario para registrar un nuevo pago a proveedor. */
 export function ModalAltaPagoProveedor({
   mostrar,
   onCerrar,

@@ -10,6 +10,7 @@ import type {
 } from '../../../types';
 import type { TabTipo, RangoRapido } from '../types';
 import { exportarCSV } from '../utils/exportarCSV';
+import { useDebounce } from '../../../hooks/useDebounce';
 
 const getMesActualFechas = () => {
   const hoy = new Date();
@@ -27,13 +28,36 @@ const getMesActualFechas = () => {
   };
 };
 
+/** Hook para la consulta de métricas contables, balance de ingresos/egresos y rankings. */
 export function useReportes() {
   const [activeTab, setActiveTab] = useState<TabTipo>('general');
   const [rangoRapido, setRangoRapido] = useState<RangoRapido>('mes');
   const [fechaDesde, setFechaDesde] = useState<string>(() => getMesActualFechas().desde);
   const [fechaHasta, setFechaHasta] = useState<string>(() => getMesActualFechas().hasta);
   const [searchTerm, setSearchTerm] = useState('');
+  const searchTermDebounced = useDebounce(searchTerm, 300);
   const [estadoTallerFiltro, setEstadoTallerFiltro] = useState<string>('TODOS');
+
+  // Paginación de 10 en 10 por pestaña
+  const [paginaVentas, setPaginaVentas] = useState<number>(1);
+  const [totalPaginasVentas, setTotalPaginasVentas] = useState<number>(1);
+  const [totalVentasRegistros, setTotalVentasRegistros] = useState<number>(0);
+
+  const [paginaReparaciones, setPaginaReparaciones] = useState<number>(1);
+  const [totalPaginasReparaciones, setTotalPaginasReparaciones] = useState<number>(1);
+  const [totalReparacionesRegistros, setTotalReparacionesRegistros] = useState<number>(0);
+
+  const [paginaPagos, setPaginaPagos] = useState<number>(1);
+  const [totalPaginasPagos, setTotalPaginasPagos] = useState<number>(1);
+  const [totalPagosRegistros, setTotalPagosRegistros] = useState<number>(0);
+
+  const limitePaginacion = 10;
+
+  useEffect(() => {
+    setPaginaVentas(1);
+    setPaginaReparaciones(1);
+    setPaginaPagos(1);
+  }, [fechaDesde, fechaHasta, searchTermDebounced, estadoTallerFiltro]);
 
   // Datos del backend
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -136,19 +160,25 @@ export function useReportes() {
         api.reportes.getVentas({
           fechaDesde: fechaDesde || undefined,
           fechaHasta: fechaHasta || undefined,
-          busqueda: searchTerm || undefined
-        }).catch(() => ({ total: 0, total_facturado: 0, ventas_cobradas: 0, ventas_anuladas: 0, ventas: [] })),
+          busqueda: searchTermDebounced || undefined,
+          limite: limitePaginacion,
+          pagina: paginaVentas
+        }).catch(() => ({ total: 0, total_facturado: 0, ventas_cobradas: 0, ventas_anuladas: 0, ventas: [], totalPaginas: 1 })),
         api.reportes.getReparaciones({
           fechaDesde: fechaDesde || undefined,
           fechaHasta: fechaHasta || undefined,
           estado: estadoTallerFiltro !== 'TODOS' ? estadoTallerFiltro : undefined,
-          busqueda: searchTerm || undefined
-        }).catch(() => ({ total: 0, entregadas_count: 0, en_proceso_count: 0, total_recaudado: 0, total_mano_obra: 0, monto_estimado_en_proceso: 0, reparaciones: [] })),
+          busqueda: searchTermDebounced || undefined,
+          limite: limitePaginacion,
+          pagina: paginaReparaciones
+        }).catch(() => ({ total: 0, entregadas_count: 0, en_proceso_count: 0, total_recaudado: 0, total_mano_obra: 0, monto_estimado_en_proceso: 0, reparaciones: [], totalPaginas: 1 })),
         api.reportes.getEgresos({
           fechaDesde: fechaDesde || undefined,
           fechaHasta: fechaHasta || undefined,
-          busqueda: searchTerm || undefined
-        }).catch(() => ({ total: 0, total_egresos: 0, pagos: [] }))
+          busqueda: searchTermDebounced || undefined,
+          limite: limitePaginacion,
+          pagina: paginaPagos
+        }).catch(() => ({ total: 0, total_egresos: 0, pagos: [], totalPaginas: 1 }))
       ]);
 
       if (resDash) {
@@ -161,6 +191,8 @@ export function useReportes() {
       }
 
       setVentas(resVentas.ventas || []);
+      setTotalVentasRegistros(resVentas.total || 0);
+      setTotalPaginasVentas(resVentas.totalPaginas || 1);
       setVentasResumen({
         totalFacturado: resVentas.total_facturado || 0,
         cobradas: resVentas.ventas_cobradas || 0,
@@ -168,6 +200,8 @@ export function useReportes() {
       });
 
       setReparaciones(resReparaciones.reparaciones || []);
+      setTotalReparacionesRegistros(resReparaciones.total || 0);
+      setTotalPaginasReparaciones(resReparaciones.totalPaginas || 1);
       setReparacionesResumen({
         totalRecaudado: resReparaciones.total_recaudado || 0,
         totalManoObra: resReparaciones.total_mano_obra || 0,
@@ -177,6 +211,8 @@ export function useReportes() {
       });
 
       setPagos(resPagos.pagos || []);
+      setTotalPagosRegistros(resPagos.total || 0);
+      setTotalPaginasPagos(resPagos.totalPaginas || 1);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -186,7 +222,7 @@ export function useReportes() {
     } finally {
       setCargando(false);
     }
-  }, [fechaDesde, fechaHasta, estadoTallerFiltro, searchTerm]);
+  }, [fechaDesde, fechaHasta, estadoTallerFiltro, searchTermDebounced, paginaVentas, paginaReparaciones, paginaPagos, limitePaginacion]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -232,9 +268,22 @@ export function useReportes() {
     estadisticasTaller,
     ventas,
     ventasResumen,
+    paginaVentas,
+    setPaginaVentas,
+    totalPaginasVentas,
+    totalVentasRegistros,
     reparaciones,
     reparacionesResumen,
+    paginaReparaciones,
+    setPaginaReparaciones,
+    totalPaginasReparaciones,
+    totalReparacionesRegistros,
     pagos,
+    paginaPagos,
+    setPaginaPagos,
+    totalPaginasPagos,
+    totalPagosRegistros,
+    limitePaginacion,
     topProductosList,
     maxVentasProducto,
     cargando,

@@ -1,20 +1,31 @@
 import type { Venta } from '../../../types';
+import { Paginador } from '../../../components/Paginador';
+import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 
 interface TabVentasListadoProps {
   ventas: Venta[];
   totalVentas: number;
   cargando: boolean;
   busquedaVenta: string;
+  paginaActual: number;
+  totalPaginas: number;
+  limite: number;
   onCambiarBusqueda: (busqueda: string) => void;
+  onCambiarPagina: (pagina: number) => void;
   onVerDetalle: (idVenta: number) => void;
 }
 
+/** Pestaña con tabla paginada de ventas emitidas y estado de cobranza. */
 export function TabVentasListado({
   ventas,
   totalVentas,
   cargando,
   busquedaVenta,
+  paginaActual,
+  totalPaginas,
+  limite,
   onCambiarBusqueda,
+  onCambiarPagina,
   onVerDetalle
 }: TabVentasListadoProps) {
   return (
@@ -110,7 +121,7 @@ export function TabVentasListado({
                       {nombreCliente}
                     </td>
                     <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>
-                      {v.fecha ? new Date(v.fecha).toLocaleDateString() : 'Hoy'}
+                      {formatearFecha(v.fecha, 'Hoy')}
                     </td>
                     <td style={{ padding: '16px' }}>
                       <span style={{
@@ -152,7 +163,7 @@ export function TabVentasListado({
                       fontSize: '1.05rem',
                       textDecoration: esAnulada ? 'line-through' : 'none'
                     }}>
-                      ${Number(v.costo_total).toLocaleString()}
+                      {formatearMoneda(v.costo_total)}
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
                       <button
@@ -186,6 +197,14 @@ export function TabVentasListado({
           </tbody>
         </table>
       </div>
+
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalVentas}
+        limite={limite}
+        alCambiarPagina={onCambiarPagina}
+      />
 
     </div>
   );

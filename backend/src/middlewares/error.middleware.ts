@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/errors.js';
 
+/** Middleware global para captura y formateo estándar de errores operacionales y de base de datos. */
 export const manejarErrores = (
   err: any,
   req: Request,

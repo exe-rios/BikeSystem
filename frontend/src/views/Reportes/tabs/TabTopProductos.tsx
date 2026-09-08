@@ -1,10 +1,12 @@
 import type { DashboardTopProducto } from '../../../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface TabTopProductosProps {
   topProductosList: DashboardTopProducto[];
   maxVentasProducto: number;
 }
 
+/** Pestaña de artículos con mayor volumen y porcentaje de ventas. */
 export function TabTopProductos({
   topProductosList,
   maxVentasProducto
@@ -68,7 +70,7 @@ export function TabTopProductos({
                       </div>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.95rem', fontWeight: '700', textAlign: 'right', color: '#16a34a' }}>
-                      {'$' + Number(item.total_recaudado || 0).toLocaleString()}
+                      {formatearMoneda(item.total_recaudado)}
                     </td>
                   </tr>
                 );

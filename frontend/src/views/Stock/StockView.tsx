@@ -6,8 +6,10 @@ import { StockTabla } from './components/StockTabla';
 import { ModalProductoForm } from './components/ModalProductoForm';
 import { ModalAjusteStock } from './components/ModalAjusteStock';
 import { ModalHistorialMovimientos } from './components/ModalHistorialMovimientos';
+import { Paginador } from '../../components/Paginador';
 import type { FormProductoData } from './types';
 
+/** Vista principal de gestión de inventario, stock y movimientos de almacén. */
 export function StockView() {
   const {
     productos,
@@ -20,6 +22,11 @@ export function StockView() {
     filtroEstado,
     filtroDisponibilidad,
     busqueda,
+    paginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
+    setPaginaActual,
     mostrarModalForm,
     modoModal,
     formData,
@@ -112,7 +119,7 @@ export function StockView() {
         filtroTipo={filtroTipo}
         filtroEstado={filtroEstado}
         filtroDisponibilidad={filtroDisponibilidad}
-        totalFiltrados={productosFiltrados.length}
+        totalFiltrados={totalRegistros}
         onCambiarBusqueda={setBusqueda}
         onCambiarFiltroTipo={setFiltroTipo}
         onCambiarFiltroEstado={setFiltroEstado}
@@ -126,6 +133,15 @@ export function StockView() {
         onEditar={abrirModalEditar}
         onEliminar={handleEliminar}
         onReactivar={handleReactivar}
+      />
+
+      {/* Paginación de 10 en 10 */}
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={setPaginaActual}
       />
 
       {/* 4. Modales */}

@@ -1,3 +1,4 @@
+/** Tipos e interfaces del módulo de ventas, comprobantes y garantías. */
 import type { Venta, DetalleVentaItem, GarantiaBicicleta } from '../../types';
 
 export interface VentaDetallada {

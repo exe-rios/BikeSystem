@@ -1,14 +1,34 @@
 import { pool } from '../config/db.js';
-import { BadRequestError } from '../utils/errors.js';
+import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
+import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
+/** Servicio para el registro contable y control de egresos a proveedores. */
 export class PagoProveedorService {
+  /** Obtiene el catálogo de formas de pago disponibles en el sistema. */
   static async obtenerMetodosPago() {
     const query = 'SELECT * FROM Metodo_Pago ORDER BY id_metodo_pago ASC;';
     const result = await pool.query(query);
     return result.rows;
   }
 
-  static async obtenerPagos(busqueda?: string | undefined) {
+  /** Obtiene el historial de pagos a proveedores con totales acumulados y paginación. */
+  static async obtenerPagos(filtros?: string | { 
+    busqueda?: string | undefined;
+    limite?: number | string | undefined;
+    pagina?: number | string | undefined;
+  }) {
+    let busqueda: string | undefined;
+    let limite: number | string | undefined;
+    let pagina: number | string | undefined;
+
+    if (typeof filtros === 'string') {
+      busqueda = filtros;
+    } else if (filtros) {
+      busqueda = filtros.busqueda;
+      limite = filtros.limite;
+      pagina = filtros.pagina;
+    }
+
     let query = `
       SELECT 
         p.id_pago,
@@ -20,11 +40,12 @@ export class PagoProveedorService {
         mp.nombre AS metodo_pago_nombre,
         p.fecha,
         p.monto_total,
-        p.observaciones
+        p.observaciones,
+        COUNT(*) OVER()::INT AS total_registros
       FROM Pago_Proveedor p
-      JOIN Proveedor prov ON p.id_proveedor = prov.id_proveedor
-      JOIN Usuario u ON p.id_usuario = u.id_usuario
-      JOIN Metodo_Pago mp ON p.id_metodo_pago = mp.id_metodo_pago
+      LEFT JOIN Proveedor prov ON p.id_proveedor = prov.id_proveedor
+      INNER JOIN Usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN Metodo_Pago mp ON p.id_metodo_pago = mp.id_metodo_pago
     `;
 
     const params: any[] = [];
@@ -40,7 +61,10 @@ export class PagoProveedorService {
       params.push(term);
     }
 
-    query += ` ORDER BY p.id_pago DESC;`;
+    query += ` ORDER BY p.id_pago DESC`;
+
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
+    query = aplicarPaginacionSQL(query, params, paginacion);
 
     const queryTotalMonto = `SELECT COALESCE(SUM(monto_total), 0)::numeric AS total_monto FROM Pago_Proveedor;`;
 
@@ -49,13 +73,18 @@ export class PagoProveedorService {
       pool.query(queryTotalMonto)
     ]);
 
+    const total = resultPagos.rows.length > 0 ? Number(resultPagos.rows[0].total_registros) : 0;
+    const meta = calcularMetaPaginacion(total, paginacion);
+    const pagos = resultPagos.rows.map(({ total_registros, ...p }) => p);
+
     return {
-      total: resultPagos.rowCount || 0,
+      ...meta,
       total_monto: Number(resultTotal.rows[0]?.total_monto || 0),
-      pagos: resultPagos.rows
+      pagos
     };
   }
 
+  /** Registra un nuevo egreso monetario a un proveedor existente o generado al vuelo. */
   static async crearPago(datos: {
     id_proveedor?: number | undefined;
     nombre_proveedor?: string | undefined;
@@ -74,6 +103,11 @@ export class PagoProveedorService {
       idUsuarioOperador,
       nombreUsuarioOperador
     } = datos;
+
+    const idOperadorNum = Number(idUsuarioOperador);
+    if (!idUsuarioOperador || isNaN(idOperadorNum) || idOperadorNum <= 0) {
+      throw new UnauthorizedError('No se pudo identificar al usuario que registra el pago.');
+    }
 
     const montoNum = Number(monto_total);
     if ((!id_proveedor && !nombre_proveedor) || !id_metodo_pago || isNaN(montoNum) || montoNum <= 0) {
@@ -112,7 +146,7 @@ export class PagoProveedorService {
     `;
     const values = [
       proveedorIdFinal,
-      idUsuarioOperador || 1,
+      idOperadorNum,
       id_metodo_pago,
       montoNum,
       observaciones ? String(observaciones).trim() : null
@@ -127,7 +161,7 @@ export class PagoProveedorService {
         `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
          VALUES ($1, $2, 'Proveedores', 'Registro de Pago', $3);`,
         [
-          idUsuarioOperador || 1,
+          idOperadorNum,
           nombreUsuarioOperador || 'Usuario',
           `Pago #${nuevoPago.id_pago} registrado a proveedor "${nombreProveedorFinal || 'Proveedor #' + proveedorIdFinal}" por $${montoNum.toLocaleString('es-AR', { minimumFractionDigits: 2 })}.`
         ]

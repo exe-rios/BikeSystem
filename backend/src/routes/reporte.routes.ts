@@ -9,25 +9,19 @@ import {
 import { verificarToken } from '../middlewares/auth.middleware.js';
 import { autorizarRoles } from '../middlewares/roles.middleware.js';
 
+/** Rutas de analítica financiera, estadísticas operativas y dashboard. */
 const router: ReturnType<typeof Router> = Router();
 
-// Todas las rutas de reportes requieren autenticación y rol de administrador
+// Todas las rutas de reportes requieren autenticación
 router.use(verificarToken);
-router.use(autorizarRoles('ADMIN', 'SUPERADMIN'));
 
-// GET /api/reportes/dashboard - Resumen del mes actual
-router.get('/dashboard', obtenerDashboard);
+// GET /api/reportes/dashboard - Resumen del mes actual, alertas de stock y taller (Visible para empleados en InicioView)
+router.get('/dashboard', autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerDashboard);
 
-// GET /api/reportes/estadisticas - Agregaciones y KPIs por rango de fechas
-router.get('/estadisticas', obtenerEstadisticas);
-
-// GET /api/reportes/ventas - Detalle de ventas filtrado
-router.get('/ventas', obtenerVentasReporte);
-
-// GET /api/reportes/reparaciones - Detalle de reparaciones filtrado
-router.get('/reparaciones', obtenerReparacionesReporte);
-
-// GET /api/reportes/egresos - Detalle de pagos a proveedores filtrado
-router.get('/egresos', obtenerEgresosReporte);
+// Rutas de métricas y análisis financiero (Exclusivo Administradores)
+router.get('/estadisticas', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerEstadisticas);
+router.get('/ventas', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerVentasReporte);
+router.get('/reparaciones', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerReparacionesReporte);
+router.get('/egresos', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerEgresosReporte);
 
 export default router;

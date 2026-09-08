@@ -5,6 +5,7 @@ interface ClientesHeaderProps {
   onAbrirNuevo: () => void;
 }
 
+/** Encabezado del módulo de clientes con contador y buscador integrado. */
 export function ClientesHeader({
   totalClientes,
   busqueda,

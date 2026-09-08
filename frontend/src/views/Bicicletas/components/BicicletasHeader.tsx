@@ -5,6 +5,7 @@ interface BicicletasHeaderProps {
   onAbrirNuevo: () => void;
 }
 
+/** Encabezado del módulo de bicicletas con totalizador y búsqueda rápida. */
 export function BicicletasHeader({
   totalBicicletas,
   busqueda,

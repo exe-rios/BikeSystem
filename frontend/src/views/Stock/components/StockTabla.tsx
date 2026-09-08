@@ -1,4 +1,6 @@
 import type { Producto } from '../../../types';
+import { usePermisos } from '../../../hooks/usePermisos';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface StockTablaProps {
   productos: Producto[];
@@ -8,6 +10,7 @@ interface StockTablaProps {
   onReactivar: (id: number, nombre: string) => void;
 }
 
+/** Tabla de productos con estado de stock, precios y acciones de edición/baja. */
 export function StockTabla({
   productos,
   cargando,
@@ -15,6 +18,7 @@ export function StockTabla({
   onEliminar,
   onReactivar
 }: StockTablaProps) {
+  const { puedeGestionarCatalogo } = usePermisos();
   const getBadgeDisponibilidad = (p: Producto) => {
     const estado = p.estado_stock || 'optimo';
 
@@ -146,7 +150,7 @@ export function StockTabla({
 
                   {/* Precio */}
                   <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--texto-principal)', fontSize: '0.92rem' }}>
-                    ${Number(p.precio || 0).toLocaleString()}
+                    {formatearMoneda(p.precio)}
                   </td>
 
                   {/* Stock Actual / Mínimo */}
@@ -176,68 +180,74 @@ export function StockTabla({
 
                   {/* Acciones */}
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                      {esActivo ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => onEditar(p)}
-                            style={{
-                              backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                              color: 'var(--azul-oscuro)',
-                              border: '1px solid rgba(37, 99, 235, 0.2)',
-                              borderRadius: '6px',
-                              padding: '5px 0',
-                              width: '58px',
-                              textAlign: 'center',
-                              fontSize: '0.78rem',
-                              fontWeight: '600',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Editar
-                          </button>
+                    {!puedeGestionarCatalogo ? (
+                      <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', fontStyle: 'italic' }}>
+                        Solo lectura
+                      </span>
+                    ) : (
+                      <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                        {esActivo ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onEditar(p)}
+                              style={{
+                                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                color: 'var(--azul-oscuro)',
+                                border: '1px solid rgba(37, 99, 235, 0.2)',
+                                borderRadius: '6px',
+                                padding: '5px 0',
+                                width: '58px',
+                                textAlign: 'center',
+                                fontSize: '0.78rem',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Editar
+                            </button>
 
+                            <button
+                              type="button"
+                              onClick={() => p.id_producto && onEliminar(p.id_producto, p.nombre)}
+                              style={{
+                                backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                color: 'var(--azul-oscuro)',
+                                border: '1px solid rgba(37, 99, 235, 0.2)',
+                                borderRadius: '6px',
+                                padding: '5px 0',
+                                width: '58px',
+                                textAlign: 'center',
+                                fontSize: '0.78rem',
+                                fontWeight: '600',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Baja
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => p.id_producto && onEliminar(p.id_producto, p.nombre)}
+                            onClick={() => p.id_producto && onReactivar(p.id_producto, p.nombre)}
                             style={{
-                              backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                              color: 'var(--azul-oscuro)',
-                              border: '1px solid rgba(37, 99, 235, 0.2)',
+                              backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                              color: '#059669',
+                              border: '1px solid rgba(16, 185, 129, 0.2)',
                               borderRadius: '6px',
                               padding: '5px 0',
-                              width: '58px',
+                              width: '122px',
                               textAlign: 'center',
                               fontSize: '0.78rem',
-                              fontWeight: '600',
+                              fontWeight: '700',
                               cursor: 'pointer'
                             }}
                           >
-                            Baja
+                            Reactivar
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => p.id_producto && onReactivar(p.id_producto, p.nombre)}
-                          style={{
-                            backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                            color: '#059669',
-                            border: '1px solid rgba(16, 185, 129, 0.2)',
-                            borderRadius: '6px',
-                            padding: '5px 0',
-                            width: '122px',
-                            textAlign: 'center',
-                            fontSize: '0.78rem',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          Reactivar
-                        </button>
-                      )}
-                    </div>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               );

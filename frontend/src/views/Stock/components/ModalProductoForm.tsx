@@ -11,6 +11,7 @@ interface ModalProductoFormProps {
   onClose: () => void;
 }
 
+/** Modal con formulario para dar de alta o modificar un artículo del inventario. */
 export function ModalProductoForm({
   visible,
   modo,

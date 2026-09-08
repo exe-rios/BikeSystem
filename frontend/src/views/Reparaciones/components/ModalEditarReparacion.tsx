@@ -9,6 +9,7 @@ interface ModalEditarReparacionProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Modal para modificar la descripción y el costo de mano de obra de la reparación. */
 export function ModalEditarReparacion({
   mostrar,
   onCerrar,

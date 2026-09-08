@@ -6,12 +6,17 @@ import { TabGarantiasListado } from './tabs/TabGarantiasListado';
 import { ModalNuevaVenta } from './components/ModalNuevaVenta';
 import { ModalDetalleVenta } from './components/ModalDetalleVenta';
 
+/** Vista principal de facturación, punto de venta (POS) y gestión de garantías. */
 export function VentasView() {
   const {
     tabActiva,
     setTabActiva,
     ventas,
     totalVentas,
+    paginaVentas,
+    totalPaginasVentas,
+    limiteVentas,
+    setPaginaVentas,
     garantias,
     countTotalGarantias,
     countVigentes,
@@ -57,6 +62,8 @@ export function VentasView() {
     totalVenta,
     agregarAlCarrito,
     actualizarCantidadItem,
+    errorCarrito,
+    setErrorCarrito,
     quitarDelCarrito,
     limpiarCarrito
   } = useCarritoVenta();
@@ -71,24 +78,23 @@ export function VentasView() {
     e.preventDefault();
 
     if (!clienteSeleccionadoId || clienteSeleccionadoId <= 0) {
-      alert('Seleccioná un cliente primero.');
+      setErrorCarrito('Seleccioná un cliente comprador primero.');
       return;
     }
 
     if (!metodoPagoSeleccionadoId || metodoPagoSeleccionadoId <= 0) {
-      alert('Seleccioná el método de pago.');
+      setErrorCarrito('Seleccioná el método de pago.');
       return;
     }
 
     if (carritoDetalle.length === 0) {
-      alert('Agregá al menos un artículo a la venta.');
+      setErrorCarrito('Agregá al menos un artículo a la venta.');
       return;
     }
 
     const itemsPayload = carritoDetalle.map(item => ({
       id_producto: item.id_producto,
-      cantidad: item.cantidad,
-      precio_unitario: item.precio_unitario
+      cantidad: item.cantidad
     }));
 
     const exito = await finalizarVenta(clienteSeleccionadoId, metodoPagoSeleccionadoId, itemsPayload);
@@ -127,7 +133,11 @@ export function VentasView() {
           totalVentas={totalVentas}
           cargando={cargando}
           busquedaVenta={busquedaVenta}
+          paginaActual={paginaVentas}
+          totalPaginas={totalPaginasVentas}
+          limite={limiteVentas}
           onCambiarBusqueda={setBusquedaVenta}
+          onCambiarPagina={setPaginaVentas}
           onVerDetalle={handleVerDetalleVenta}
         />
       )}
@@ -163,6 +173,7 @@ export function VentasView() {
           carritoDetalle={carritoDetalle}
           totalVenta={totalVenta}
           guardando={guardando}
+          errorCarrito={errorCarrito}
           onCambiarCliente={setClienteSeleccionadoId}
           onCambiarMetodoPago={setMetodoPagoSeleccionadoId}
           onCambiarProductoBuscado={setProductoBuscadoId}

@@ -5,6 +5,7 @@ interface UsuariosHeaderProps {
   onAbrirNuevo: () => void;
 }
 
+/** Encabezado del módulo de usuarios con buscador y botón de nueva cuenta. */
 export function UsuariosHeader({
   totalUsuarios,
   busqueda,

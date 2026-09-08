@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -12,9 +12,7 @@ app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
 // Definir __dirname manualmente para entornos de módulos ES (ESM)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Determinar el entorno
-const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
-
+/** Inicializa y configura la ventana principal de escritorio con restricciones de seguridad. */
 function createWindow() {
   const preloadMjs = path.join(__dirname, 'preload.mjs');
   const preloadPath = fs.existsSync(preloadMjs) ? preloadMjs : path.join(__dirname, 'preload.js');
@@ -30,6 +28,31 @@ function createWindow() {
       preload: preloadPath,
       webSecurity: true,
       backgroundThrottling: false
+    }
+  });
+
+  // Prevenir creación no autorizada de nuevas ventanas emergentes y delegar links externos al navegador del sistema
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https:') || url.startsWith('http:')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Prevenir navegación fuera de la aplicación autorizada
+  win.webContents.on('will-navigate', (event, navigationUrl) => {
+    try {
+      const parsedUrl = new URL(navigationUrl);
+      if (process.env.VITE_DEV_SERVER_URL) {
+        const devServerUrl = new URL(process.env.VITE_DEV_SERVER_URL);
+        if (parsedUrl.origin !== devServerUrl.origin) {
+          event.preventDefault();
+        }
+      } else if (parsedUrl.protocol !== 'file:') {
+        event.preventDefault();
+      }
+    } catch {
+      event.preventDefault();
     }
   });
 

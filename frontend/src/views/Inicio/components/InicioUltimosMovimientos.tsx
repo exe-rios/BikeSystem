@@ -1,10 +1,12 @@
 import type { Venta, Reparacion } from '../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface InicioUltimosMovimientosProps {
   ultimasVentas: Venta[];
   ultimasReparaciones: Reparacion[];
 }
 
+/** Listado resumido de las ventas más recientes y reparaciones en taller. */
 export function InicioUltimosMovimientos({
   ultimasVentas,
   ultimasReparaciones
@@ -14,14 +16,14 @@ export function InicioUltimosMovimientos({
 
       {/* ÚLTIMAS VENTAS */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: '700', margin: 0, color: 'var(--texto-principal)' }}>Últimas Ventas Emitidas</h3>
+        <h3 style={{ fontSize: '1rem', fontWeight: '700', margin: 0, color: 'var(--texto-principal)' }}>Últimas Ventas Realizadas</h3>
         <div style={{ backgroundColor: 'var(--bg-tarjeta)', borderRadius: '12px', border: '1px solid var(--borde-input)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--borde-input)', backgroundColor: '#f8fafc' }}>
-                <th style={{ padding: '10px 14px', fontSize: '0.75rem', color: 'var(--texto-mutado)', fontWeight: '600' }}>FAC</th>
-                <th style={{ padding: '10px 14px', fontSize: '0.75rem', color: 'var(--texto-mutado)', fontWeight: '600' }}>Cliente</th>
-                <th style={{ padding: '10px 14px', fontSize: '0.75rem', color: 'var(--texto-mutado)', fontWeight: '600', textAlign: 'right' }}>Total</th>
+                <th style={{ padding: '10px 14px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--texto-mutado)' }}>Comprobante</th>
+                <th style={{ padding: '10px 14px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--texto-mutado)' }}>Cliente</th>
+                <th style={{ padding: '10px 14px', fontSize: '0.75rem', fontWeight: '700', color: 'var(--texto-mutado)', textAlign: 'right' }}>Total</th>
               </tr>
             </thead>
             <tbody>
@@ -41,7 +43,7 @@ export function InicioUltimosMovimientos({
                       {v.cliente_nombre ? `${v.cliente_apellido}, ${v.cliente_nombre}` : `Cliente #${v.id_cliente}`}
                     </td>
                     <td style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: '700', color: '#16a34a', textAlign: 'right' }}>
-                      ${Number(v.costo_total).toLocaleString()}
+                      {formatearMoneda(v.costo_total)}
                     </td>
                   </tr>
                 ))

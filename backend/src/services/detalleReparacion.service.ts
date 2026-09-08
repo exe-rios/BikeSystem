@@ -1,40 +1,41 @@
 import { pool } from '../config/db.js';
-import { BadRequestError, NotFoundError } from '../utils/errors.js';
+import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
+import { validarId } from '../utils/validation.js';
 
+/** Servicio para la imputación y devolución de repuestos en órdenes de reparación. */
 export class DetalleReparacionService {
+  /** Asigna un repuesto a una orden de taller, descuenta inventario y actualiza costo total. */
   static async agregarRepuesto(datos: {
     id_reparacion: number | string;
     id_producto: number | string;
     cantidad: number | string;
-    precio_unitario: number | string;
+    precio_unitario?: number | string | undefined;
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
     const { id_reparacion, id_producto, cantidad, precio_unitario, idUsuarioOperador, nombreUsuarioOperador } = datos;
 
-    if (!id_reparacion || !id_producto || !cantidad || precio_unitario === undefined) {
-      throw new BadRequestError('Completá todos los campos: orden, repuesto, cantidad y precio.');
+    if (!id_reparacion || !id_producto || !cantidad) {
+      throw new BadRequestError('Completá todos los campos: orden, repuesto y cantidad.');
     }
 
-    const idRepNum = Number(id_reparacion);
-    const idProdNum = Number(id_producto);
+    const idRepNum = validarId(id_reparacion, 'No se encontró esa orden de taller.');
+    const idProdNum = validarId(id_producto, 'No se encontró ese repuesto.');
     const cantNum = Number(cantidad);
-    const precioNum = Number(precio_unitario);
-
-    if (isNaN(idRepNum) || idRepNum <= 0) {
-      throw new BadRequestError('No se encontró esa orden de taller.');
-    }
-
-    if (isNaN(idProdNum) || idProdNum <= 0) {
-      throw new BadRequestError('No se encontró ese repuesto.');
-    }
 
     if (isNaN(cantNum) || cantNum <= 0 || !Number.isInteger(cantNum)) {
       throw new BadRequestError('La cantidad debe ser al menos 1.');
     }
 
-    if (isNaN(precioNum) || precioNum < 0) {
-      throw new BadRequestError('El precio no puede ser negativo.');
+    if (precio_unitario !== undefined && precio_unitario !== null && precio_unitario !== '') {
+      const precioNum = Number(precio_unitario);
+      if (isNaN(precioNum) || precioNum < 0) {
+        throw new BadRequestError('El precio no puede ser negativo.');
+      }
+    }
+
+    if (!idUsuarioOperador || isNaN(Number(idUsuarioOperador)) || Number(idUsuarioOperador) <= 0) {
+      throw new UnauthorizedError('No se pudo identificar al usuario que asigna el repuesto.');
     }
 
     const client = await pool.connect();
@@ -46,24 +47,39 @@ export class DetalleReparacionService {
         throw new NotFoundError('Esa orden de taller no existe.');
       }
 
-      const resProd = await client.query('SELECT id_producto, nombre, cantidad FROM Productos WHERE id_producto = $1 FOR UPDATE;', [idProdNum]);
+      const rep = resRep.rows[0];
+      if (rep.estado === 'Entregada') {
+        throw new BadRequestError('No se pueden agregar repuestos a una orden que ya fue entregada.');
+      }
+
+      const resProd = await client.query('SELECT id_producto, nombre, precio, cantidad, activo, tipo_prod FROM Productos WHERE id_producto = $1 FOR UPDATE;', [idProdNum]);
       if (resProd.rowCount === 0) {
         throw new NotFoundError('Ese repuesto no existe en el inventario.');
       }
 
       const producto = resProd.rows[0];
+      if (producto.activo === false) {
+        throw new BadRequestError(`El repuesto "${producto.nombre}" está dado de baja en el inventario.`);
+      }
+
+      if (producto.tipo_prod === 'bicicleta') {
+        throw new BadRequestError(`"${producto.nombre}" es una bicicleta completa y no puede asignarse como repuesto de taller.`);
+      }
+
       if (Number(producto.cantidad) < cantNum) {
         throw new BadRequestError(`No hay suficiente stock de "${producto.nombre}". Hay ${producto.cantidad} unidades.`);
       }
 
-      const costo_total_detalle = cantNum * precioNum;
+      // Blindaje de precio: Precio oficial de catálogo como fuente de la verdad
+      const precioOficial = Number(producto.precio) || 0;
+      const costo_total_detalle = Math.round(cantNum * precioOficial * 100) / 100;
 
       const queryInsert = `
         INSERT INTO Detalle_Reparacion (id_reparacion, id_producto, cantidad, precio_unitario, costo_total)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *;
       `;
-      const resultDetalle = await client.query(queryInsert, [idRepNum, idProdNum, cantNum, precioNum, costo_total_detalle]);
+      const resultDetalle = await client.query(queryInsert, [idRepNum, idProdNum, cantNum, precioOficial, costo_total_detalle]);
 
       const queryStock = `
         UPDATE Productos 
@@ -80,22 +96,17 @@ export class DetalleReparacionService {
       `;
       const resRepActualizada = await client.query(queryCosto, [idRepNum]);
 
-      if (idUsuarioOperador) {
-        try {
-          await client.query(
-            `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
-             VALUES ($1, $2, 'EGRESO', $3, 'Uso Interno de Taller', $4);`,
-            [
-              idProdNum,
-              idUsuarioOperador,
-              cantNum,
-              `Consumo en Orden de Taller #${idRepNum}`
-            ]
-          );
-        } catch {
-          // Ignorar
-        }
-      }
+      // Registro garantizado en Kardex (Movimiento_Stock)
+      await client.query(
+        `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
+         VALUES ($1, $2, 'EGRESO', $3, 'Uso Interno de Taller', $4);`,
+        [
+          idProdNum,
+          idUsuarioOperador,
+          cantNum,
+          `Consumo en Orden de Taller #${idRepNum}`
+        ]
+      );
 
       try {
         await client.query(
@@ -125,10 +136,9 @@ export class DetalleReparacionService {
     }
   }
 
+  /** Lista todos los repuestos cargados a una orden de taller específica. */
   static async obtenerRepuestosDeReparacion(idReparacion: number) {
-    if (isNaN(idReparacion) || idReparacion <= 0) {
-      throw new BadRequestError('No se encontró esa orden de taller.');
-    }
+    validarId(idReparacion, 'No se encontró esa orden de taller.');
 
     const query = `
       SELECT dr.*, p.nombre, p.marca, p.tipo_prod, p.precio
@@ -145,15 +155,19 @@ export class DetalleReparacionService {
     };
   }
 
+  /** Remueve un repuesto de la orden, reintegra stock al inventario y recalcula costos. */
   static async eliminarRepuesto(idDetalleRep: number, operador: {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(idDetalleRep) || idDetalleRep <= 0) {
-      throw new BadRequestError('No se encontró ese repuesto en la orden.');
-    }
+    validarId(idDetalleRep, 'No se encontró ese repuesto en la orden.');
 
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
+
+    if (!idUsuarioOperador || isNaN(Number(idUsuarioOperador)) || Number(idUsuarioOperador) <= 0) {
+      throw new UnauthorizedError('No se pudo identificar al usuario que elimina el repuesto.');
+    }
+
     const client = await pool.connect();
 
     try {
@@ -177,6 +191,12 @@ export class DetalleReparacionService {
       const idProducto = detalle.id_producto;
       const cantidadDevolver = Number(detalle.cantidad);
 
+      // Verificar que la orden no esté entregada
+      const checkRep = await client.query('SELECT estado FROM Reparacion WHERE id_reparacion = $1 FOR UPDATE;', [idReparacion]);
+      if (checkRep.rowCount && checkRep.rows[0].estado === 'Entregada') {
+        throw new BadRequestError('No se pueden eliminar repuestos de una orden que ya fue entregada.');
+      }
+
       await client.query('DELETE FROM Detalle_Reparacion WHERE id_detalle_rep = $1;', [idDetalleRep]);
 
       const queryDevolucion = `
@@ -194,22 +214,17 @@ export class DetalleReparacionService {
       `;
       const resRepActualizada = await client.query(queryCosto, [idReparacion]);
 
-      if (idUsuarioOperador) {
-        try {
-          await client.query(
-            `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
-             VALUES ($1, $2, 'INGRESO', $3, 'Devolución de Taller', $4);`,
-            [
-              idProducto,
-              idUsuarioOperador,
-              cantidadDevolver,
-              `Cancelación de uso en Orden #${idReparacion}`
-            ]
-          );
-        } catch {
-          // Ignorar
-        }
-      }
+      // Registro garantizado en Kardex (Movimiento_Stock)
+      await client.query(
+        `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
+         VALUES ($1, $2, 'INGRESO', $3, 'Devolución de Taller', $4);`,
+        [
+          idProducto,
+          idUsuarioOperador,
+          cantidadDevolver,
+          `Cancelación de uso en Orden #${idReparacion}`
+        ]
+      );
 
       try {
         await client.query(

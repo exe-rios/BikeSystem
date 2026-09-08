@@ -1,4 +1,6 @@
+import { useRef, useEffect } from 'react';
 import type { Reparacion, Producto, DetalleReparacionItem } from '../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface ModalDetalleReparacionProps {
   mostrar: boolean;
@@ -13,11 +15,13 @@ interface ModalDetalleReparacionProps {
   setCantidadRepuesto: (cant: number | string) => void;
   productoRepuestoSeleccionado: Producto | undefined;
   guardandoRepuesto: boolean;
+  mensajeRepuesto?: { texto: string; tipo: 'exito' | 'error' } | null;
   totalRepuestosCosto: number;
   onAgregarRepuesto: (e: React.FormEvent) => void;
   onEliminarRepuesto: (idDetalle: number) => void;
 }
 
+/** Modal de desglose de orden con mano de obra y consumo de repuestos en stock. */
 export function ModalDetalleReparacion({
   mostrar,
   onCerrar,
@@ -31,10 +35,19 @@ export function ModalDetalleReparacion({
   setCantidadRepuesto,
   productoRepuestoSeleccionado,
   guardandoRepuesto,
+  mensajeRepuesto,
   totalRepuestosCosto,
   onAgregarRepuesto,
   onEliminarRepuesto
 }: ModalDetalleReparacionProps) {
+  const selectRepuestoRef = useRef<HTMLSelectElement>(null);
+
+  useEffect(() => {
+    if (mensajeRepuesto?.tipo === 'exito') {
+      selectRepuestoRef.current?.focus();
+    }
+  }, [mensajeRepuesto]);
+
   if (!mostrar || !ordenDetalle) return null;
 
   return (
@@ -83,10 +96,27 @@ export function ModalDetalleReparacion({
         <div>
           <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: '700' }}>Repuestos y Componentes Utilizados</h4>
 
+          {/* Feedback en línea para operaciones con repuestos (sin modal alert bloqueante) */}
+          {mensajeRepuesto && (
+            <div style={{
+              padding: '10px 14px',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              marginBottom: '12px',
+              backgroundColor: mensajeRepuesto.tipo === 'exito' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+              color: mensajeRepuesto.tipo === 'exito' ? '#047857' : '#b91c1c',
+              border: `1px solid ${mensajeRepuesto.tipo === 'exito' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+            }}>
+              {mensajeRepuesto.texto}
+            </div>
+          )}
+
           {/* Form para agregar repuesto (Oculto al imprimir y deshabilitado si ya fue entregada) */}
           {ordenDetalle.estado !== 'Entregada' && (
             <form className="no-imprimir" onSubmit={onAgregarRepuesto} style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr auto', gap: '8px', marginBottom: '14px' }}>
               <select
+                ref={selectRepuestoRef}
                 value={repuestoSeleccionadoId}
                 onChange={e => setRepuestoSeleccionadoId(Number(e.target.value))}
                 style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.88rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)' }}
@@ -94,7 +124,7 @@ export function ModalDetalleReparacion({
                 <option value={0}>-- Seleccionar repuesto del inventario --</option>
                 {repuestosDisponibles.map(p => (
                   <option key={p.id_producto} value={p.id_producto} disabled={Number(p.cantidad) <= 0}>
-                    {p.nombre} {p.marca ? `(${p.marca})` : ''} - ${Number(p.precio).toLocaleString()} [Stock: {p.cantidad}]
+                    {p.nombre} {p.marca ? `(${p.marca})` : ''} - {formatearMoneda(p.precio)} [Stock: {p.cantidad}]
                   </option>
                 ))}
               </select>
@@ -154,8 +184,8 @@ export function ModalDetalleReparacion({
                         {item.nombre} {item.marca ? `(${item.marca})` : ''}
                       </td>
                       <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: '600' }}>{item.cantidad}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>${Number(item.precio_unitario).toLocaleString()}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700' }}>${Number(item.costo_total).toLocaleString()}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right' }}>{formatearMoneda(item.precio_unitario)}</td>
+                      <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: '700' }}>{formatearMoneda(item.costo_total)}</td>
                       {ordenDetalle.estado !== 'Entregada' && (
                         <td className="no-imprimir" style={{ padding: '8px 12px', textAlign: 'center' }}>
                           {item.id_detalle_rep && (
@@ -191,21 +221,21 @@ export function ModalDetalleReparacion({
           <div style={{ padding: '10px', backgroundColor: 'var(--bg-principal)', borderRadius: '8px' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)' }}>Mano de Obra</span>
             <div style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
-              ${Number(ordenDetalle.costo_mano_obra || 0).toLocaleString()}
+              {formatearMoneda(ordenDetalle.costo_mano_obra)}
             </div>
           </div>
 
           <div style={{ padding: '10px', backgroundColor: 'var(--bg-principal)', borderRadius: '8px' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)' }}>Total Repuestos</span>
             <div style={{ fontSize: '1.1rem', fontWeight: '700', color: '#2563eb' }}>
-              ${totalRepuestosCosto.toLocaleString()}
+              {formatearMoneda(totalRepuestosCosto)}
             </div>
           </div>
 
           <div style={{ padding: '10px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
             <span style={{ fontSize: '0.78rem', color: '#059669', fontWeight: '700' }}>Total Liquidación</span>
             <div style={{ fontSize: '1.25rem', fontWeight: '800', color: '#059669' }}>
-              ${Number(ordenDetalle.costo_total || (Number(ordenDetalle.costo_mano_obra || 0) + totalRepuestosCosto)).toLocaleString()}
+              {formatearMoneda(ordenDetalle.costo_total)}
             </div>
           </div>
         </div>

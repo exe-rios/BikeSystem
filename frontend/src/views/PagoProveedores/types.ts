@@ -1,3 +1,4 @@
+/** Tipos e interfaces para el registro y consulta de pagos a proveedores. */
 import type { PagoProveedor, Proveedor, MetodoPago } from '../../types';
 
 export interface NuevoPagoData {

@@ -1,15 +1,28 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { BitacoraActividad, ModuloFiltro, BadgeModuloStyle } from '../types';
 import { api } from '../../../services/api';
+import { useDebounce } from '../../../hooks/useDebounce';
 
 export const MODULOS_AUDITORIA: ModuloFiltro[] = ['todos', 'Ventas', 'Stock', 'Taller', 'Usuarios', 'Clientes'];
 
+/** Hook para gestionar la carga, filtrado y paginación de la bitácora de auditoría. */
 export function useAuditoria() {
   const [registros, setRegistros] = useState<BitacoraActividad[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [moduloFiltro, setModuloFiltro] = useState<ModuloFiltro>('todos');
   const [busqueda, setBusqueda] = useState<string>('');
+  const busquedaDebounced = useDebounce(busqueda, 300);
+
+  const [paginaActual, setPaginaActual] = useState<number>(1);
+  const [totalPaginas, setTotalPaginas] = useState<number>(1);
+  const [totalRegistros, setTotalRegistros] = useState<number>(0);
+  const limite = 10;
+
+  // Reiniciar a página 1 al cambiar el filtro de módulo o la búsqueda debounced
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [moduloFiltro, busquedaDebounced]);
 
   const cargarBitacora = useCallback(async () => {
     setCargando(true);
@@ -17,10 +30,13 @@ export function useAuditoria() {
     try {
       const data = await api.bitacora.getAll({
         modulo: moduloFiltro !== 'todos' ? moduloFiltro : undefined,
-        busqueda: busqueda.trim() || undefined,
-        limite: 150
+        busqueda: busquedaDebounced.trim() || undefined,
+        limite,
+        pagina: paginaActual
       });
       setRegistros(data.registros || []);
+      setTotalRegistros(data.total || 0);
+      setTotalPaginas(data.totalPaginas || Math.ceil((data.total || 0) / limite) || 1);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -30,17 +46,18 @@ export function useAuditoria() {
     } finally {
       setCargando(false);
     }
-  }, [moduloFiltro, busqueda]);
+  }, [moduloFiltro, busquedaDebounced, paginaActual]);
 
   useEffect(() => {
     cargarBitacora();
-  }, [moduloFiltro]);
+  }, [cargarBitacora]);
 
   const handleBuscar = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     cargarBitacora();
   }, [cargarBitacora]);
 
+  /** Retorna los estilos visuales del badge según el módulo del evento. */
   const getModuloBadge = useCallback((modulo: string): BadgeModuloStyle => {
     const mod = (modulo || '').toLowerCase();
     if (mod.includes('venta')) {
@@ -65,6 +82,11 @@ export function useAuditoria() {
     moduloFiltro,
     busqueda,
     modulos: MODULOS_AUDITORIA,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     setModuloFiltro,
     setBusqueda,
     handleBuscar,

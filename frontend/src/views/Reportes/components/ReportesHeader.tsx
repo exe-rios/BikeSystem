@@ -1,4 +1,5 @@
 import type { TabTipo } from '../types';
+import { formatearFecha, formatearFechaHora } from '../../../utils/formatters';
 
 interface ReportesHeaderProps {
   activeTab: TabTipo;
@@ -8,6 +9,7 @@ interface ReportesHeaderProps {
   onImprimir: () => void;
 }
 
+/** Cabecera del módulo de reportes con botones de exportación CSV e impresión. */
 export function ReportesHeader({
   activeTab,
   fechaDesde,
@@ -39,10 +41,10 @@ export function ReportesHeader({
           <div style={{ textAlign: 'right' }}>
             <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700' }}>INFORME ANALÍTICO</h3>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-              Período: {fechaDesde ? new Date(fechaDesde).toLocaleDateString() : 'Inicio'} &rarr; {fechaHasta ? new Date(fechaHasta).toLocaleDateString() : 'Hoy'}
+              Período: {formatearFecha(fechaDesde, 'Inicio')} &rarr; {formatearFecha(fechaHasta, 'Hoy')}
             </p>
             <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
-              Emisión: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              Emisión: {formatearFechaHora(new Date(), '', { dateStyle: 'short', timeStyle: 'short' })}
             </p>
           </div>
         </div>

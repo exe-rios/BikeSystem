@@ -6,6 +6,7 @@ import { InicioAlertasStock } from './components/InicioAlertasStock';
 import { InicioResumenTallerFinanzas } from './components/InicioResumenTallerFinanzas';
 import { InicioUltimosMovimientos } from './components/InicioUltimosMovimientos';
 
+/** Tablero principal con accesos directos, alertas de stock y resumen operativo. */
 export function InicioView({ onNavigate }: InicioViewProps) {
   const {
     esAdmin,

@@ -1,3 +1,4 @@
+/** Tipos e interfaces específicas del módulo de auditoría. */
 import type { BitacoraActividad } from '../../types';
 
 export type ModuloFiltro = 'todos' | 'Ventas' | 'Stock' | 'Taller' | 'Usuarios' | 'Clientes' | string;

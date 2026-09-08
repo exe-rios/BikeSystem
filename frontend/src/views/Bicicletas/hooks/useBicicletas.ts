@@ -7,6 +7,7 @@ import type {
   FichaHistorialBicicleta 
 } from '../types';
 import { api } from '../../../services/api';
+import { useDebounce } from '../../../hooks/useDebounce';
 
 const INITIAL_NUEVA_BICI: NuevaBicicletaData = {
   id_cliente: 0,
@@ -14,6 +15,7 @@ const INITIAL_NUEVA_BICI: NuevaBicicletaData = {
   modelo: ''
 };
 
+/** Hook para la gestión del catálogo de bicicletas, paginación, edición e historial. */
 export function useBicicletas() {
   const [bicicletas, setBicicletas] = useState<Bicicleta[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
@@ -21,6 +23,17 @@ export function useBicicletas() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const busquedaDebounced = useDebounce(busqueda, 300);
+
+  // Paginación de 10 en 10
+  const [paginaActual, setPaginaActual] = useState<number>(1);
+  const [totalPaginas, setTotalPaginas] = useState<number>(1);
+  const [totalRegistros, setTotalRegistros] = useState<number>(0);
+  const limite = 10;
+
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busquedaDebounced]);
 
   // Modal Alta
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -40,11 +53,17 @@ export function useBicicletas() {
     setError(null);
     try {
       const [resBicis, resClientes] = await Promise.all([
-        api.bicicletas.getAll(),
+        api.bicicletas.getAll({
+          busqueda: busquedaDebounced,
+          limite,
+          pagina: paginaActual
+        }),
         api.clientes.getAll()
       ]);
       const listaClientes = Array.isArray(resClientes) ? resClientes : (resClientes?.clientes || []);
       setBicicletas(resBicis.bicicletas || []);
+      setTotalRegistros(resBicis.total || 0);
+      setTotalPaginas(resBicis.totalPaginas || 1);
       setClientes(listaClientes);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -55,12 +74,14 @@ export function useBicicletas() {
     } finally {
       setCargando(false);
     }
-  }, []);
+  }, [busquedaDebounced, paginaActual, limite]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarDatos();
   }, [cargarDatos]);
 
+  /** Registra una nueva bicicleta asignada a un cliente. */
   const handleGuardarBici = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -89,6 +110,7 @@ export function useBicicletas() {
     }
   }, [nuevaBici, cargarDatos]);
 
+  /** Abre el modal de edición para la bicicleta seleccionada. */
   const handleAbrirEditar = useCallback((bici: Bicicleta) => {
     if (!bici.id_bicicleta) return;
     setBiciAEditar({
@@ -99,6 +121,7 @@ export function useBicicletas() {
     setMostrarModalEditar(true);
   }, []);
 
+  /** Envía los cambios de edición de la bicicleta al servidor. */
   const handleGuardarEdicion = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!biciAEditar || !biciAEditar.marca.trim()) {
@@ -125,6 +148,7 @@ export function useBicicletas() {
     }
   }, [biciAEditar, cargarDatos]);
 
+  /** Consulta y abre la ficha técnica e historial de reparaciones. */
   const handleVerHistorial = useCallback(async (idBici: number) => {
     setCargandoHistorial(true);
     setMostrarModalHistorial(true);
@@ -141,6 +165,7 @@ export function useBicicletas() {
     }
   }, []);
 
+  /** Elimina lógicamente o físicamente la bicicleta del sistema. */
   const handleEliminarBici = useCallback(async (id: number) => {
     if (!window.confirm('¿Seguro que deseas eliminar esta bicicleta del sistema?')) {
       return;
@@ -174,7 +199,12 @@ export function useBicicletas() {
     bicicletas,
     clientes,
     bicicletasFiltradas,
-    totalBicicletas: bicicletas.length,
+    totalBicicletas: totalRegistros,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     cargando,
     guardando,
     error,

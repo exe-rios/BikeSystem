@@ -2,6 +2,7 @@ import type { LoginViewProps } from './types';
 import { useLogin } from './hooks/useLogin';
 import { LoginForm } from './components/LoginForm';
 
+/** Vista de autenticación e inicio de sesión en el sistema. */
 export function LoginView({ onLoginSuccess }: LoginViewProps) {
   const {
     usuario,

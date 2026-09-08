@@ -1,4 +1,6 @@
 import type { Cliente } from '../types';
+import { usePermisos } from '../../../hooks/usePermisos';
+import { Paginador } from '../../../components/Paginador';
 
 interface ClientesTablaProps {
   clientes: Cliente[];
@@ -6,20 +8,33 @@ interface ClientesTablaProps {
   cargando: boolean;
   onEditar: (cliente: Cliente) => void;
   onEliminar: (id_cliente: number, nombreCompleto: string) => void;
+  paginaActual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+  onCambiarPagina: (pagina: number) => void;
 }
 
+/** Tabla paginada de clientes con acciones de edición y baja. */
 export function ClientesTabla({
   clientes,
   clientesFiltrados,
   cargando,
   onEditar,
-  onEliminar
+  onEliminar,
+  paginaActual,
+  totalPaginas,
+  totalRegistros,
+  limite,
+  onCambiarPagina
 }: ClientesTablaProps) {
+  const { puedeEliminarClientes } = usePermisos();
   return (
-    <div style={{
-      backgroundColor: 'var(--bg-tarjeta)',
-      borderRadius: '14px',
-      border: '1px solid var(--borde-input)',
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{
+        backgroundColor: 'var(--bg-tarjeta)',
+        borderRadius: '14px',
+        border: '1px solid var(--borde-input)',
       boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02), 0 2px 4px -1px rgba(0,0,0,0.01)',
       overflow: 'hidden'
     }}>
@@ -77,22 +92,24 @@ export function ClientesTabla({
                     >
                       Editar
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => c.id_cliente && onEliminar(c.id_cliente, `${c.nombre} ${c.apellido}`)}
-                      style={{
-                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                        color: 'var(--azul-oscuro)',
-                        border: '1px solid rgba(37, 99, 235, 0.2)',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
-                        fontSize: '0.8rem',
-                        fontWeight: '600',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Eliminar
-                    </button>
+                    {puedeEliminarClientes && (
+                      <button
+                        type="button"
+                        onClick={() => c.id_cliente && onEliminar(c.id_cliente, `${c.nombre} ${c.apellido}`)}
+                        style={{
+                          backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                          color: 'var(--azul-oscuro)',
+                          border: '1px solid rgba(37, 99, 235, 0.2)',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -100,6 +117,15 @@ export function ClientesTabla({
           )}
         </tbody>
       </table>
+      </div>
+
+      <Paginador
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={onCambiarPagina}
+      />
     </div>
   );
 }

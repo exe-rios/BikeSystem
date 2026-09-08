@@ -8,6 +8,8 @@ import type {
   FormProductoData 
 } from '../types';
 
+import { useDebounce } from '../../../hooks/useDebounce';
+
 const INITIAL_FORM: FormProductoData = {
   nombre: '',
   marca: '',
@@ -22,6 +24,7 @@ const INITIAL_FORM: FormProductoData = {
   activo: true
 };
 
+/** Hook de administración de catálogo de productos, filtros y paginación. */
 export function useStock() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [resumen, setResumen] = useState<ResumenStock>({
@@ -34,11 +37,23 @@ export function useStock() {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Paginación
+  const [paginaActual, setPaginaActual] = useState<number>(1);
+  const [totalRegistros, setTotalRegistros] = useState<number>(0);
+  const [totalPaginas, setTotalPaginas] = useState<number>(1);
+  const limite = 10;
+
   // Filtros
   const [filtroTipo, setFiltroTipo] = useState<FiltroTipoProducto>('todos');
   const [filtroEstado, setFiltroEstado] = useState<FiltroEstadoProducto>('todos');
   const [filtroDisponibilidad, setFiltroDisponibilidad] = useState<FiltroDisponibilidad>('todos');
   const [busqueda, setBusqueda] = useState<string>('');
+  const busquedaDebounced = useDebounce(busqueda, 300);
+
+  // Reiniciar a la primera página cuando cambian los filtros
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [filtroTipo, filtroEstado, filtroDisponibilidad, busquedaDebounced]);
 
   // Modal de Formulario (Crear / Editar)
   const [mostrarModalForm, setMostrarModalForm] = useState(false);
@@ -54,9 +69,14 @@ export function useStock() {
         tipo: filtroTipo,
         estado: filtroEstado,
         disponibilidad: filtroDisponibilidad,
-        busqueda: busqueda
+        busqueda: busquedaDebounced,
+        limite,
+        pagina: paginaActual
       });
       setProductos(Array.isArray(data?.productos) ? data.productos : []);
+      const total = data?.total || 0;
+      setTotalRegistros(total);
+      setTotalPaginas(data?.totalPaginas || Math.ceil(total / limite) || 1);
       if (data?.resumen) {
         setResumen(data.resumen);
       }
@@ -69,7 +89,7 @@ export function useStock() {
     } finally {
       setCargando(false);
     }
-  }, [filtroTipo, filtroEstado, filtroDisponibilidad, busqueda]);
+  }, [filtroTipo, filtroEstado, filtroDisponibilidad, busquedaDebounced, paginaActual, limite]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -224,6 +244,11 @@ export function useStock() {
     guardarProducto,
     eliminarProducto,
     reactivarProducto,
+    paginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
+    setPaginaActual,
     recargar: cargarProductos
   };
 }

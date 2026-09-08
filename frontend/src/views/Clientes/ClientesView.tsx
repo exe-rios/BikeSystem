@@ -3,11 +3,17 @@ import { ClientesHeader } from './components/ClientesHeader';
 import { ClientesTabla } from './components/ClientesTabla';
 import { ModalClienteForm } from './components/ModalClienteForm';
 
+/** Vista principal de gestión y administración de clientes. */
 export function ClientesView() {
   const {
     clientes,
     clientesFiltrados,
     totalClientes,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     cargando,
     guardando,
     error,
@@ -57,6 +63,11 @@ export function ClientesView() {
         cargando={cargando}
         onEditar={abrirModalEditar}
         onEliminar={handleEliminar}
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={setPaginaActual}
       />
 
       {/* MODAL DE REGISTRO / EDICIÓN */}

@@ -7,6 +7,7 @@ interface ReportesTabsProps {
   onTabChange: (tab: TabTipo) => void;
 }
 
+/** Navegación por pestañas: Consolidado, Ventas, Taller, Balance y Top Productos. */
 export function ReportesTabs({
   activeTab,
   ventasCount,

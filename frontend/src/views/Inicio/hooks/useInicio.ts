@@ -3,6 +3,7 @@ import type { DashboardData, Venta, Reparacion } from '../types';
 import { api } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 
+/** Hook para la carga y agregación de indicadores del dashboard de inicio. */
 export function useInicio() {
   const { user } = useAuth();
   const userRole = (user?.rol || 'EMPLEADO').toUpperCase();
@@ -20,8 +21,8 @@ export function useInicio() {
     try {
       const [dataDashboard, dataVentas, dataRep] = await Promise.all([
         api.reportes.getDashboard().catch(() => null),
-        api.ventas.getAll().catch(() => ({ total: 0, ventas: [] })),
-        api.reparaciones.getAll().catch(() => ({ total: 0, reparaciones: [] }))
+        api.ventas.getAll({ limite: 5 }).catch(() => ({ total: 0, ventas: [] })),
+        api.reparaciones.getAll({ limite: 5 }).catch(() => ({ total: 0, reparaciones: [] }))
       ]);
 
       if (dataDashboard) {
@@ -41,12 +42,16 @@ export function useInicio() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarDashboard();
   }, [cargarDashboard]);
 
   const totalReparacionesActivas = useMemo(() => {
+    if (dashboard?.total_taller_activo !== undefined) {
+      return dashboard.total_taller_activo;
+    }
     return dashboard?.taller_activo?.reduce((acc, t) => acc + Number(t.cantidad), 0) || 0;
-  }, [dashboard?.taller_activo]);
+  }, [dashboard?.total_taller_activo, dashboard?.taller_activo]);
 
   return {
     user,

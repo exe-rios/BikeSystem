@@ -1,3 +1,4 @@
+/** Tipos e interfaces para la gestión de productos, inventario y movimientos. */
 import type { Producto } from '../../types';
 
 export type FiltroTipoProducto = 'todos' | 'bicicleta' | 'repuesto' | 'accesorio' | 'componente';

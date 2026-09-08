@@ -12,6 +12,7 @@ interface ModalClienteFormProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+/** Modal con formulario controlado para el alta y edición de clientes. */
 export function ModalClienteForm({
   mostrar,
   onCerrar,

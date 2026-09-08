@@ -3,11 +3,17 @@ import { PagoProveedoresHeader } from './components/PagoProveedoresHeader';
 import { PagoProveedoresTabla } from './components/PagoProveedoresTabla';
 import { ModalAltaPagoProveedor } from './components/ModalAltaPagoProveedor';
 
+/** Vista principal para la consulta y registro de pagos a proveedores. */
 export function PagoProveedoresView() {
   const {
     pagos,
     pagosFiltrados,
     totalPagos,
+    paginaActual,
+    setPaginaActual,
+    totalPaginas,
+    totalRegistros,
+    limite,
     proveedores,
     metodosPago,
     cargando,
@@ -52,6 +58,11 @@ export function PagoProveedoresView() {
         pagos={pagos}
         pagosFiltrados={pagosFiltrados}
         cargando={cargando}
+        paginaActual={paginaActual}
+        totalPaginas={totalPaginas}
+        totalRegistros={totalRegistros}
+        limite={limite}
+        onCambiarPagina={setPaginaActual}
       />
 
       {/* MODAL DE REGISTRO */}

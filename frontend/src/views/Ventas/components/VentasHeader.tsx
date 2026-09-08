@@ -9,6 +9,7 @@ interface VentasHeaderProps {
   onNuevaVenta: () => void;
 }
 
+/** Encabezado del módulo de ventas con pestañas de facturación y garantías. */
 export function VentasHeader({
   tabActiva,
   totalVentas,

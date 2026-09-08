@@ -1,13 +1,31 @@
 import { pool } from '../config/db.js';
 import { BadRequestError, NotFoundError, ConflictError } from '../utils/errors.js';
+import { EMAIL_REGEX, DNI_REGEX, validarId } from '../utils/validation.js';
+import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const DNI_REGEX = /^\d{7,10}$/;
-
+/** Servicio para la administración y validación de clientes del sistema. */
 export class ClienteService {
-  static async obtenerClientes(busqueda?: string | undefined) {
+  /** Obtiene clientes paginados con soporte para búsqueda libre por nombre, DNI o datos de contacto. */
+  static async obtenerClientes(filtros?: string | { 
+    busqueda?: string | undefined;
+    limite?: number | string | undefined;
+    pagina?: number | string | undefined;
+  }) {
+    let busqueda: string | undefined;
+    let limite: number | string | undefined;
+    let pagina: number | string | undefined;
+
+    if (typeof filtros === 'string') {
+      busqueda = filtros;
+    } else if (filtros) {
+      busqueda = filtros.busqueda;
+      limite = filtros.limite;
+      pagina = filtros.pagina;
+    }
+
     let query = `
-      SELECT id_cliente, nombre, apellido, dni, telefono, email, direccion, created_at, updated_at
+      SELECT id_cliente, nombre, apellido, dni, telefono, email, direccion, created_at, updated_at,
+             COUNT(*) OVER()::INT AS total_registros
       FROM Cliente
     `;
 
@@ -25,19 +43,25 @@ export class ClienteService {
       params.push(term);
     }
 
-    query += ` ORDER BY id_cliente DESC;`;
+    query += ` ORDER BY id_cliente DESC`;
+
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
+    query = aplicarPaginacionSQL(query, params, paginacion);
 
     const result = await pool.query(query, params);
+    const total = result.rows.length > 0 ? Number(result.rows[0].total_registros) : 0;
+    const meta = calcularMetaPaginacion(total, paginacion);
+    const clientes = result.rows.map(({ total_registros, ...c }) => c);
+
     return {
-      total: result.rowCount || 0,
-      clientes: result.rows
+      ...meta,
+      clientes
     };
   }
 
+  /** Obtiene un cliente por su ID único. */
   static async obtenerClientePorId(id: number) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese cliente.');
-    }
+    validarId(id, 'No se encontró ese cliente.');
 
     const query = `
       SELECT id_cliente, nombre, apellido, dni, telefono, email, direccion, created_at, updated_at
@@ -53,6 +77,7 @@ export class ClienteService {
     return result.rows[0];
   }
 
+  /** Registra un nuevo cliente validando unicidad de DNI y formato de email. */
   static async crearCliente(datos: {
     nombre: string;
     apellido: string;
@@ -125,6 +150,7 @@ export class ClienteService {
     return nuevoCliente;
   }
 
+  /** Actualiza la información personal y de contacto del cliente. */
   static async actualizarCliente(id: number, datos: {
     nombre?: string | undefined;
     apellido?: string | undefined;
@@ -135,9 +161,7 @@ export class ClienteService {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese cliente.');
-    }
+    validarId(id, 'No se encontró ese cliente.');
 
     const { nombre, apellido, dni, telefono, email, direccion, idUsuarioOperador, nombreUsuarioOperador } = datos;
 
@@ -214,13 +238,12 @@ export class ClienteService {
     return clienteActualizado;
   }
 
+  /** Elimina un cliente si no registra compras ni bicicletas vinculadas. */
   static async eliminarCliente(id: number, operador: {
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    if (isNaN(id) || id <= 0) {
-      throw new BadRequestError('No se encontró ese cliente.');
-    }
+    validarId(id, 'No se encontró ese cliente.');
 
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
 
@@ -229,6 +252,18 @@ export class ClienteService {
       throw new NotFoundError('Ese cliente no existe.');
     }
     const datosCliente = resCli.rows[0];
+
+    // Verificar si posee historial para evitar fallo de FK en PostgreSQL
+    const checkHistorial = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM Bicicleta WHERE id_cliente = $1)::int AS bicis_count,
+        (SELECT COUNT(*) FROM Venta WHERE id_cliente = $1)::int AS ventas_count;
+    `, [id]);
+
+    const { bicis_count, ventas_count } = checkHistorial.rows[0];
+    if (bicis_count > 0 || ventas_count > 0) {
+      throw new ConflictError(`No se puede eliminar el cliente porque posee historial asociado (${bicis_count} bicicleta(s) y ${ventas_count} venta(s)).`);
+    }
 
     await pool.query('DELETE FROM Cliente WHERE id_cliente = $1;', [id]);
 

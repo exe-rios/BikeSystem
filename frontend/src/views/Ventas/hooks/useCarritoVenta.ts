@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import type { Producto, DetalleVentaItem } from '../../../types';
 
+/** Hook de control del carrito de compras, cálculo de subtotales y validación de stock. */
 export function useCarritoVenta() {
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<number>(0);
   const [metodoPagoSeleccionadoId, setMetodoPagoSeleccionadoId] = useState<number>(1);
@@ -10,6 +11,7 @@ export function useCarritoVenta() {
   const [productoBuscadoId, setProductoBuscadoId] = useState<number>(0);
   const [cantidadAnadir, setCantidadAnadir] = useState<number | string>(1);
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
+  const [errorCarrito, setErrorCarrito] = useState<string | null>(null);
 
   // Total calculado del carrito para vista previa del usuario
   const totalVenta = useMemo(() => {
@@ -18,8 +20,9 @@ export function useCarritoVenta() {
 
   // Agregar artículo al carrito validando stock disponible
   const agregarAlCarrito = (productos: Producto[]) => {
+    setErrorCarrito(null);
     if (productoBuscadoId === 0) {
-      alert('Por favor selecciona un producto.');
+      setErrorCarrito('Por favor selecciona un artículo del inventario.');
       return false;
     }
 
@@ -28,12 +31,12 @@ export function useCarritoVenta() {
 
     const cant = parseInt(String(cantidadAnadir), 10);
     if (isNaN(cant) || cant <= 0) {
-      alert('La cantidad a añadir debe ser un número entero mayor a 0.');
+      setErrorCarrito('La cantidad a añadir debe ser un número entero mayor a 0.');
       return false;
     }
 
     if (cant > Number(prod.cantidad)) {
-      alert(`No hay stock suficiente de "${prod.nombre}". Disponible: ${prod.cantidad}`);
+      setErrorCarrito(`No hay stock suficiente de "${prod.nombre}". Disponible: ${prod.cantidad}`);
       return false;
     }
 
@@ -41,7 +44,7 @@ export function useCarritoVenta() {
     if (yaExiste) {
       const nuevaCantidad = yaExiste.cantidad + cant;
       if (nuevaCantidad > Number(prod.cantidad)) {
-        alert(`No puedes agregar más unidades. El stock máximo disponible es ${prod.cantidad}.`);
+        setErrorCarrito(`No puedes agregar más unidades. El stock máximo disponible es ${prod.cantidad}.`);
         return false;
       }
       setCarritoDetalle(prev =>
@@ -90,9 +93,10 @@ export function useCarritoVenta() {
 
     const prod = productos.find(p => p.id_producto === idProd);
     if (prod && nuevaCantidad > Number(prod.cantidad)) {
-      alert(`No hay stock suficiente de "${prod.nombre}". Disponible: ${prod.cantidad}`);
+      setErrorCarrito(`No hay stock suficiente de "${prod.nombre}". Disponible: ${prod.cantidad}`);
       return;
     }
+    setErrorCarrito(null);
 
     setCarritoDetalle(prev =>
       prev.map(item => {
@@ -109,6 +113,7 @@ export function useCarritoVenta() {
   };
 
   const quitarDelCarrito = (idProd: number) => {
+    setErrorCarrito(null);
     setCarritoDetalle(prev => prev.filter(item => item.id_producto !== idProd));
   };
 
@@ -119,6 +124,7 @@ export function useCarritoVenta() {
     setProductoBuscadoId(0);
     setCantidadAnadir(1);
     setFiltroTipo('todos');
+    setErrorCarrito(null);
   };
 
   return {
@@ -133,6 +139,8 @@ export function useCarritoVenta() {
     setCantidadAnadir,
     filtroTipo,
     setFiltroTipo,
+    errorCarrito,
+    setErrorCarrito,
     totalVenta,
     agregarAlCarrito,
     actualizarCantidadItem,
