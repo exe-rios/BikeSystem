@@ -5,6 +5,7 @@ import { formatearMoneda } from '../../../utils/formatters';
 interface StockTablaProps {
   productos: Producto[];
   cargando: boolean;
+  busqueda?: string;
   onEditar: (p: Producto) => void;
   onEliminar: (id: number, nombre: string) => void;
   onReactivar: (id: number, nombre: string) => void;
@@ -14,11 +15,12 @@ interface StockTablaProps {
 export function StockTabla({
   productos,
   cargando,
+  busqueda,
   onEditar,
   onEliminar,
   onReactivar
 }: StockTablaProps) {
-  const { puedeGestionarCatalogo } = usePermisos();
+  const { puedeEditarProducto, puedeEliminarProducto } = usePermisos();
   const getBadgeDisponibilidad = (p: Producto) => {
     const estado = p.estado_stock || 'optimo';
 
@@ -88,7 +90,18 @@ export function StockTabla({
           ) : productos.length === 0 ? (
             <tr>
               <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
-                No se encontraron artículos con los filtros aplicados.
+                {busqueda && busqueda.trim() ? (
+                  <div>
+                    <div style={{ fontWeight: '600', color: 'var(--texto-principal)', marginBottom: '4px', fontSize: '0.95rem' }}>
+                      No se encontraron artículos ni bicicletas para &quot;{busqueda}&quot;.
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)' }}>
+                      Verificá la marca o el talle, o probá buscar solo por marca (ej: &quot;scott&quot;) o por talle (ej: &quot;talle m&quot;).
+                    </div>
+                  </div>
+                ) : (
+                  'No se encontraron artículos con los filtros aplicados.'
+                )}
               </td>
             </tr>
           ) : (
@@ -127,8 +140,49 @@ export function StockTabla({
                     )}
 
                     {p.tipo_prod === 'bicicleta' && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--azul-oscuro)', marginTop: '3px', fontWeight: '600' }}>
-                        {p.rodado ? `Rodado ${p.rodado}` : ''} {p.talle ? `• Talle ${p.talle}` : ''} {p.color ? `• Color ${p.color}` : ''}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                        {p.genero && (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                            color: '#4f46e5',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: '600'
+                          }}>
+                            {p.genero.charAt(0).toUpperCase() + p.genero.slice(1)}
+                          </span>
+                        )}
+                        {p.talle && (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                            color: '#047857',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: '700',
+                            border: '1px solid rgba(16, 185, 129, 0.25)'
+                          }}>
+                            Talle {p.talle}
+                          </span>
+                        )}
+                        {p.rodado && (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            color: '#1d4ed8',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: '600'
+                          }}>
+                            Rodado {p.rodado}
+                          </span>
+                        )}
+                        {p.color && (
+                          <span style={{ fontSize: '0.72rem', color: 'var(--texto-mutado)' }}>
+                            • Color {p.color}
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -155,11 +209,15 @@ export function StockTabla({
 
                   {/* Stock Actual / Mínimo */}
                   <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                    <span style={{ fontWeight: '800', fontSize: '0.95rem', color: cant <= min ? '#dc2626' : 'var(--texto-principal)' }}>
-                      {cant}
+                    <span style={{
+                      fontWeight: '800',
+                      fontSize: '0.95rem',
+                      color: cant <= 0 ? '#991b1b' : (min > 0 && cant <= min ? '#dc2626' : 'var(--texto-principal)')
+                    }}>
+                      {cant} {cant === 1 ? 'unidad' : 'unidades'}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)', marginLeft: '4px' }}>
-                      / mín {min}
+                    <span style={{ fontSize: '0.72rem', color: 'var(--texto-mutado)', marginLeft: '4px' }}>
+                      {min > 0 ? `/ mín ${min}` : '(sin alerta)'}
                     </span>
                   </td>
 
@@ -180,7 +238,7 @@ export function StockTabla({
 
                   {/* Acciones */}
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                    {!puedeGestionarCatalogo ? (
+                    {!puedeEditarProducto && !puedeEliminarProducto ? (
                       <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', fontStyle: 'italic' }}>
                         Solo lectura
                       </span>
@@ -188,63 +246,73 @@ export function StockTabla({
                       <div style={{ display: 'inline-flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
                         {esActivo ? (
                           <>
-                            <button
-                              type="button"
-                              onClick={() => onEditar(p)}
-                              style={{
-                                backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                                color: 'var(--azul-oscuro)',
-                                border: '1px solid rgba(37, 99, 235, 0.2)',
-                                borderRadius: '6px',
-                                padding: '5px 0',
-                                width: '58px',
-                                textAlign: 'center',
-                                fontSize: '0.78rem',
-                                fontWeight: '600',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Editar
-                            </button>
+                            {puedeEditarProducto && (
+                              <button
+                                type="button"
+                                onClick={() => onEditar(p)}
+                                style={{
+                                  backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                  color: 'var(--azul-oscuro)',
+                                  border: '1px solid rgba(37, 99, 235, 0.2)',
+                                  borderRadius: '6px',
+                                  padding: '5px 0',
+                                  width: '58px',
+                                  textAlign: 'center',
+                                  fontSize: '0.78rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Editar
+                              </button>
+                            )}
 
-                            <button
-                              type="button"
-                              onClick={() => p.id_producto && onEliminar(p.id_producto, p.nombre)}
-                              style={{
-                                backgroundColor: 'rgba(37, 99, 235, 0.08)',
-                                color: 'var(--azul-oscuro)',
-                                border: '1px solid rgba(37, 99, 235, 0.2)',
-                                borderRadius: '6px',
-                                padding: '5px 0',
-                                width: '58px',
-                                textAlign: 'center',
-                                fontSize: '0.78rem',
-                                fontWeight: '600',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Baja
-                            </button>
+                            {puedeEliminarProducto && (
+                              <button
+                                type="button"
+                                onClick={() => p.id_producto && onEliminar(p.id_producto, p.nombre)}
+                                style={{
+                                  backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                                  color: 'var(--azul-oscuro)',
+                                  border: '1px solid rgba(37, 99, 235, 0.2)',
+                                  borderRadius: '6px',
+                                  padding: '5px 0',
+                                  width: '58px',
+                                  textAlign: 'center',
+                                  fontSize: '0.78rem',
+                                  fontWeight: '600',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Baja
+                              </button>
+                            )}
                           </>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => p.id_producto && onReactivar(p.id_producto, p.nombre)}
-                            style={{
-                              backgroundColor: 'rgba(16, 185, 129, 0.08)',
-                              color: '#059669',
-                              border: '1px solid rgba(16, 185, 129, 0.2)',
-                              borderRadius: '6px',
-                              padding: '5px 0',
-                              width: '122px',
-                              textAlign: 'center',
-                              fontSize: '0.78rem',
-                              fontWeight: '700',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Reactivar
-                          </button>
+                          puedeEliminarProducto ? (
+                            <button
+                              type="button"
+                              onClick={() => p.id_producto && onReactivar(p.id_producto, p.nombre)}
+                              style={{
+                                backgroundColor: 'rgba(16, 185, 129, 0.08)',
+                                color: '#059669',
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
+                                borderRadius: '6px',
+                                padding: '5px 0',
+                                width: '122px',
+                                textAlign: 'center',
+                                fontSize: '0.78rem',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Reactivar
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', fontStyle: 'italic' }}>
+                              Inactivo
+                            </span>
+                          )
                         )}
                       </div>
                     )}

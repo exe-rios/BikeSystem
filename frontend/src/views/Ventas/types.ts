@@ -23,6 +23,7 @@ export interface VentaDetallada {
     color?: string;
     rodado?: string;
     talle?: string;
+    genero?: string;
     cantidad: number;
     precio_unitario: number;
     costo_total: number;
@@ -37,6 +38,7 @@ export interface ItemCarrito extends DetalleVentaItem {
   marca?: string;
   modelo?: string;
   tipo_prod?: string;
+  genero?: string;
   stockDisponible: number;
 }
 

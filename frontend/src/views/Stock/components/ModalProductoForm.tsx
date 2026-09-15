@@ -193,7 +193,27 @@ export function ModalProductoForm({
                 Especificaciones de Bicicleta
               </span>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '8px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.78rem' }}>Género</label>
+                  <select
+                    value={formData.genero}
+                    onChange={e => onChangeField('genero', e.target.value as any)}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--borde-input)',
+                      fontSize: '0.85rem',
+                      backgroundColor: 'var(--bg-tarjeta)'
+                    }}
+                  >
+                    <option value="">Seleccionar</option>
+                    <option value="hombre">Hombre</option>
+                    <option value="mujer">Mujer</option>
+                    <option value="unisex">Unisex</option>
+                  </select>
+                </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.78rem' }}>Color</label>
                   <input
@@ -225,10 +245,14 @@ export function ModalProductoForm({
                       backgroundColor: 'var(--bg-tarjeta)'
                     }}
                   >
+                    <option value="12">12</option>
+                    <option value="14">14</option>
+                    <option value="16">16</option>
+                    <option value="20">20</option>
+                    <option value="24">24</option>
                     <option value="26">26</option>
-                    <option value="27.5">27.5</option>
                     <option value="29">29</option>
-                    <option value="700c">700c</option>
+                    <option value="Gravel">Gravel</option>
                   </select>
                 </div>
                 <div>
@@ -245,6 +269,7 @@ export function ModalProductoForm({
                       backgroundColor: 'var(--bg-tarjeta)'
                     }}
                   >
+                    <option value="XS">XS</option>
                     <option value="S">S</option>
                     <option value="M">M</option>
                     <option value="L">L</option>
@@ -306,12 +331,13 @@ export function ModalProductoForm({
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>
+              <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.85rem' }}>
                 Stock Mínimo (Alerta) *
               </label>
               <input
                 type="number"
                 min="0"
+                placeholder="Ej: 2 (0 para sin alerta)"
                 value={formData.stock_minimo}
                 onChange={e => onChangeField('stock_minimo', e.target.value)}
                 style={{
