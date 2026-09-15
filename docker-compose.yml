@@ -7,12 +7,12 @@ services:
     restart: always
     # Mapeo de puertos: "Puerto_en_tu_PC:Puerto_dentro_del_contenedor"
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     # Variables de entorno que configuran el usuario, contraseña y la base de datos inicial
     environment:
-      POSTGRES_USER: admin_bikesystem
-      POSTGRES_PASSWORD: tu_password_seguro_123
-      POSTGRES_DB: bikesystem_db
+      POSTGRES_USER: ${POSTGRES_USER:-admin_bikesystem}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+      POSTGRES_DB: ${POSTGRES_DB:-bikesystem_db}
     # Volumen: Esto asegura que los datos NO se borren cuando apagues el contenedor
     volumes:
       - pgdata_bikesystem:/var/lib/postgresql/data

@@ -18,6 +18,7 @@ const auth = new google.auth.JWT(jwtOptions);
 
 const drive = google.drive({ version: 'v3', auth });
 
+/** Programa cron diario para volcado SQL de PostgreSQL y subida automática a Google Drive. */
 export const iniciarPlanDeRespaldos = () => {
     // Programado para ejecutarse TODOS los días a las 19:50 hs
     cron.schedule('50 19 * * *', async () => {

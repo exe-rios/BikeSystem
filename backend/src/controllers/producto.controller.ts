@@ -1,153 +1,178 @@
-import type { Request, Response } from 'express';
-import { pool } from '../config/db.js';
+import type { Request, Response, NextFunction } from 'express';
+import type { PeticionConUsuario } from '../middlewares/auth.middleware.js';
+import { ProductoService, PRODUCTO_SELECT } from '../services/producto.service.js';
+import { validarId } from '../utils/validation.js';
+import { responderOk, responderCreado } from '../utils/response.js';
 
-// 1. Crear un nuevo producto (POST)
-export const crearProducto = async (req: Request, res: Response): Promise<void> => {
-    try {
-        // Extraemos todos los campos posibles según tu tabla
-        const { nombre, marca, modelo, tipo_prod, cantidad, numero_serie, color, rodado, talle, precio, stock_minimo, activo } = req.body;
+export { PRODUCTO_SELECT };
 
-        // Validamos solo lo que definiste como NOT NULL en tu script SQL
-        if (!nombre || !tipo_prod) {
-            res.status(400).json({ error: 'Faltan datos obligatorios (nombre, tipo_prod)' });
-            return;
-        }
-
-        const estadoActivo = activo !== undefined ? Boolean(activo) : true;
-
-        const query = `
-            INSERT INTO Productos (nombre, marca, modelo, tipo_prod, cantidad, numero_serie, color, rodado, talle, precio, stock_minimo, activo)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-            RETURNING *;
-        `;
-        
-        // Si no mandan cantidad o precio, le ponemos 0 por defecto para que no explote
-        const result = await pool.query(query, [
-            nombre, marca, modelo, tipo_prod, 
-            cantidad || 0, numero_serie, color, rodado, talle, 
-            precio || 0, stock_minimo || 0, estadoActivo
-        ]);
-
-        res.status(201).json({
-            message: 'Producto ingresado al inventario con éxito',
-            producto: result.rows[0]
-        });
-    } catch (error) {
-        res.status(500).json({ error: 'Error al registrar el producto en la base de datos' });
-    }
+/** Endpoint GET /api/productos: Consulta paginada del inventario con filtros y métricas globales. */
+export const obtenerProductos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina, talle, rodado, marca } = req.query as {
+      tipo_prod?: string;
+      tipo?: string;
+      busqueda?: string;
+      talle?: string;
+      rodado?: string;
+      marca?: string;
+      estado_stock?: string;
+      disponibilidad?: string;
+      estado?: string;
+      solo_activos?: string;
+      limite?: string;
+      pagina?: string;
+    };
+    const resultado = await ProductoService.obtenerProductos({
+      tipo_prod,
+      tipo,
+      busqueda,
+      talle,
+      rodado,
+      marca,
+      estado_stock,
+      disponibilidad,
+      estado,
+      solo_activos,
+      limite,
+      pagina
+    });
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 2. Consultar el inventario completo (GET) - Soporta ?solo_activos=true
-export const obtenerProductos = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { solo_activos } = req.query;
-        let query = 'SELECT * FROM Productos';
-        
-        if (solo_activos === 'true') {
-            query += ' WHERE activo = true';
-        }
-
-        query += ' ORDER BY id_producto DESC';
-
-        const result = await pool.query(query);
-        res.status(200).json({ total: result.rowCount, productos: result.rows });
-    } catch (error) {
-        res.status(500).json({ error: 'Error al obtener el inventario' });
-    }
+/** Endpoint GET /api/productos/:id: Consulta los datos completos de un producto específico. */
+export const obtenerProductoPorId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = validarId(req.params.id, 'No se encontró ese producto.');
+    const producto = await ProductoService.obtenerProductoPorId(id);
+    responderOk(res, producto);
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 3. Buscar un producto específico por ID (GET)
-export const obtenerProductoPorId = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const query = 'SELECT * FROM Productos WHERE id_producto = $1';
-        const result = await pool.query(query, [id]);
+/** Endpoint POST /api/productos: Agrega un nuevo producto o bicicleta al catálogo. */
+export const crearProducto = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const nuevoProducto = await ProductoService.crearProducto(req.body, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
 
-        if (result.rowCount === 0) {
-            res.status(404).json({ error: 'Producto no encontrado' });
-            return;
-        }
-        res.status(200).json(result.rows[0]);
-    } catch (error) {
-        res.status(500).json({ error: 'Error al buscar el producto' });
-    }
+    responderCreado(res, 'Producto creado exitosamente', { producto: nuevoProducto });
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 4. Actualizar datos de un producto (PUT)
-export const actualizarProducto = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const { nombre, marca, modelo, tipo_prod, cantidad, numero_serie, color, rodado, talle, precio, stock_minimo, activo } = req.body;
+/** Endpoint PUT /api/productos/:id: Actualiza precios, cantidades y atributos del producto. */
+export const actualizarProducto = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = validarId(req.params.id, 'No se encontró ese producto.');
+    const productoActualizado = await ProductoService.actualizarProducto(id, req.body, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
 
-        if (!nombre || !tipo_prod) {
-            res.status(400).json({ error: 'El nombre y el tipo_prod son obligatorios para actualizar' });
-            return;
-        }
-
-        const query = `
-            UPDATE Productos 
-            SET nombre = $1, marca = $2, modelo = $3, tipo_prod = $4, cantidad = $5, 
-                numero_serie = $6, color = $7, rodado = $8, talle = $9, precio = $10, 
-                stock_minimo = $11, activo = COALESCE($12, activo)
-            WHERE id_producto = $13
-            RETURNING *;
-        `;
-        const result = await pool.query(query, [
-            nombre, marca, modelo, tipo_prod, cantidad, numero_serie, 
-            color, rodado, talle, precio, stock_minimo, activo !== undefined ? Boolean(activo) : null, id
-        ]);
-
-        if (result.rowCount === 0) {
-            res.status(404).json({ error: 'Producto no encontrado para actualizar' });
-            return;
-        }
-
-        res.status(200).json({ message: 'Producto actualizado con éxito', producto: result.rows[0] });
-    } catch (error) {
-        res.status(500).json({ error: 'Error al actualizar el producto' });
-    }
+    responderOk(res, {
+      message: 'Producto actualizado exitosamente',
+      producto: productoActualizado
+    });
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 5. Borrado Lógico (Soft Delete) de un producto (DELETE)
-export const eliminarProducto = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const query = 'UPDATE Productos SET activo = false WHERE id_producto = $1 RETURNING *';
-        const result = await pool.query(query, [id]);
+/** Endpoint DELETE /api/productos/:id: Desactiva un producto del catálogo (baja lógica). */
+export const eliminarProducto = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = validarId(req.params.id, 'No se encontró ese producto.');
+    const resultado = await ProductoService.eliminarProducto(id, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
 
-        if (result.rowCount === 0) {
-            res.status(404).json({ error: 'Producto no encontrado para dar de baja' });
-            return;
-        }
-
-        res.status(200).json({ 
-            message: 'Producto dado de baja (desactivado) exitosamente del inventario',
-            producto: result.rows[0] 
-        });
-    } catch (error) {
-        res.status(500).json({ 
-            error: 'Error al procesar la baja del producto en el sistema.' 
-        });
-    }
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
 };
 
-// 6. Reactivar un producto dado de baja (PUT / PATCH)
-export const reactivarProducto = async (req: Request, res: Response): Promise<void> => {
-    try {
-        const { id } = req.params;
-        const query = 'UPDATE Productos SET activo = true WHERE id_producto = $1 RETURNING *';
-        const result = await pool.query(query, [id]);
+/** Endpoint PATCH /api/productos/:id/reactivar: Restaura un producto inactivo en el catálogo. */
+export const reactivarProducto = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = validarId(req.params.id, 'No se encontró ese producto.');
+    const resultado = await ProductoService.reactivarProducto(id, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
 
-        if (result.rowCount === 0) {
-            res.status(404).json({ error: 'Producto no encontrado para reactivar' });
-            return;
-        }
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
+};
 
-        res.status(200).json({ 
-            message: 'Producto reactivado exitosamente en el catálogo',
-            producto: result.rows[0] 
-        });
-    } catch (error) {
-        res.status(500).json({ error: 'Error al reactivar el producto en el sistema' });
-    }
-};
+/** Endpoint POST /api/productos/:id/ajuste: Aplica correcciones de inventario con asiento en Kardex. */
+export const ajustarStock = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = validarId(req.params.id || req.body.id_producto, 'No se encontró ese producto.');
+    const cantidad_ajuste = req.body.cantidad_ajuste !== undefined ? req.body.cantidad_ajuste : req.body.cantidad;
+    const { tipo_movimiento, motivo, observaciones } = req.body;
+
+    const resultado = await ProductoService.ajustarStock(id, {
+      cantidad_ajuste,
+      tipo_movimiento,
+      motivo,
+      observaciones,
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
+
+    responderOk(res, {
+      message: resultado.message,
+      movimiento: {
+        id_producto: id,
+        tipo_movimiento,
+        cantidad: Number(cantidad_ajuste),
+        motivo,
+        observaciones
+      },
+      nuevo_stock: resultado.nuevo_stock,
+      producto: resultado.producto
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const registrarMovimientoStock = ajustarStock;
+
+/** Endpoint GET /api/productos/movimientos: Consulta auditoría de movimientos de stock. */
+export const obtenerMovimientosStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id_producto = req.params.id || req.query.id_producto;
+    const busqueda = req.query.busqueda as string | undefined;
+    const resultado = await ProductoService.obtenerMovimientosStock({
+      id_producto: id_producto ? Number(id_producto) : undefined,
+      busqueda
+    });
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Endpoint GET /api/productos/:id/kardex: Devuelve el historial de movimientos de un ítem. */
+export const obtenerKardex = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = validarId(req.params.id, 'No se encontró ese producto.');
+    const resultado = await ProductoService.obtenerKardex(id);
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
+};

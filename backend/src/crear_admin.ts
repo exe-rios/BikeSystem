@@ -2,6 +2,7 @@ import 'dotenv/config';
 import bcrypt from 'bcrypt';
 import { pool } from './config/db.js';
 
+/** Script CLI para inicializar o actualizar las credenciales del usuario administrador raíz. */
 async function crearUsuarioAdmin() {
   const nombre_usuario = process.argv[2] || 'admin';
   const contrasenaPlana = process.argv[3] || 'admin123';

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import iconInicio from './assets/Fotinhos/icono-inicio.png';
 import iconClientes from './assets/Fotinhos/icono-clientes.png';
 import iconBicicletas from './assets/Fotinhos/icono-bicicletas.png';
@@ -8,18 +8,23 @@ import iconStock from './assets/Fotinhos/icono-stock.png';
 import iconReportes from './assets/Fotinhos/icono-reportes.png';
 import iconPagoProveedores from './assets/Fotinhos/icono-pagoproveedores.png';
 import logoDnBike from './assets/Fotinhos/iconoDnBike.jpeg';
+import iconUsuarios from './assets/Fotinhos/icono-usuario.png';
+import iconAuditoria from './assets/Fotinhos/icono-auditoria.png';
 
-import { InicioView } from './views/InicioView';
-import { ClientesView } from './views/ClientesView';
-import { BicicletasView } from './views/BicicletasView';
-import { VentasView } from './views/VentasView';
-import { ReparacionesView } from './views/ReparacionesView';
-import { StockView } from './views/StockView';
-import { ReportesView } from './views/ReportesView';
-import { PagoProveedores } from './views/PagoProveedores';
-import { UsuariosView } from './views/UsuariosView';
-import { LoginView } from './views/LoginView';
+import { InicioView } from './views/Inicio/InicioView';
+import { LoginView } from './views/Login/LoginView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+const ClientesView = lazy(() => import('./views/Clientes/ClientesView').then(m => ({ default: m.ClientesView })));
+const BicicletasView = lazy(() => import('./views/Bicicletas/BicicletasView').then(m => ({ default: m.BicicletasView })));
+const VentasView = lazy(() => import('./views/Ventas/VentasView').then(m => ({ default: m.VentasView })));
+const ReparacionesView = lazy(() => import('./views/Reparaciones/ReparacionesView').then(m => ({ default: m.ReparacionesView })));
+const StockView = lazy(() => import('./views/Stock/StockView').then(m => ({ default: m.StockView })));
+const ReportesView = lazy(() => import('./views/Reportes/ReportesView').then(m => ({ default: m.ReportesView })));
+const PagoProveedores = lazy(() => import('./views/PagoProveedores/PagoProveedoresView').then(m => ({ default: m.PagoProveedores })));
+const UsuariosView = lazy(() => import('./views/Usuarios/UsuariosView').then(m => ({ default: m.UsuariosView })));
+const AuditoriaView = lazy(() => import('./views/Auditoria/AuditoriaView').then(m => ({ default: m.AuditoriaView })));
 
 type VistaTipo =
   | 'inicio'
@@ -30,8 +35,10 @@ type VistaTipo =
   | 'stock'
   | 'pago-proveedores'
   | 'reportes'
-  | 'usuarios';
+  | 'usuarios'
+  | 'auditoria';
 
+/** Contenedor maestro de la interfaz: renderiza la barra de navegación lateral y las vistas activas. */
 function AppContent() {
   const { user, isAuthenticated, login, logout } = useAuth();
   const [vistaActual, setVistaActual] = useState<VistaTipo>('inicio');
@@ -44,17 +51,18 @@ function AppContent() {
   const userRole = (user?.rol || 'EMPLEADO').toUpperCase();
   const esAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
 
-  // Configuración de menús con restricción por rol
-  const menuItems: Array<{ id: VistaTipo; label: string; icon?: string; emoji?: string; adminOnly?: boolean }> = [
+  // Configuración de menús con restricción por rol (orden personalizado)
+  const menuItems: Array<{ id: VistaTipo; label: string; icon: string; adminOnly?: boolean }> = [
     { id: 'inicio', label: 'Inicio', icon: iconInicio },
+    { id: 'clientes', label: 'Clientes', icon: iconClientes },
+    { id: 'bicicletas', label: 'Bicicletas Clientes', icon: iconBicicletas },
     { id: 'ventas', label: 'Ventas', icon: iconVentas },
     { id: 'reparaciones', label: 'Reparaciones', icon: iconReparaciones },
     { id: 'stock', label: 'Stock', icon: iconStock },
-    { id: 'bicicletas', label: 'Bicicletas Clientes', icon: iconBicicletas },
-    { id: 'clientes', label: 'Clientes', icon: iconClientes },
     { id: 'pago-proveedores', label: 'Pagos a Proveedores', icon: iconPagoProveedores, adminOnly: true },
     { id: 'reportes', label: 'Reportes y Métricas', icon: iconReportes, adminOnly: true },
-    { id: 'usuarios', label: 'Empleados / Usuarios', emoji: '', adminOnly: true },
+    { id: 'usuarios', label: 'Empleados / Usuarios', icon: iconUsuarios, adminOnly: true },
+    { id: 'auditoria', label: 'Auditoría', icon: iconAuditoria, adminOnly: true },
   ];
 
   const handleNavigate = (view: string) => {
@@ -140,11 +148,7 @@ function AppContent() {
                 }}
               >
                 <span style={{ display: 'inline-flex', width: '20px', height: '20px', alignItems: 'center', justifyContent: 'center', opacity: activo ? 1 : 0.75, fontSize: '1rem' }}>
-                  {item.icon ? (
-                    <img src={item.icon} alt={`${item.label} icon`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  ) : (
-                    <span>{item.emoji}</span>
-                  )}
+                  <img src={item.icon} alt={`${item.label} icon`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </span>
                 {item.label}
               </button>
@@ -234,25 +238,35 @@ function AppContent() {
         padding: '36px',
         overflowY: 'auto'
       }}>
-        {vistaActual === 'inicio' && <InicioView onNavigate={handleNavigate} />}
-        {vistaActual === 'ventas' && <VentasView />}
-        {vistaActual === 'reparaciones' && <ReparacionesView />}
-        {vistaActual === 'stock' && <StockView />}
-        {vistaActual === 'bicicletas' && <BicicletasView />}
-        {vistaActual === 'clientes' && <ClientesView />}
-        {vistaActual === 'pago-proveedores' && (esAdmin ? <PagoProveedores /> : <InicioView onNavigate={handleNavigate} />)}
-        {vistaActual === 'reportes' && (esAdmin ? <ReportesView /> : <InicioView onNavigate={handleNavigate} />)}
-        {vistaActual === 'usuarios' && (esAdmin ? <UsuariosView /> : <InicioView onNavigate={handleNavigate} />)}
+        <Suspense fallback={
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', color: 'var(--texto-mutado)', fontSize: '0.95rem' }}>
+            Cargando módulo...
+          </div>
+        }>
+          {vistaActual === 'inicio' && <InicioView onNavigate={handleNavigate} />}
+          {vistaActual === 'ventas' && <VentasView />}
+          {vistaActual === 'reparaciones' && <ReparacionesView />}
+          {vistaActual === 'stock' && <StockView />}
+          {vistaActual === 'bicicletas' && <BicicletasView />}
+          {vistaActual === 'clientes' && <ClientesView />}
+          {vistaActual === 'pago-proveedores' && (esAdmin ? <PagoProveedores /> : <InicioView onNavigate={handleNavigate} />)}
+          {vistaActual === 'reportes' && (esAdmin ? <ReportesView /> : <InicioView onNavigate={handleNavigate} />)}
+          {vistaActual === 'usuarios' && (esAdmin ? <UsuariosView /> : <InicioView onNavigate={handleNavigate} />)}
+          {vistaActual === 'auditoria' && (esAdmin ? <AuditoriaView /> : <InicioView onNavigate={handleNavigate} />)}
+        </Suspense>
       </main>
 
     </div>
   );
 }
 
+/** Componente raíz de la aplicación con límites de error y contexto de autenticación. */
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

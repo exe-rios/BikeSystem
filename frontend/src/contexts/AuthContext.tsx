@@ -16,6 +16,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/** Proveedor de contexto global para sesión, persistencia local y token JWT. */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
   const [user, setUser] = useState<AuthUser | null>(() => {
@@ -26,10 +27,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         return null;
       }
-    }
-    const savedName = localStorage.getItem('userName');
-    if (savedName) {
-      return { id_usuario: 1, nombre_usuario: savedName, rol: 'ADMIN' };
     }
     return null;
   });
@@ -59,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  // Sincroniza cierres de sesión globales disparados por interceptores HTTP (401)
   useEffect(() => {
     const handleLogoutEvent = () => {
       logout();
@@ -85,6 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Hook personalizado para consumir el estado y acciones de autenticación. */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {

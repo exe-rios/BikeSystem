@@ -7,8 +7,11 @@ export default defineConfig({
   plugins: [
     react(),
     electron({
-      main: {
+      main:{
         entry: 'electron/main.ts',
+      },
+      preload: {
+        input: 'electron/preload.ts',
       }
     })
   ],
