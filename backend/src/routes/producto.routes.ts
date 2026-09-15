@@ -22,9 +22,11 @@ router.post('/movimientos', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 
 router.get('/:id/movimientos', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerMovimientosStock);
 router.get('/:id', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerProductoPorId);
 
-// Gestión estructural de catálogo (Exclusivo Administradores)
-router.post('/', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), crearProducto);
-router.put('/:id', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), actualizarProducto);
+// Creación y edición de catálogo (Empleados y Administradores)
+router.post('/', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), crearProducto);
+router.put('/:id', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), actualizarProducto);
+
+// Bajas y reactivaciones estructurales (Exclusivo Administradores)
 router.delete('/:id', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), eliminarProducto);
 router.put('/:id/reactivar', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), reactivarProducto);
 router.patch('/:id/reactivar', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), reactivarProducto);

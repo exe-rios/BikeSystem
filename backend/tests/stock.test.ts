@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ProductoService } from '../src/services/producto.service.js';
+import { ProductoService, parsearBusquedaAvanzada } from '../src/services/producto.service.js';
 import { pool } from '../src/config/db.js';
 import { BadRequestError, NotFoundError, UnauthorizedError } from '../src/utils/errors.js';
 
@@ -61,6 +61,24 @@ describe('Módulo de Stock e Inventario (ProductoService)', () => {
       await expect(
         ProductoService.crearProducto(
           { nombre: 'Cadena Shimano', tipo_prod: 'repuesto', precio: 500, cantidad: 2.5 },
+          { idUsuarioOperador: 1, nombreUsuarioOperador: 'Admin' }
+        )
+      ).rejects.toThrow(BadRequestError);
+    });
+
+    it('debe rechazar la creación de una bicicleta si no se especifica el género', async () => {
+      await expect(
+        ProductoService.crearProducto(
+          { nombre: 'Mountain Bike X', tipo_prod: 'bicicleta', precio: 150000, cantidad: 1 },
+          { idUsuarioOperador: 1, nombreUsuarioOperador: 'Admin' }
+        )
+      ).rejects.toThrow(BadRequestError);
+    });
+
+    it('debe rechazar la creación de una bicicleta con género inválido', async () => {
+      await expect(
+        ProductoService.crearProducto(
+          { nombre: 'Mountain Bike X', tipo_prod: 'bicicleta', precio: 150000, cantidad: 1, genero: 'genero_desconocido' },
           { idUsuarioOperador: 1, nombreUsuarioOperador: 'Admin' }
         )
       ).rejects.toThrow(BadRequestError);
@@ -237,6 +255,132 @@ describe('Módulo de Stock e Inventario (ProductoService)', () => {
 
       expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
       expect(mockClient.release).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Lógica de Alertas de Stock Bajo Personalizadas', () => {
+    it('debe filtrar productos en bajo_stock usando estrictamente su stock_minimo personalizado', async () => {
+      (pool.query as any)
+        .mockResolvedValueOnce({
+          rows: [{ total_articulos: 2, total_unidades: 6, bajo_stock_count: 1, inactivos_count: 0 }],
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            { id_producto: 1, nombre: 'Bici Premium', cantidad: 2, stock_minimo: 1, estado_stock: 'optimo' },
+            { id_producto: 2, nombre: 'Cadena KMC', cantidad: 4, stock_minimo: 5, estado_stock: 'bajo_stock' },
+          ],
+        });
+
+      const res = await ProductoService.obtenerProductos({});
+      expect(res.productos).toHaveLength(2);
+      expect(res.productos[0].estado_stock).toBe('optimo');
+      expect(res.productos[1].estado_stock).toBe('bajo_stock');
+      expect(res.resumen.bajo_stock_count).toBe(1);
+    });
+
+    it('debe construir la query de bajo_stock sin el umbral hardcodeado de 5', async () => {
+      (pool.query as any)
+        .mockResolvedValueOnce({ rows: [{ total_articulos: 0, total_unidades: 0, bajo_stock_count: 0, inactivos_count: 0 }] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      await ProductoService.obtenerProductos({ disponibilidad: 'bajo_stock' });
+      const sqlQueryEjecutada = (pool.query as any).mock.calls[1][0];
+
+      expect(sqlQueryEjecutada).toContain('stock_minimo > 0 AND p.cantidad <= p.stock_minimo');
+      expect(sqlQueryEjecutada).not.toContain('cantidad <= 5');
+    });
+  });
+
+  describe('Búsqueda Inteligente de Stock por Marca y Talle', () => {
+    describe('Parser de Búsqueda Avanzada (parsearBusquedaAvanzada)', () => {
+      it('debe reconocer "marca scott talle m" extrayendo talle M y término scott', () => {
+        const res = parsearBusquedaAvanzada('marca scott talle m');
+        expect(res.talle?.toLowerCase()).toBe('m');
+        expect(res.terminos).toEqual(['scott']);
+      });
+
+      it('debe reconocer "scott talle m" extrayendo talle M y término scott', () => {
+        const res = parsearBusquedaAvanzada('scott talle m');
+        expect(res.talle?.toLowerCase()).toBe('m');
+        expect(res.terminos).toEqual(['scott']);
+      });
+
+      it('debe reconocer "scott m" deduciendo que M es el talle estándar', () => {
+        const res = parsearBusquedaAvanzada('scott m');
+        expect(res.talle?.toLowerCase()).toBe('m');
+        expect(res.terminos).toEqual(['scott']);
+      });
+
+      it('debe reconocer rodado y talle en "marca venzo rodado 29 talle s"', () => {
+        const res = parsearBusquedaAvanzada('marca venzo rodado 29 talle s');
+        expect(res.talle?.toLowerCase()).toBe('s');
+        expect(res.rodado).toBe('29');
+        expect(res.terminos).toEqual(['venzo']);
+      });
+
+      it('debe extraer únicamente talle cuando la consulta es "talle L"', () => {
+        const res = parsearBusquedaAvanzada('talle L');
+        expect(res.talle).toBe('L');
+        expect(res.terminos).toEqual([]);
+      });
+
+      it('debe procesar consultas genéricas como "cadena shimano" sin asignar talle erróneo', () => {
+        const res = parsearBusquedaAvanzada('cadena shimano');
+        expect(res.talle).toBeUndefined();
+        expect(res.terminos).toEqual(['cadena', 'shimano']);
+      });
+    });
+
+    describe('Construcción de Consulta SQL en ProductoService.obtenerProductos', () => {
+      it('debe generar SQL con filtro de talle y marca al buscar "marca scott talle m"', async () => {
+        (pool.query as any)
+          .mockResolvedValueOnce({ rows: [{ total_articulos: 1, total_unidades: 5, bajo_stock_count: 0, inactivos_count: 0 }] })
+          .mockResolvedValueOnce({
+            rows: [
+              {
+                id_producto: 10,
+                nombre: 'Scott Aspect 950',
+                marca: 'Scott',
+                talle: 'M',
+                rodado: '29',
+                cantidad: 5,
+                estado_stock: 'optimo',
+                tipo_prod: 'bicicleta'
+              }
+            ]
+          });
+
+        const resultado = await ProductoService.obtenerProductos({ busqueda: 'marca scott talle m' });
+        const sqlEjecutada = (pool.query as any).mock.calls[1][0];
+        const paramsEjecutados = (pool.query as any).mock.calls[1][1];
+
+        // Verifica que la query filtra por pb.talle y por término de marca
+        expect(sqlEjecutada).toContain('LOWER(TRIM(COALESCE(pb.talle, \'\')))');
+        expect(sqlEjecutada).toContain('pb.marca ILIKE');
+        expect(paramsEjecutados).toContain('m');
+        expect(paramsEjecutados).toContain('%scott%');
+
+        // Verifica que devuelve el artículo con la cantidad disponible de 5 unidades
+        expect(resultado.productos).toHaveLength(1);
+        expect(resultado.productos[0].marca).toBe('Scott');
+        expect(resultado.productos[0].talle).toBe('M');
+        expect(resultado.productos[0].cantidad).toBe(5);
+      });
+
+      it('debe admitir talle y marca explícitos pasados como filtros directos', async () => {
+        (pool.query as any)
+          .mockResolvedValueOnce({ rows: [{ total_articulos: 0, total_unidades: 0, bajo_stock_count: 0, inactivos_count: 0 }] })
+          .mockResolvedValueOnce({ rows: [] });
+
+        await ProductoService.obtenerProductos({ talle: 'XL', marca: 'Trek' });
+        const sqlEjecutada = (pool.query as any).mock.calls[1][0];
+        const paramsEjecutados = (pool.query as any).mock.calls[1][1];
+
+        expect(sqlEjecutada).toContain('LOWER(TRIM(COALESCE(pb.talle, \'\')))');
+        expect(sqlEjecutada).toContain('pb.marca ILIKE');
+        expect(paramsEjecutados).toContain('XL');
+        expect(paramsEjecutados).toContain('%Trek%');
+      });
     });
   });
 });

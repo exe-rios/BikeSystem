@@ -8,19 +8,21 @@ const TIPOS_PRODUCTO_VALIDOS = ['bicicleta', 'repuesto', 'accesorio'];
 export const PRODUCTO_SELECT = `
   SELECT p.*, 
          COALESCE(pb.marca, p.marca) AS marca, 
-         pb.color, pb.rodado, pb.talle,
+         pb.color, pb.rodado, pb.talle, pb.genero,
          CASE 
              WHEN p.cantidad <= 0 THEN 'sin_stock'
-             WHEN p.cantidad <= p.stock_minimo OR p.cantidad <= 5 THEN 'bajo_stock'
+             WHEN p.stock_minimo > 0 AND p.cantidad <= p.stock_minimo THEN 'bajo_stock'
              ELSE 'optimo'
          END AS estado_stock
   FROM Productos p
   LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
 `;
 
+const GENEROS_BICICLETA_VALIDOS = ['hombre', 'mujer', 'unisex'];
+
 /** Valida formato y restricciones de los campos del artículo. */
 const validarDatosProducto = (body: any) => {
-  const { nombre, tipo_prod, cantidad, precio, stock_minimo } = body;
+  const { nombre, tipo_prod, cantidad, precio, stock_minimo, genero } = body;
   const errores: string[] = [];
 
   if (!nombre || typeof nombre !== 'string' || nombre.trim().length < 2) {
@@ -30,6 +32,13 @@ const validarDatosProducto = (body: any) => {
   const tipoLimpio = String(tipo_prod || '').trim().toLowerCase();
   if (!tipoLimpio || !TIPOS_PRODUCTO_VALIDOS.includes(tipoLimpio)) {
     errores.push('Elegí un tipo válido: Bicicleta, Repuesto o Accesorio.');
+  }
+
+  if (tipoLimpio === 'bicicleta') {
+    const generoVal = String(genero || '').trim().toLowerCase();
+    if (!generoVal || !GENEROS_BICICLETA_VALIDOS.includes(generoVal)) {
+      errores.push('Seleccioná el género de la bicicleta (Hombre, Mujer o Unisex).');
+    }
   }
 
   if (precio !== undefined && precio !== null && precio !== '') {
@@ -56,6 +65,70 @@ const validarDatosProducto = (body: any) => {
   return errores;
 };
 
+export interface BusquedaParseada {
+  talle?: string;
+  rodado?: string;
+  terminos: string[];
+}
+
+const TALLES_BICICLETA_ESTANDAR = ['xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl'];
+const PALABRAS_VACIAS = new Set(['de', 'del', 'el', 'la', 'los', 'las', 'en', 'para', 'con', 'un', 'una', 'unos', 'unas']);
+
+/**
+ * Parsea una consulta en lenguaje natural identificando talle, rodado y términos clave de marca/modelo.
+ * Ejemplo: "marca scott talle m" -> talle: "m", terminos: ["scott"]
+ */
+export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
+  if (!busqueda || typeof busqueda !== 'string') {
+    return { terminos: [] };
+  }
+
+  let texto = busqueda.trim();
+  let talle: string | undefined = undefined;
+  let rodado: string | undefined = undefined;
+
+  // 1. Extraer patrón explícito de talle (ej: "talle m", "talla: XL", "size S")
+  const talleRegex = /\b(?:talle|talla|size)\s*[:=]?\s*([a-zA-Z0-9]+)\b/i;
+  const matchTalle = texto.match(talleRegex);
+  if (matchTalle) {
+    talle = matchTalle[1].trim();
+    texto = texto.replace(matchTalle[0], ' ');
+  }
+
+  // 2. Extraer patrón explícito de rodado (ej: "rodado 29", "rodado: 29", "r29", "rodado gravel")
+  const rodadoRegex = /\b(?:rodado|r)\s*[:=]?\s*([0-9]{2}|gravel)\b/i;
+  const matchRodado = texto.match(rodadoRegex);
+  if (matchRodado) {
+    rodado = matchRodado[1].trim();
+    texto = texto.replace(matchRodado[0], ' ');
+  }
+
+  // 3. Remover palabras descriptoras semánticas que no corresponden a nombres de marca o modelo
+  texto = texto.replace(/\b(?:marca|modelo)\b/gi, ' ');
+
+  // 4. Limpiar signos de puntuación y extraer palabras individuales
+  let terminos = texto
+    .replace(/[.,;:\-_/\\#"'()[\]{}<>]/g, ' ')
+    .split(/\s+/)
+    .map(t => t.trim())
+    .filter(t => t.length > 0 && !PALABRAS_VACIAS.has(t.toLowerCase()));
+
+  // 5. Si no se especificó "talle X", pero hay un término que es estrictamente un talle estándar (ej: "scott m")
+  if (!talle && terminos.length > 0) {
+    const idxTalle = terminos.findIndex(t => TALLES_BICICLETA_ESTANDAR.includes(t.toLowerCase()));
+    if (idxTalle !== -1) {
+      talle = terminos[idxTalle];
+      terminos.splice(idxTalle, 1);
+    }
+  }
+
+  return {
+    talle,
+    rodado,
+    terminos
+  };
+}
+
 /** Servicio de catálogo de productos, control de stock y trazabilidad de inventario. */
 export class ProductoService {
   /** Obtiene listado paginado de productos con filtros de categoría, stock y métricas resumidas. */
@@ -63,6 +136,9 @@ export class ProductoService {
     tipo_prod?: string | undefined; 
     tipo?: string | undefined;
     busqueda?: string | undefined; 
+    talle?: string | undefined;
+    rodado?: string | undefined;
+    marca?: string | undefined;
     estado_stock?: string | undefined;
     disponibilidad?: string | undefined;
     estado?: string | undefined;
@@ -70,14 +146,14 @@ export class ProductoService {
     limite?: number | string | undefined;
     pagina?: number | string | undefined;
   }) {
-    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina } = filtros;
+    const { tipo_prod, tipo, busqueda, talle, rodado, marca, estado_stock, disponibilidad, estado, solo_activos, limite, pagina } = filtros;
     
     // Consulta para resumen global de inventario
     const queryResumen = `
       SELECT 
         COUNT(*) FILTER (WHERE activo = true)::INT AS total_articulos,
         COALESCE(SUM(cantidad) FILTER (WHERE activo = true), 0)::INT AS total_unidades,
-        COUNT(*) FILTER (WHERE activo = true AND (cantidad <= stock_minimo OR cantidad <= 5))::INT AS bajo_stock_count,
+        COUNT(*) FILTER (WHERE activo = true AND cantidad > 0 AND stock_minimo > 0 AND cantidad <= stock_minimo)::INT AS bajo_stock_count,
         COUNT(*) FILTER (WHERE activo = false)::INT AS inactivos_count
       FROM Productos;
     `;
@@ -85,10 +161,10 @@ export class ProductoService {
     let query = `
       SELECT p.*, 
              COALESCE(pb.marca, p.marca) AS marca, 
-             pb.color, pb.rodado, pb.talle,
+             pb.color, pb.rodado, pb.talle, pb.genero,
              CASE 
                  WHEN p.cantidad <= 0 THEN 'sin_stock'
-                 WHEN p.cantidad <= p.stock_minimo OR p.cantidad <= 5 THEN 'bajo_stock'
+                 WHEN p.stock_minimo > 0 AND p.cantidad <= p.stock_minimo THEN 'bajo_stock'
                  ELSE 'optimo'
              END AS estado_stock,
              COUNT(*) OVER()::INT AS total_registros
@@ -117,17 +193,50 @@ export class ProductoService {
       paramIndex++;
     }
 
-    if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
-      const term = `%${busqueda.trim()}%`;
-      query += ` AND (
-        p.nombre ILIKE $${paramIndex} OR 
-        p.marca ILIKE $${paramIndex} OR 
-        p.modelo ILIKE $${paramIndex} OR 
-        pb.marca ILIKE $${paramIndex} OR 
-        CAST(p.id_producto AS TEXT) ILIKE $${paramIndex}
-      )`;
-      params.push(term);
+    // Procesamiento avanzado de búsqueda inteligente (marca, talle, rodado, términos libres)
+    const busquedaParseada = parsearBusquedaAvanzada(busqueda || '');
+
+    // Filtro de talle (por parámetro explícito o detectado en la frase de búsqueda)
+    const talleFinal = (talle || busquedaParseada.talle)?.trim();
+    if (talleFinal) {
+      query += ` AND (LOWER(TRIM(COALESCE(pb.talle, ''))) = LOWER($${paramIndex}) OR p.nombre ILIKE $${paramIndex + 1})`;
+      params.push(talleFinal);
+      params.push(`%talle ${talleFinal}%`);
+      paramIndex += 2;
+    }
+
+    // Filtro de rodado (por parámetro explícito o detectado en la frase de búsqueda)
+    const rodadoFinal = (rodado || busquedaParseada.rodado)?.trim();
+    if (rodadoFinal) {
+      query += ` AND (LOWER(TRIM(COALESCE(pb.rodado, ''))) = LOWER($${paramIndex}) OR p.nombre ILIKE $${paramIndex + 1})`;
+      params.push(rodadoFinal);
+      params.push(`%${rodadoFinal}%`);
+      paramIndex += 2;
+    }
+
+    // Filtro de marca explícito si fue provisto
+    if (marca && typeof marca === 'string' && marca.trim()) {
+      query += ` AND (p.marca ILIKE $${paramIndex} OR pb.marca ILIKE $${paramIndex})`;
+      params.push(`%${marca.trim()}%`);
       paramIndex++;
+    }
+
+    // Intersección (AND) de cada término individual restante (ej: "scott")
+    if (busquedaParseada.terminos.length > 0) {
+      for (const termino of busquedaParseada.terminos) {
+        query += ` AND (
+          p.nombre ILIKE $${paramIndex} OR 
+          p.marca ILIKE $${paramIndex} OR 
+          p.modelo ILIKE $${paramIndex} OR 
+          pb.marca ILIKE $${paramIndex} OR 
+          pb.color ILIKE $${paramIndex} OR 
+          pb.genero ILIKE $${paramIndex} OR 
+          p.tipo_prod ILIKE $${paramIndex} OR
+          CAST(p.id_producto AS TEXT) ILIKE $${paramIndex}
+        )`;
+        params.push(`%${termino}%`);
+        paramIndex++;
+      }
     }
 
     const dispFiltro = String(estado_stock || disponibilidad || '').trim().toLowerCase();
@@ -135,9 +244,9 @@ export class ProductoService {
       if (dispFiltro === 'sin_stock') {
         query += ` AND p.cantidad <= 0`;
       } else if (dispFiltro === 'bajo_stock') {
-        query += ` AND (p.cantidad <= p.stock_minimo OR p.cantidad <= 5) AND p.cantidad > 0`;
+        query += ` AND p.activo = true AND p.cantidad > 0 AND p.stock_minimo > 0 AND p.cantidad <= p.stock_minimo`;
       } else if (dispFiltro === 'optimo' || dispFiltro === 'disponible') {
-        query += ` AND p.cantidad > p.stock_minimo AND p.cantidad > 5`;
+        query += ` AND p.activo = true AND p.cantidad > 0 AND (p.stock_minimo = 0 OR p.cantidad > p.stock_minimo)`;
       }
     }
 
@@ -196,7 +305,7 @@ export class ProductoService {
       throw new BadRequestError('Hay errores en los datos del artículo.', errores);
     }
 
-    const { nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, precio, stock_minimo, activo } = datos;
+    const { nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, genero, precio, stock_minimo, activo } = datos;
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
     const estadoActivo = activo !== undefined ? Boolean(activo) : true;
     const tipoLimpio = String(tipo_prod).trim().toLowerCase();
@@ -226,15 +335,16 @@ export class ProductoService {
 
       if (tipoLimpio === 'bicicleta') {
         const queryBici = `
-          INSERT INTO Producto_BiciNueva (id_producto, marca, color, rodado, talle)
-          VALUES ($1, $2, $3, $4, $5);
+          INSERT INTO Producto_BiciNueva (id_producto, marca, color, rodado, talle, genero)
+          VALUES ($1, $2, $3, $4, $5, $6);
         `;
         await client.query(queryBici, [
           nuevoProducto.id_producto,
           marcaLimpia || 'Genérica',
           color ? String(color).trim() : null,
           rodado ? String(rodado).trim() : null,
-          talle ? String(talle).trim() : null
+          talle ? String(talle).trim() : null,
+          String(genero).trim().toLowerCase()
         ]);
       }
 
@@ -294,13 +404,20 @@ export class ProductoService {
       const prodAnterior = checkProd.rows[0];
       const stockAnterior = Number(prodAnterior.cantidad);
 
-      const { nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, precio, stock_minimo, activo } = datos;
+      const { nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, genero, precio, stock_minimo, activo } = datos;
 
       let tipoLimpio: string | null = null;
       if (tipo_prod) {
         tipoLimpio = String(tipo_prod).trim().toLowerCase();
         if (!TIPOS_PRODUCTO_VALIDOS.includes(tipoLimpio)) {
           throw new BadRequestError('Elegí un tipo válido: Bicicleta, Repuesto o Accesorio.');
+        }
+      }
+
+      if (genero !== undefined && genero !== null && genero !== '') {
+        const generoVal = String(genero).trim().toLowerCase();
+        if (!GENEROS_BICICLETA_VALIDOS.includes(generoVal)) {
+          throw new BadRequestError('Seleccioná un género válido: Hombre, Mujer o Unisex.');
         }
       }
 
@@ -367,21 +484,23 @@ export class ProductoService {
 
       if (productoActualizado.tipo_prod === 'bicicleta') {
         const queryBici = `
-          INSERT INTO Producto_BiciNueva (id_producto, marca, color, rodado, talle)
-          VALUES ($1, $2, $3, $4, $5)
+          INSERT INTO Producto_BiciNueva (id_producto, marca, color, rodado, talle, genero)
+          VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (id_producto) 
           DO UPDATE SET 
             marca = EXCLUDED.marca,
             color = EXCLUDED.color,
             rodado = EXCLUDED.rodado,
-            talle = EXCLUDED.talle;
+            talle = EXCLUDED.talle,
+            genero = EXCLUDED.genero;
         `;
         await client.query(queryBici, [
           id,
           marca ? String(marca).trim() : 'Genérica',
           color !== undefined ? (color ? String(color).trim() : null) : null,
           rodado !== undefined ? (rodado ? String(rodado).trim() : null) : null,
-          talle !== undefined ? (talle ? String(talle).trim() : null) : null
+          talle !== undefined ? (talle ? String(talle).trim() : null) : null,
+          genero !== undefined && genero !== '' ? String(genero).trim().toLowerCase() : 'unisex'
         ]);
       }
 

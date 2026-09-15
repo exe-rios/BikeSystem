@@ -9,10 +9,13 @@ export { PRODUCTO_SELECT };
 /** Endpoint GET /api/productos: Consulta paginada del inventario con filtros y métricas globales. */
 export const obtenerProductos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina } = req.query as {
+    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina, talle, rodado, marca } = req.query as {
       tipo_prod?: string;
       tipo?: string;
       busqueda?: string;
+      talle?: string;
+      rodado?: string;
+      marca?: string;
       estado_stock?: string;
       disponibilidad?: string;
       estado?: string;
@@ -24,6 +27,9 @@ export const obtenerProductos = async (req: Request, res: Response, next: NextFu
       tipo_prod,
       tipo,
       busqueda,
+      talle,
+      rodado,
+      marca,
       estado_stock,
       disponibilidad,
       estado,

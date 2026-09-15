@@ -75,7 +75,8 @@ export function useCarritoVenta() {
       numero_serie: prod.numero_serie,
       color: prod.color,
       rodado: prod.rodado,
-      talle: prod.talle
+      talle: prod.talle,
+      genero: prod.genero
     };
 
     setCarritoDetalle(prev => [...prev, nuevoItem]);

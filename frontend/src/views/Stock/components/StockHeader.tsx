@@ -15,7 +15,7 @@ export function StockHeader({
   onAbrirAjuste,
   onAbrirHistorial
 }: StockHeaderProps) {
-  const { puedeGestionarCatalogo } = usePermisos();
+  const { puedeCrearProducto } = usePermisos();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
       {/* Título y Acciones */}
@@ -66,7 +66,7 @@ export function StockHeader({
             Ajuste de Stock
           </button>
 
-          {puedeGestionarCatalogo && (
+          {puedeCrearProducto && (
             <button
               type="button"
               onClick={onAbrirCrear}

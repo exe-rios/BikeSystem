@@ -162,7 +162,7 @@ export function ModalDetalleVenta({
                         )}
                         {prod.tipo_prod === 'bicicleta' && (
                           <div style={{ fontSize: '0.75rem', color: '#2563eb', fontFamily: 'monospace', fontWeight: '600' }}>
-                            Detalles: {prod.rodado ? `(R${prod.rodado})` : ''} {prod.talle ? `[${prod.talle}]` : ''} {prod.color ? `- ${prod.color}` : ''}
+                            Detalles: {prod.genero ? `(${prod.genero.charAt(0).toUpperCase() + prod.genero.slice(1)}) ` : ''}{prod.rodado ? `(R${prod.rodado}) ` : ''}{prod.talle ? `[${prod.talle}] ` : ''}{prod.color ? `- ${prod.color}` : ''}
                           </div>
                         )}
                       </td>

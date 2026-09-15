@@ -16,6 +16,7 @@ export interface FormProductoData {
   color: string;
   rodado: string;
   talle: string;
+  genero: '' | 'hombre' | 'mujer' | 'unisex';
   activo: boolean;
 }
 

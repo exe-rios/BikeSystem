@@ -263,7 +263,9 @@ export class VentaService {
         pb.rodado,
         pb.rodado AS producto_rodado,
         pb.talle,
-        pb.talle AS producto_talle
+        pb.talle AS producto_talle,
+        pb.genero,
+        pb.genero AS producto_genero
       FROM Detalle_Venta dv
       INNER JOIN Productos p ON dv.id_producto = p.id_producto
       LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
@@ -308,6 +310,7 @@ export class VentaService {
         pb.color,
         pb.rodado,
         pb.talle,
+        pb.genero,
         dv.cantidad,
         dv.precio_unitario,
         (v.fecha::DATE + 30) AS fecha_vencimiento,
@@ -334,6 +337,7 @@ export class VentaService {
         p.nombre ILIKE $1 OR 
         p.marca ILIKE $1 OR 
         pb.marca ILIKE $1 OR 
+        pb.genero ILIKE $1 OR 
         c.nombre ILIKE $1 OR 
         c.apellido ILIKE $1 OR 
         c.dni ILIKE $1 OR 

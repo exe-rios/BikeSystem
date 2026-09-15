@@ -62,7 +62,7 @@ export function useVentas() {
         api.clientes.getAll(),
         api.productos.getAll(),
         api.ventas.getGarantias(),
-        api.pagosProveedores.getMetodosPago()
+        api.ventas.getMetodosPago()
       ]);
 
       const listaVentas = Array.isArray(dataVentas) ? dataVentas : (dataVentas?.ventas || []);
@@ -119,6 +119,7 @@ export function useVentas() {
         color: p.color || '',
         rodado: p.rodado || '',
         talle: p.talle || '',
+        genero: p.genero || '',
         cantidad: Number(p.cantidad) || 1,
         precio_unitario: Number(p.precio_unitario) || 0,
         costo_total: Number(p.costo_total || ((Number(p.cantidad) || 1) * (Number(p.precio_unitario) || 0)))

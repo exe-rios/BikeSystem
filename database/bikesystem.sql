@@ -54,6 +54,7 @@ CREATE TABLE Producto_BiciNueva (
     color VARCHAR(30) NULL,
     rodado VARCHAR(20) NULL,
     talle VARCHAR(20) NULL,
+    genero VARCHAR(20) NOT NULL CONSTRAINT chk_bicinueva_genero CHECK (LOWER(genero) IN ('hombre', 'mujer', 'unisex')),
     CONSTRAINT fk_bicinueva_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE CASCADE
 );
 

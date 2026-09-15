@@ -215,7 +215,7 @@ export function TabGarantiasListado({
                         {g.producto_nombre}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)' }}>
-                        {g.marca || ''} {g.modelo || ''} {g.rodado ? `(R${g.rodado})` : ''} {g.talle ? `[${g.talle}]` : ''} {g.color ? `- ${g.color}` : ''}
+                        {g.marca || ''} {g.modelo || ''} {g.genero ? `(${g.genero.charAt(0).toUpperCase() + g.genero.slice(1)}) ` : ''}{g.rodado ? `(R${g.rodado}) ` : ''}{g.talle ? `[${g.talle}] ` : ''}{g.color ? `- ${g.color}` : ''}
                       </div>
                     </td>
 

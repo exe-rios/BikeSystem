@@ -53,8 +53,11 @@ export class ReporteService {
     const queryStock = `
       SELECT id_producto, nombre, marca, cantidad, stock_minimo 
       FROM Productos 
-      WHERE activo = true AND (cantidad <= stock_minimo OR cantidad <= 5)
-      ORDER BY cantidad ASC 
+      WHERE activo = true 
+        AND cantidad > 0 
+        AND stock_minimo > 0 
+        AND cantidad <= stock_minimo
+      ORDER BY (cantidad::float / NULLIF(stock_minimo, 0)) ASC 
       LIMIT 5;
     `;
 

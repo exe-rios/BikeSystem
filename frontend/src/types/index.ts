@@ -54,6 +54,8 @@ export interface DetalleReparacionItem {
   tipo_prod?: string;
 }
 
+export type GeneroBicicleta = 'hombre' | 'mujer' | 'unisex';
+
 export interface Producto {
   id_producto?: number;
   nombre: string;
@@ -65,6 +67,7 @@ export interface Producto {
   color?: string;
   rodado?: string;
   talle?: string;
+  genero?: GeneroBicicleta | string;
   precio: number | string;
   stock_minimo: number | string;
   activo?: boolean;
@@ -119,6 +122,7 @@ export interface DetalleVentaItem {
   color?: string;
   rodado?: string;
   talle?: string;
+  genero?: string;
 }
 
 export interface Venta {
@@ -180,6 +184,7 @@ export interface GarantiaBicicleta {
   color?: string;
   rodado?: string;
   talle?: string;
+  genero?: string;
   id_cliente: number;
   cliente_nombre: string;
   cliente_apellido: string;

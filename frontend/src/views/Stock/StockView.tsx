@@ -130,6 +130,7 @@ export function StockView() {
       <StockTabla
         productos={productosFiltrados}
         cargando={cargando}
+        busqueda={busqueda}
         onEditar={abrirModalEditar}
         onEliminar={handleEliminar}
         onReactivar={handleReactivar}

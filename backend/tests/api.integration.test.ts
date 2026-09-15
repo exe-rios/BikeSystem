@@ -80,7 +80,44 @@ describe('Pruebas de Integración de API HTTP y Middlewares (Supertest)', () => 
   });
 
   describe('Control de Acceso Basado en Roles (autorizarRoles)', () => {
-    it('debe bloquear con 403 si un EMPLEADO intenta crear un producto nuevo en catálogo', async () => {
+    it('debe bloquear con 403 si un EMPLEADO intenta dar de baja un producto de catálogo', async () => {
+      const res = await request(app)
+        .delete('/api/productos/1')
+        .set('Authorization', `Bearer ${tokenEmpleado}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body).toHaveProperty('error', 'No tenés permisos para hacer esto.');
+    });
+
+    it('debe permitir a un EMPLEADO crear un producto nuevo en catálogo (201 Created)', async () => {
+      mockClient.query
+        .mockResolvedValueOnce({}) // BEGIN
+        .mockResolvedValueOnce({
+          rows: [{
+            id_producto: 5,
+            nombre: 'Manubrio Carbono',
+            tipo_prod: 'repuesto',
+            cantidad: 0,
+            precio: 4500,
+            stock_minimo: 0,
+            activo: true,
+          }],
+        }) // INSERT Productos
+        .mockResolvedValueOnce({}) // INSERT Bitacora
+        .mockResolvedValueOnce({}); // COMMIT
+
+      (pool.query as any).mockResolvedValueOnce({
+        rows: [{
+          id_producto: 5,
+          nombre: 'Manubrio Carbono',
+          tipo_prod: 'repuesto',
+          cantidad: 0,
+          precio: 4500,
+          stock_minimo: 0,
+          activo: true,
+        }],
+      });
+
       const res = await request(app)
         .post('/api/productos')
         .set('Authorization', `Bearer ${tokenEmpleado}`)
@@ -90,8 +127,9 @@ describe('Pruebas de Integración de API HTTP y Middlewares (Supertest)', () => 
           precio: 4500,
         });
 
-      expect(res.status).toBe(403);
-      expect(res.body).toHaveProperty('error', 'No tenés permisos para hacer esto.');
+      expect(res.status).toBe(201);
+      expect(res.body).toHaveProperty('producto');
+      expect(res.body.producto.nombre).toBe('Manubrio Carbono');
     });
 
     it('debe permitir a un EMPLEADO listar productos en mostrador (200 OK)', async () => {

@@ -17,10 +17,11 @@ const INITIAL_FORM: FormProductoData = {
   tipo_prod: 'repuesto',
   cantidad: '1',
   precio: '',
-  stock_minimo: '5',
+  stock_minimo: '',
   color: '',
   rodado: '29',
   talle: 'M',
+  genero: '',
   activo: true
 };
 
@@ -118,6 +119,7 @@ export function useStock() {
       color: p.color || '',
       rodado: p.rodado || '29',
       talle: p.talle || 'M',
+      genero: (p.genero as any) || '',
       activo: p.activo !== false
     });
     setErrorForm(null);
@@ -143,6 +145,17 @@ export function useStock() {
       return false;
     }
 
+    const stockMinNum = Number(formData.stock_minimo);
+    if (formData.stock_minimo === '' || isNaN(stockMinNum) || stockMinNum < 0 || !Number.isInteger(stockMinNum)) {
+      setErrorForm('Ingresa un stock mínimo de alerta válido (número entero mayor o igual a 0).');
+      return false;
+    }
+
+    if (formData.tipo_prod === 'bicicleta' && !formData.genero) {
+      setErrorForm('Por favor selecciona el género de la bicicleta (Hombre, Mujer o Unisex).');
+      return false;
+    }
+
     setGuardando(true);
     try {
       const payload: Omit<Producto, 'id_producto'> = {
@@ -152,10 +165,11 @@ export function useStock() {
         tipo_prod: formData.tipo_prod,
         precio: precioNum,
         cantidad: Number(formData.cantidad) || 0,
-        stock_minimo: Number(formData.stock_minimo) || 0,
+        stock_minimo: stockMinNum,
         color: formData.tipo_prod === 'bicicleta' ? (formData.color.trim() || undefined) : undefined,
         rodado: formData.tipo_prod === 'bicicleta' ? formData.rodado : undefined,
         talle: formData.tipo_prod === 'bicicleta' ? formData.talle : undefined,
+        genero: formData.tipo_prod === 'bicicleta' ? formData.genero : undefined,
         activo: formData.activo
       };
 
