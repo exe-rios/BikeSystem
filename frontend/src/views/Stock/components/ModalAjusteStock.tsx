@@ -50,6 +50,8 @@ export function ModalAjusteStock({
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)',
         width: 'min(500px, 100%)',
+        maxHeight: '90vh',
+        overflowY: 'auto',
         padding: '28px',
         borderRadius: '16px',
         border: '1px solid var(--borde-input)',
