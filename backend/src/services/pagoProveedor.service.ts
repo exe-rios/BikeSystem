@@ -1,5 +1,6 @@
 import { pool } from '../config/db.js';
 import { BadRequestError, UnauthorizedError } from '../utils/errors.js';
+import { validarMontoDecimal } from '../utils/validation.js';
 import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
 /** Servicio para el registro contable y control de egresos a proveedores. */
@@ -109,10 +110,11 @@ export class PagoProveedorService {
       throw new UnauthorizedError('No se pudo identificar al usuario que registra el pago.');
     }
 
-    const montoNum = Number(monto_total);
-    if ((!id_proveedor && !nombre_proveedor) || !id_metodo_pago || isNaN(montoNum) || montoNum <= 0) {
-      throw new BadRequestError('Completá el proveedor, el método de pago y el monto.');
+    if ((!id_proveedor && !nombre_proveedor) || !id_metodo_pago) {
+      throw new BadRequestError('Completá el proveedor y el método de pago.');
     }
+
+    const montoNum = validarMontoDecimal(monto_total, 'El monto del pago');
 
     let proveedorIdFinal = id_proveedor;
     let nombreProveedorFinal = '';

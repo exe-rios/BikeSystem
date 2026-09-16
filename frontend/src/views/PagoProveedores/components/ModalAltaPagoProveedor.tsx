@@ -24,12 +24,22 @@ export function ModalAltaPagoProveedor({
 }: ModalAltaPagoProveedorProps) {
   if (!mostrar) return null;
 
+  const handleClose = () => {
+    if (nuevoPago.nombre_proveedor.trim() || nuevoPago.monto_total || nuevoPago.observaciones?.trim()) {
+      if (!window.confirm('Hay datos del pago cargados sin guardar. ¿Deseas salir?')) return;
+    }
+    onCerrar();
+  };
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && handleClose()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '500px', padding: '30px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -37,7 +47,7 @@ export function ModalAltaPagoProveedor({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--texto-principal)', margin: 0 }}>Registrar Pago a Proveedor</h3>
-          <button onClick={onCerrar} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+          <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
         </div>
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -49,6 +59,7 @@ export function ModalAltaPagoProveedor({
             <input
               type="text"
               list="proveedores-sugeridos"
+              maxLength={70}
               placeholder="Ej: Distribuidora Shimano, Repuestos Rossi..."
               value={nuevoPago.nombre_proveedor}
               onChange={e => setNuevoPago({ ...nuevoPago, nombre_proveedor: e.target.value })}
@@ -87,6 +98,7 @@ export function ModalAltaPagoProveedor({
               type="number"
               step="any"
               min="0"
+              max="99999999.99"
               value={nuevoPago.monto_total}
               onChange={e => setNuevoPago({ ...nuevoPago, monto_total: e.target.value })}
               placeholder="0.00"
@@ -98,6 +110,7 @@ export function ModalAltaPagoProveedor({
           <div>
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Observaciones</label>
             <textarea
+              maxLength={250}
               value={nuevoPago.observaciones}
               onChange={e => setNuevoPago({ ...nuevoPago, observaciones: e.target.value })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
@@ -106,7 +119,7 @@ export function ModalAltaPagoProveedor({
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-            <button type="button" onClick={onCerrar} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '8px', backgroundColor: 'transparent', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
+            <button type="button" onClick={handleClose} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '8px', backgroundColor: 'transparent', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
             <button type="submit" disabled={guardando} style={{ flex: 2, padding: '12px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', fontSize: '1rem', cursor: guardando ? 'not-allowed' : 'pointer', opacity: guardando ? 0.7 : 1 }}>
               {guardando ? 'Guardando...' : 'Confirmar Pago'}
             </button>

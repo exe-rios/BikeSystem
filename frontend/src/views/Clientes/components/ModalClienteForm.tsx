@@ -26,12 +26,22 @@ export function ModalClienteForm({
 }: ModalClienteFormProps) {
   if (!mostrar) return null;
 
+  const handleClose = () => {
+    if (!clienteEditando && (formData.nombre.trim() || formData.apellido.trim() || formData.dni.trim() || formData.telefono.trim() || formData.email.trim())) {
+      if (!window.confirm('Hay datos del cliente sin guardar. ¿Deseas cerrar la ventana?')) return;
+    }
+    onCerrar();
+  };
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && handleClose()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '480px', padding: '30px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -41,7 +51,7 @@ export function ModalClienteForm({
           <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
             {clienteEditando ? 'Editar Cliente' : 'Registrar Nuevo Cliente'}
           </h3>
-          <button onClick={onCerrar} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+          <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
         </div>
 
         {errorModal && (
@@ -64,6 +74,7 @@ export function ModalClienteForm({
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
               <input
                 type="text"
+                maxLength={70}
                 value={formData.nombre}
                 onChange={e => setFormData({ ...formData, nombre: e.target.value })}
                 style={{
@@ -78,6 +89,7 @@ export function ModalClienteForm({
               <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
               <input
                 type="text"
+                maxLength={70}
                 value={formData.apellido}
                 onChange={e => setFormData({ ...formData, apellido: e.target.value })}
                 style={{
@@ -94,6 +106,7 @@ export function ModalClienteForm({
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
             <input
               type="text"
+              maxLength={20}
               value={formData.dni}
               onChange={e => setFormData({ ...formData, dni: e.target.value })}
               placeholder="Ej: 40123456"
@@ -110,6 +123,7 @@ export function ModalClienteForm({
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono</label>
             <input
               type="tel"
+              maxLength={20}
               value={formData.telefono}
               onChange={e => setFormData({ ...formData, telefono: e.target.value })}
               placeholder="Ej: 3421234567"
@@ -126,6 +140,7 @@ export function ModalClienteForm({
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email</label>
             <input
               type="email"
+              maxLength={70}
               value={formData.email}
               onChange={e => setFormData({ ...formData, email: e.target.value })}
               placeholder="ejemplo@correo.com"
@@ -142,6 +157,7 @@ export function ModalClienteForm({
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección</label>
             <input
               type="text"
+              maxLength={70}
               value={formData.direccion}
               onChange={e => setFormData({ ...formData, direccion: e.target.value })}
               style={{
@@ -155,7 +171,7 @@ export function ModalClienteForm({
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
             <button
               type="button"
-              onClick={onCerrar}
+              onClick={handleClose}
               style={{
                 flex: 1,
                 padding: '12px',

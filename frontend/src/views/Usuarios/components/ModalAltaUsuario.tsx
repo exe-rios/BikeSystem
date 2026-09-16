@@ -20,12 +20,22 @@ export function ModalAltaUsuario({
 }: ModalAltaUsuarioProps) {
   if (!mostrar) return null;
 
+  const handleClose = () => {
+    if (nuevoUsuario.nombre_usuario.trim() || nuevoUsuario.contrasena) {
+      if (!window.confirm('Hay datos del nuevo usuario sin guardar. ¿Deseas cerrar la ventana?')) return;
+    }
+    onCerrar();
+  };
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && handleClose()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '460px', padding: '28px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -33,7 +43,7 @@ export function ModalAltaUsuario({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0 }}>Crear Nuevo Empleado</h3>
-          <button onClick={onCerrar} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+          <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
         </div>
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -42,6 +52,7 @@ export function ModalAltaUsuario({
             <input
               type="text"
               placeholder="Ej: lucas.mecanico"
+              maxLength={50}
               value={nuevoUsuario.nombre_usuario}
               onChange={e => setNuevoUsuario({ ...nuevoUsuario, nombre_usuario: e.target.value })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', boxSizing: 'border-box' }}
@@ -55,6 +66,7 @@ export function ModalAltaUsuario({
             <input
               type="password"
               placeholder="••••••••"
+              maxLength={70}
               value={nuevoUsuario.contrasena}
               onChange={e => setNuevoUsuario({ ...nuevoUsuario, contrasena: e.target.value })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', boxSizing: 'border-box' }}
@@ -76,7 +88,7 @@ export function ModalAltaUsuario({
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-            <button type="button" onClick={onCerrar} style={{ flex: 1, padding: '11px', border: '1px solid var(--borde-input)', borderRadius: '8px', backgroundColor: 'transparent', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
+            <button type="button" onClick={handleClose} style={{ flex: 1, padding: '11px', border: '1px solid var(--borde-input)', borderRadius: '8px', backgroundColor: 'transparent', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
             <button type="submit" disabled={guardando} style={{ flex: 2, padding: '11px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: '600', cursor: guardando ? 'not-allowed' : 'pointer', opacity: guardando ? 0.7 : 1 }}>
               {guardando ? 'Creando...' : 'Crear Usuario'}
             </button>

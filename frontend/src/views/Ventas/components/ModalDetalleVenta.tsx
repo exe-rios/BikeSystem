@@ -20,12 +20,24 @@ export function ModalDetalleVenta({
 }: ModalDetalleVentaProps) {
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false);
   const [motivoInput, setMotivoInput] = useState('');
+
+  const handleClose = () => {
+    if (mostrarConfirmacion && motivoInput.trim()) {
+      if (!window.confirm('¿Deseas descartar el motivo de anulación y cerrar?')) return;
+    }
+    onClose();
+  };
+
   return (
-    <div className="modal-overlay" style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100
-    }}>
+    <div
+      className="modal-overlay"
+      onClick={e => e.target === e.currentTarget && handleClose()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100
+      }}
+    >
       <div className="imprimible" style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '720px', padding: '30px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -100,7 +112,7 @@ export function ModalDetalleVenta({
                 </button>
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={handleClose}
                   style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: 'var(--texto-mutado)', padding: '0 4px' }}
                 >
                   ✕
@@ -246,7 +258,7 @@ export function ModalDetalleVenta({
 
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={handleClose}
                     style={{
                       padding: '10px 24px', backgroundColor: 'var(--azul-oscuro)', color: '#fff',
                       border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'
@@ -278,6 +290,7 @@ export function ModalDetalleVenta({
 
                   <input
                     type="text"
+                    maxLength={250}
                     value={motivoInput}
                     onChange={e => setMotivoInput(e.target.value)}
                     placeholder="Ingresa el motivo de anulación (ej. Error de facturación, devolución del cliente...)"
@@ -339,7 +352,7 @@ export function ModalDetalleVenta({
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button
                     type="button"
-                    onClick={onClose}
+                    onClick={handleClose}
                     style={{
                       padding: '10px 24px', backgroundColor: 'var(--azul-oscuro)', color: '#fff',
                       border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'

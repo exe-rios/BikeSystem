@@ -22,12 +22,22 @@ export function ModalAltaReparacion({
 }: ModalAltaReparacionProps) {
   if (!mostrar) return null;
 
+  const handleClose = () => {
+    if (nuevaReparacion.id_bicicleta !== 0 || nuevaReparacion.descripcion.trim() || nuevaReparacion.costo_mano_obra) {
+      if (!window.confirm('Hay datos de la orden sin guardar. ¿Deseas salir?')) return;
+    }
+    onCerrar();
+  };
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && handleClose()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '500px', padding: '30px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -35,7 +45,7 @@ export function ModalAltaReparacion({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0 }}>Registrar Orden de Taller</h3>
-          <button onClick={onCerrar} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+          <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
         </div>
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -60,6 +70,7 @@ export function ModalAltaReparacion({
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Trabajo / Falla *</label>
             <textarea
               rows={3}
+              maxLength={250}
               placeholder="Ej: Cambio de cámara y cubierta, regulación de cambios Shimano, centrado de llanta..."
               value={nuevaReparacion.descripcion}
               onChange={e => setNuevaReparacion({ ...nuevaReparacion, descripcion: e.target.value })}
@@ -87,6 +98,7 @@ export function ModalAltaReparacion({
                 type="number"
                 step="any"
                 min="0"
+                max="99999999.99"
                 placeholder="0.00"
                 value={nuevaReparacion.costo_mano_obra}
                 onChange={e => setNuevaReparacion({ ...nuevaReparacion, costo_mano_obra: e.target.value })}
@@ -96,7 +108,7 @@ export function ModalAltaReparacion({
           </div>
 
           <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-            <button type="button" onClick={onCerrar} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '10px', backgroundColor: 'transparent', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
+            <button type="button" onClick={handleClose} style={{ flex: 1, padding: '12px', border: '1px solid var(--borde-input)', borderRadius: '10px', backgroundColor: 'transparent', fontWeight: '600', cursor: 'pointer', color: 'var(--texto-mutado)' }}>Cancelar</button>
             <button type="submit" disabled={guardando} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', backgroundColor: 'var(--azul-oscuro)', color: '#fff', fontWeight: '600', cursor: guardando ? 'not-allowed' : 'pointer', opacity: guardando ? 0.7 : 1 }}>
               {guardando ? 'Ingresando...' : 'Ingresar al Taller'}
             </button>
