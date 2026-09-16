@@ -146,11 +146,17 @@ export class ReparacionService {
       throw new BadRequestError('Describí el problema o servicio a realizar (mínimo 3 letras).');
     }
 
+    if (descripcion.trim().length > 250) {
+      throw new BadRequestError('La descripción no puede superar los 250 caracteres.');
+    }
+
     let montoManoObra = 0;
     if (costo_mano_obra !== undefined && costo_mano_obra !== null && costo_mano_obra !== '') {
       montoManoObra = Math.round(Number(costo_mano_obra) * 100) / 100;
       if (isNaN(montoManoObra) || montoManoObra < 0) {
         throw new BadRequestError('El costo de mano de obra no puede ser negativo.');
+      } else if (montoManoObra > 99999999.99) {
+        throw new BadRequestError('El costo de mano de obra no puede superar los $99.999.999,99.');
       }
     }
 
@@ -215,11 +221,17 @@ export class ReparacionService {
       }
     }
 
+    if (descripcion !== undefined && typeof descripcion === 'string' && descripcion.trim().length > 250) {
+      throw new BadRequestError('La descripción no puede superar los 250 caracteres.');
+    }
+
     let montoManoObra: number | null = null;
     if (costo_mano_obra !== undefined && costo_mano_obra !== null && costo_mano_obra !== '') {
       montoManoObra = Math.round(Number(costo_mano_obra) * 100) / 100;
       if (isNaN(montoManoObra) || montoManoObra < 0) {
         throw new BadRequestError('El costo de mano de obra no puede ser negativo.');
+      } else if (montoManoObra > 99999999.99) {
+        throw new BadRequestError('El costo de mano de obra no puede superar los $99.999.999,99.');
       }
     }
 

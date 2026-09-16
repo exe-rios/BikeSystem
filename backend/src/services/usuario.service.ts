@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
 import { validarId } from '../utils/validation.js';
@@ -185,6 +185,22 @@ export class UsuarioService {
       if (!ROLES_VALIDOS.includes(rolFinal)) {
         throw new BadRequestError('Elegí un rol válido: Administrador o Empleado.');
       }
+
+      // Proteger contra auto-degradación o eliminación del último administrador
+      if (rolFinal !== 'ADMIN' && rolFinal !== 'SUPERADMIN') {
+        if (idUsuarioOperador && idUsuarioOperador === id) {
+          throw new BadRequestError('No podés quitarte tus propios privilegios de administrador.');
+        }
+
+        const checkAdmins = await pool.query(
+          "SELECT COUNT(*)::int AS admin_count FROM Usuario WHERE rol IN ('ADMIN', 'SUPERADMIN') AND id_usuario != $1;",
+          [id]
+        );
+        const adminCount = checkAdmins.rows[0]?.admin_count || 0;
+        if (adminCount <= 0) {
+          throw new BadRequestError('No se puede degradar al único administrador del sistema.');
+        }
+      }
     }
 
     const queryUpdate = `
@@ -247,6 +263,18 @@ export class UsuarioService {
       throw new NotFoundError('Ese usuario no existe.');
     }
     const usuarioAEliminar = resUser.rows[0];
+
+    // Verificar que no sea el último administrador del sistema
+    if (usuarioAEliminar.rol === 'ADMIN' || usuarioAEliminar.rol === 'SUPERADMIN') {
+      const checkAdmins = await pool.query(
+        "SELECT COUNT(*)::int AS admin_count FROM Usuario WHERE rol IN ('ADMIN', 'SUPERADMIN') AND id_usuario != $1;",
+        [id]
+      );
+      const adminCount = checkAdmins.rows[0]?.admin_count || 0;
+      if (adminCount <= 0) {
+        throw new BadRequestError('No se puede eliminar al único administrador del sistema.');
+      }
+    }
 
     // Verificar si posee historial operativo en el sistema para evitar fallo de FK en PostgreSQL
     const checkHistorial = await pool.query(`

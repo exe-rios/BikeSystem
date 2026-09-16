@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { pool } from './config/db.js';
 
 /** Script CLI para inicializar o actualizar las credenciales del usuario administrador raíz. */

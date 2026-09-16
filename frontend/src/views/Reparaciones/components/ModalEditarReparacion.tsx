@@ -21,11 +21,14 @@ export function ModalEditarReparacion({
   if (!mostrar || !ordenEditando) return null;
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && onCerrar()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '480px', padding: '28px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -41,6 +44,7 @@ export function ModalEditarReparacion({
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Trabajo</label>
             <textarea
               rows={3}
+              maxLength={250}
               value={ordenEditando.descripcion}
               onChange={e => setOrdenEditando({ ...ordenEditando, descripcion: e.target.value })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', resize: 'none', boxSizing: 'border-box' }}
@@ -68,6 +72,7 @@ export function ModalEditarReparacion({
                 type="number"
                 step="any"
                 min="0"
+                max="99999999.99"
                 placeholder="0.00"
                 value={ordenEditando.costo_mano_obra ?? ''}
                 onChange={e => setOrdenEditando({ ...ordenEditando, costo_mano_obra: e.target.value })}

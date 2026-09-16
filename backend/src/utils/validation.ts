@@ -47,3 +47,36 @@ export const validarDni = (dni: unknown, mensajeError = 'El DNI debe tener entre
   }
   return dni.trim();
 };
+
+export const MONTO_MAXIMO_PERMITIDO = 99999999.99;
+
+/**
+ * Valida que un monto numérico esté dentro de los límites seguros de PostgreSQL DECIMAL(10,2).
+ */
+export const validarMontoDecimal = (
+  valor: unknown,
+  nombreCampo = 'El importe',
+  opciones?: { min?: number; max?: number; permitirCero?: boolean }
+): number => {
+  const num = Number(valor);
+  const min = opciones?.min ?? (opciones?.permitirCero ? 0 : 0.01);
+  const max = opciones?.max ?? MONTO_MAXIMO_PERMITIDO;
+
+  if (isNaN(num)) {
+    throw new BadRequestError(`${nombreCampo} debe ser un valor numérico válido.`);
+  }
+
+  if (num < min) {
+    throw new BadRequestError(
+      opciones?.permitirCero
+        ? `${nombreCampo} no puede ser negativo.`
+        : `${nombreCampo} debe ser mayor a 0.`
+    );
+  }
+
+  if (num > max) {
+    throw new BadRequestError(`${nombreCampo} no puede superar el límite de $${max.toLocaleString('es-AR')}.`);
+  }
+
+  return Math.round(num * 100) / 100;
+};

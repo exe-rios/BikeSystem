@@ -82,12 +82,22 @@ export function ModalNuevaVenta({
     return productos.find(p => p.id_producto === productoBuscadoId);
   }, [productos, productoBuscadoId]);
 
+  const handleClose = () => {
+    if (carritoDetalle.length > 0) {
+      if (!window.confirm('Hay artículos agregados al comprobante. ¿Seguro que deseas salir y descartar la venta?')) return;
+    }
+    onClose();
+  };
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && handleClose()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '780px', padding: '28px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -100,7 +110,7 @@ export function ModalNuevaVenta({
           </h3>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}
           >
             ✕
@@ -189,6 +199,7 @@ export function ModalNuevaVenta({
             {/* Buscador de Producto por texto */}
             <input
               type="text"
+              maxLength={70}
               value={busquedaTexto}
               onChange={e => setBusquedaTexto(e.target.value)}
               placeholder="Buscar artículo por nombre, marca o modelo..."
@@ -244,6 +255,7 @@ export function ModalNuevaVenta({
               <input
                 type="number"
                 min="1"
+                max="1000000"
                 value={cantidadAnadir}
                 onChange={e => onCambiarCantidad(e.target.value)}
                 placeholder="Cant."
@@ -414,7 +426,7 @@ export function ModalNuevaVenta({
             <div style={{ display: 'flex', gap: '10px' }}>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 style={{
                   padding: '10px 18px', backgroundColor: 'transparent',
                   border: '1px solid var(--borde-input)', borderRadius: '8px', color: 'var(--texto-principal)',

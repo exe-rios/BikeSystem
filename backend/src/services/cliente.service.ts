@@ -93,9 +93,15 @@ export class ClienteService {
     if (!nombre || typeof nombre !== 'string' || nombre.trim().length < 2) {
       throw new BadRequestError('Escribí el nombre del cliente (al menos 2 letras).');
     }
+    if (nombre.trim().length > 70) {
+      throw new BadRequestError('El nombre no puede superar los 70 caracteres.');
+    }
 
     if (!apellido || typeof apellido !== 'string' || apellido.trim().length < 2) {
       throw new BadRequestError('Escribí el apellido del cliente (al menos 2 letras).');
+    }
+    if (apellido.trim().length > 70) {
+      throw new BadRequestError('El apellido no puede superar los 70 caracteres.');
     }
 
     if (!dni || typeof dni !== 'string' || !DNI_REGEX.test(dni.trim())) {
@@ -103,10 +109,24 @@ export class ClienteService {
     }
 
     const dniLimpio = dni.trim();
-    const emailLimpio = email ? String(email).trim() : null;
+    if (dniLimpio.length > 20) {
+      throw new BadRequestError('El DNI no puede superar los 20 caracteres.');
+    }
 
+    if (telefono && String(telefono).trim().length > 20) {
+      throw new BadRequestError('El teléfono no puede superar los 20 caracteres.');
+    }
+
+    const emailLimpio = email ? String(email).trim() : null;
+    if (emailLimpio && emailLimpio.length > 70) {
+      throw new BadRequestError('El email no puede superar los 70 caracteres.');
+    }
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
       throw new BadRequestError('El email no es válido. Ejemplo: nombre@correo.com');
+    }
+
+    if (direccion && String(direccion).trim().length > 70) {
+      throw new BadRequestError('La dirección no puede superar los 70 caracteres.');
     }
 
     // Verificar si ya existe un cliente con ese DNI
@@ -173,18 +193,38 @@ export class ClienteService {
     if (nombre !== undefined && (typeof nombre !== 'string' || nombre.trim().length < 2)) {
       throw new BadRequestError('El nombre debe tener al menos 2 letras.');
     }
+    if (nombre !== undefined && typeof nombre === 'string' && nombre.trim().length > 70) {
+      throw new BadRequestError('El nombre no puede superar los 70 caracteres.');
+    }
 
     if (apellido !== undefined && (typeof apellido !== 'string' || apellido.trim().length < 2)) {
       throw new BadRequestError('El apellido debe tener al menos 2 letras.');
+    }
+    if (apellido !== undefined && typeof apellido === 'string' && apellido.trim().length > 70) {
+      throw new BadRequestError('El apellido no puede superar los 70 caracteres.');
     }
 
     if (dni !== undefined && (typeof dni !== 'string' || !DNI_REGEX.test(dni.trim()))) {
       throw new BadRequestError('El DNI debe tener entre 7 y 10 números.');
     }
+    if (dni !== undefined && typeof dni === 'string' && dni.trim().length > 20) {
+      throw new BadRequestError('El DNI no puede superar los 20 caracteres.');
+    }
+
+    if (telefono !== undefined && typeof telefono === 'string' && telefono.trim().length > 20) {
+      throw new BadRequestError('El teléfono no puede superar los 20 caracteres.');
+    }
 
     const emailLimpio = email ? String(email).trim() : null;
+    if (emailLimpio && emailLimpio.length > 70) {
+      throw new BadRequestError('El email no puede superar los 70 caracteres.');
+    }
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
       throw new BadRequestError('El email no es válido. Ejemplo: nombre@correo.com');
+    }
+
+    if (direccion !== undefined && typeof direccion === 'string' && direccion.trim().length > 70) {
+      throw new BadRequestError('La dirección no puede superar los 70 caracteres.');
     }
 
     // Verificar si el nuevo DNI ya le pertenece a otro cliente
