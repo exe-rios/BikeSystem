@@ -46,9 +46,10 @@ export function TabVentasListado({
 
         <input
           type="text"
+          maxLength={60}
           placeholder="Buscar por comprobante, cliente o vendedor..."
           value={busquedaVenta}
-          onChange={e => onCambiarBusqueda(e.target.value)}
+          onChange={e => onCambiarBusqueda(e.target.value.slice(0, 60))}
           style={{
             padding: '10px 16px',
             borderRadius: '10px',

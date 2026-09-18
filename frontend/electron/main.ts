@@ -75,6 +75,24 @@ function stopBackendServer() {
   }
 }
 
+/** Resuelve la ruta al ícono de la aplicación según el entorno (producción empaquetada o desarrollo). */
+function getAppIcon(): string {
+  // 1. En producción empaquetada (dist/icon.ico)
+  const prodPath = path.join(__dirname, '../dist/icon.ico');
+  if (fs.existsSync(prodPath)) {
+    return prodPath;
+  }
+
+  // 2. En modo desarrollo (public/icon.ico)
+  const devPath = path.join(__dirname, '../public/icon.ico');
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+
+  // 3. Fallback a la imagen original
+  return path.join(__dirname, '../src/assets/Fotinhos/iconoDnBike.jpeg');
+}
+
 /** Inicializa y configura la ventana principal de escritorio con restricciones de seguridad. */
 function createWindow() {
   const preloadMjs = path.join(__dirname, 'preload.mjs');
@@ -84,7 +102,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, '../src/assets/Fotinhos/iconoDnBike.jpeg'),
+    icon: getAppIcon(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

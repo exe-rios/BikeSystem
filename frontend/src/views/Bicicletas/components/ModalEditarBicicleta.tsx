@@ -41,24 +41,34 @@ export function ModalEditarBicicleta({
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
+              <span style={{ fontSize: '0.72rem', color: (biciAEditar.marca || '').length >= 20 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {(biciAEditar.marca || '').length}/20
+              </span>
+            </div>
             <input
               type="text"
-              maxLength={70}
+              maxLength={20}
               value={biciAEditar.marca}
-              onChange={e => setBiciAEditar({ ...biciAEditar, marca: e.target.value })}
+              onChange={e => setBiciAEditar({ ...biciAEditar, marca: e.target.value.slice(0, 20) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
               required
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
+              <span style={{ fontSize: '0.72rem', color: (biciAEditar.modelo || '').length >= 20 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {(biciAEditar.modelo || '').length}/20
+              </span>
+            </div>
             <input
               type="text"
-              maxLength={70}
+              maxLength={20}
               value={biciAEditar.modelo}
-              onChange={e => setBiciAEditar({ ...biciAEditar, modelo: e.target.value })}
+              onChange={e => setBiciAEditar({ ...biciAEditar, modelo: e.target.value.slice(0, 20) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
               required
             />

@@ -7,6 +7,7 @@ export interface ErroresFormulario {
   dni?: string;
   telefono?: string;
   email?: string;
+  direccion?: string;
 }
 
 export type ClienteFormData = Omit<Cliente, 'id_cliente'>;

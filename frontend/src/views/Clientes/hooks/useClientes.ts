@@ -110,21 +110,43 @@ export function useClientes() {
     setErroresForm({});
 
     const nuevosErrores: ErroresFormulario = {};
-    if (!formData.nombre.trim() || formData.nombre.trim().length < 2) {
+    const nombreLimpio = formData.nombre.trim();
+    if (!nombreLimpio || nombreLimpio.length < 2) {
       nuevosErrores.nombre = 'El nombre es obligatorio (mínimo 2 caracteres).';
+    } else if (nombreLimpio.length > 15) {
+      nuevosErrores.nombre = 'El nombre no puede superar los 15 caracteres.';
     }
-    if (!formData.apellido.trim() || formData.apellido.trim().length < 2) {
+
+    const apellidoLimpio = formData.apellido.trim();
+    if (!apellidoLimpio || apellidoLimpio.length < 2) {
       nuevosErrores.apellido = 'El apellido es obligatorio (mínimo 2 caracteres).';
+    } else if (apellidoLimpio.length > 15) {
+      nuevosErrores.apellido = 'El apellido no puede superar los 15 caracteres.';
     }
+
     const dniLimpio = formData.dni.trim();
-    if (!/^\d{7,8}$/.test(dniLimpio)) {
-      nuevosErrores.dni = 'El DNI debe tener 7 u 8 dígitos sin puntos.';
+    if (!/^\d{7,10}$/.test(dniLimpio)) {
+      nuevosErrores.dni = 'El DNI debe tener 7 u 10 dígitos sin puntos.';
     }
-    if (formData.email && formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-      nuevosErrores.email = 'El formato de correo no es válido.';
+
+    if (formData.email && formData.email.trim()) {
+      const emailLimpio = formData.email.trim();
+      if (emailLimpio.length > 30) {
+        nuevosErrores.email = 'El correo no puede superar los 30 caracteres.';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpio)) {
+        nuevosErrores.email = 'El formato de correo no es válido.';
+      }
     }
-    if (formData.telefono && formData.telefono.trim() && !/^\+?\d{7,15}$/.test(formData.telefono.trim())) {
-      nuevosErrores.telefono = 'Ingrese un número válido (7 a 15 dígitos).';
+
+    if (formData.telefono && formData.telefono.trim()) {
+      const telLimpio = formData.telefono.trim();
+      if (telLimpio.length > 15 || !/^\+?\d{7,15}$/.test(telLimpio)) {
+        nuevosErrores.telefono = 'Ingrese un número válido (7 a 15 dígitos).';
+      }
+    }
+
+    if (formData.direccion && formData.direccion.trim().length > 40) {
+      nuevosErrores.direccion = 'La dirección no puede superar los 40 caracteres.';
     }
 
     if (Object.keys(nuevosErrores).length > 0) {

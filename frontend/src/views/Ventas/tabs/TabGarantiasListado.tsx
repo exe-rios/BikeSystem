@@ -125,9 +125,10 @@ export function TabGarantiasListado({
 
         <input
           type="text"
+          maxLength={60}
           placeholder="Buscar por cliente, DNI, bicicleta o comprobante..."
           value={busquedaGarantia}
-          onChange={e => onCambiarBusqueda(e.target.value)}
+          onChange={e => onCambiarBusqueda(e.target.value.slice(0, 60))}
           style={{
             padding: '10px 16px',
             borderRadius: '10px',

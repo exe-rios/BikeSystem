@@ -48,13 +48,18 @@ export function ModalAltaUsuario({
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600' }}>Nombre de Usuario *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600' }}>Nombre de Usuario *</label>
+              <span style={{ fontSize: '0.72rem', color: nuevoUsuario.nombre_usuario.length >= 15 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {nuevoUsuario.nombre_usuario.length}/15
+              </span>
+            </div>
             <input
               type="text"
               placeholder="Ej: lucas.mecanico"
-              maxLength={50}
+              maxLength={15}
               value={nuevoUsuario.nombre_usuario}
-              onChange={e => setNuevoUsuario({ ...nuevoUsuario, nombre_usuario: e.target.value })}
+              onChange={e => setNuevoUsuario({ ...nuevoUsuario, nombre_usuario: e.target.value.slice(0, 15) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', boxSizing: 'border-box' }}
               required
               autoFocus
@@ -66,9 +71,9 @@ export function ModalAltaUsuario({
             <input
               type="password"
               placeholder="••••••••"
-              maxLength={70}
+              maxLength={50}
               value={nuevoUsuario.contrasena}
-              onChange={e => setNuevoUsuario({ ...nuevoUsuario, contrasena: e.target.value })}
+              onChange={e => setNuevoUsuario({ ...nuevoUsuario, contrasena: e.target.value.slice(0, 50) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', boxSizing: 'border-box' }}
               required
             />

@@ -56,9 +56,10 @@ export function AuditoriaFiltros({
       <form onSubmit={onBuscar} style={{ display: 'flex', gap: '8px' }}>
         <input
           type="text"
+          maxLength={60}
           placeholder="Buscar por usuario, acción o descripción..."
           value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
+          onChange={e => setBusqueda(e.target.value.slice(0, 60))}
           style={{
             padding: '9px 14px',
             borderRadius: '9px',
