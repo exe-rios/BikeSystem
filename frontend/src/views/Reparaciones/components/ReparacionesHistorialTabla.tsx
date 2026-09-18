@@ -70,9 +70,10 @@ export function ReparacionesHistorialTabla({
 
         <input
           type="text"
+          maxLength={60}
           placeholder="Buscar por orden #, cliente, bicicleta, diagnóstico..."
           value={busquedaHistorial}
-          onChange={e => setBusquedaHistorial(e.target.value)}
+          onChange={e => setBusquedaHistorial(e.target.value.slice(0, 60))}
           style={{
             padding: '10px 16px',
             borderRadius: '10px',

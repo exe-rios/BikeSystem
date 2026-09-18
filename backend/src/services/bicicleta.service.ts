@@ -102,11 +102,11 @@ export class BicicletaService {
     if (!marca || typeof marca !== 'string' || marca.trim().length === 0) {
       throw new BadRequestError('Escribí la marca de la bicicleta.');
     }
-    if (marca.trim().length > 70) {
-      throw new BadRequestError('La marca no puede superar los 70 caracteres.');
+    if (marca.trim().length > 20) {
+      throw new BadRequestError('La marca no puede superar los 20 caracteres.');
     }
-    if (modelo && String(modelo).trim().length > 70) {
-      throw new BadRequestError('El modelo no puede superar los 70 caracteres.');
+    if (modelo && String(modelo).trim().length > 20) {
+      throw new BadRequestError('El modelo no puede superar los 20 caracteres.');
     }
 
     const checkCliente = await pool.query('SELECT id_cliente, nombre, apellido FROM Cliente WHERE id_cliente = $1;', [idClienteNum]);
@@ -167,11 +167,11 @@ export class BicicletaService {
     if (!marca || typeof marca !== 'string' || marca.trim().length === 0) {
       throw new BadRequestError('Escribí la marca de la bicicleta.');
     }
-    if (marca.trim().length > 70) {
-      throw new BadRequestError('La marca no puede superar los 70 caracteres.');
+    if (marca.trim().length > 20) {
+      throw new BadRequestError('La marca no puede superar los 20 caracteres.');
     }
-    if (modelo && String(modelo).trim().length > 70) {
-      throw new BadRequestError('El modelo no puede superar los 70 caracteres.');
+    if (modelo && String(modelo).trim().length > 20) {
+      throw new BadRequestError('El modelo no puede superar los 20 caracteres.');
     }
 
     const query = `

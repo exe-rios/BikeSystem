@@ -108,11 +108,16 @@ export function ModalAltaPagoProveedor({
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Observaciones</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Observaciones</label>
+              <span style={{ fontSize: '0.72rem', color: (nuevoPago.observaciones || '').length >= 250 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {(nuevoPago.observaciones || '').length}/250
+              </span>
+            </div>
             <textarea
               maxLength={250}
               value={nuevoPago.observaciones}
-              onChange={e => setNuevoPago({ ...nuevoPago, observaciones: e.target.value })}
+              onChange={e => setNuevoPago({ ...nuevoPago, observaciones: e.target.value.slice(0, 250) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', minHeight: '80px', resize: 'vertical', boxSizing: 'border-box' }}
               placeholder="Número de factura, comprobante de transferencia, etc."
             />

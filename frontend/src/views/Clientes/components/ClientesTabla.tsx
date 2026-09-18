@@ -68,12 +68,12 @@ export function ClientesTabla({
           ) : (
             clientesFiltrados.map(c => (
               <tr key={c.id_cliente} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s' }}>
-                <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '500', color: 'var(--texto-principal)' }}>
+                <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '500', color: 'var(--texto-principal)', maxWidth: '220px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={`${c.apellido}, ${c.nombre}`}>
                   {c.apellido}, {c.nombre}
                 </td>
-                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.dni}</td>
-                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.telefono || '-'}</td>
-                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{c.email || '-'}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', maxWidth: '110px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.dni}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', maxWidth: '140px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.telefono || '-'}</td>
+                <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={c.email || ''}>{c.email || '-'}</td>
                 <td style={{ padding: '16px', textAlign: 'right' }}>
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                     <button

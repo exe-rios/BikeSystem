@@ -67,13 +67,18 @@ export function ModalAltaReparacion({
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Trabajo / Falla *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Trabajo / Falla *</label>
+              <span style={{ fontSize: '0.72rem', color: nuevaReparacion.descripcion.length >= 250 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {nuevaReparacion.descripcion.length}/250
+              </span>
+            </div>
             <textarea
               rows={3}
               maxLength={250}
               placeholder="Ej: Cambio de cámara y cubierta, regulación de cambios Shimano, centrado de llanta..."
               value={nuevaReparacion.descripcion}
-              onChange={e => setNuevaReparacion({ ...nuevaReparacion, descripcion: e.target.value })}
+              onChange={e => setNuevaReparacion({ ...nuevaReparacion, descripcion: e.target.value.slice(0, 250) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', resize: 'none', boxSizing: 'border-box' }}
               required
             />

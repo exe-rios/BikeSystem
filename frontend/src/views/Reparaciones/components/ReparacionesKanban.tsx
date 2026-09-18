@@ -51,9 +51,10 @@ export function ReparacionesKanban({
 
         <input
           type="text"
+          maxLength={60}
           placeholder="Buscar por orden #, cliente, bicicleta o descripción..."
           value={busquedaTaller}
-          onChange={e => setBusquedaTaller(e.target.value)}
+          onChange={e => setBusquedaTaller(e.target.value.slice(0, 60))}
           style={{
             padding: '10px 16px',
             borderRadius: '10px',

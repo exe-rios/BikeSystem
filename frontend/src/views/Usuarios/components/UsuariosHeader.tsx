@@ -52,9 +52,10 @@ export function UsuariosHeader({
 
         <input
           type="text"
+          maxLength={60}
           placeholder="Buscar por nombre de usuario o rol..."
           value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
+          onChange={e => setBusqueda(e.target.value.slice(0, 60))}
           style={{
             padding: '10px 16px', borderRadius: '10px', border: '1px solid var(--borde-input)',
             backgroundColor: 'var(--bg-tarjeta)', color: 'var(--texto-principal)', width: '320px', fontSize: '0.9rem'

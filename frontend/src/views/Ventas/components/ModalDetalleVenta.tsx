@@ -288,11 +288,16 @@ export function ModalDetalleVenta({
                     </p>
                   </div>
 
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2px' }}>
+                    <span style={{ fontSize: '0.72rem', color: motivoInput.length >= 250 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                      {motivoInput.length}/250
+                    </span>
+                  </div>
                   <input
                     type="text"
                     maxLength={250}
                     value={motivoInput}
-                    onChange={e => setMotivoInput(e.target.value)}
+                    onChange={e => setMotivoInput(e.target.value.slice(0, 250))}
                     placeholder="Ingresa el motivo de anulación (ej. Error de facturación, devolución del cliente...)"
                     style={{
                       padding: '10px 14px',

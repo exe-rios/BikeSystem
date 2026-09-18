@@ -65,26 +65,36 @@ export function ModalAltaBicicleta({
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
+              <span style={{ fontSize: '0.72rem', color: nuevaBici.marca.length >= 20 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {nuevaBici.marca.length}/20
+              </span>
+            </div>
             <input
               type="text"
               placeholder="Ej: Trek, Specialized, Vairo, Venzo..."
-              maxLength={70}
+              maxLength={20}
               value={nuevaBici.marca}
-              onChange={e => setNuevaBici({ ...nuevaBici, marca: e.target.value })}
+              onChange={e => setNuevaBici({ ...nuevaBici, marca: e.target.value.slice(0, 20) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
               required
             />
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
+              <span style={{ fontSize: '0.72rem', color: (nuevaBici.modelo || '').length >= 20 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {(nuevaBici.modelo || '').length}/20
+              </span>
+            </div>
             <input
               type="text"
               placeholder="Ej: Marlin 7, Rockhopper, XR 3.8..."
-              maxLength={70}
+              maxLength={20}
               value={nuevaBici.modelo}
-              onChange={e => setNuevaBici({ ...nuevaBici, modelo: e.target.value })}
+              onChange={e => setNuevaBici({ ...nuevaBici, modelo: e.target.value.slice(0, 20) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
               required
             />

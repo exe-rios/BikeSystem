@@ -41,12 +41,17 @@ export function ModalEditarReparacion({
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Trabajo</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600' }}>Descripción del Trabajo</label>
+              <span style={{ fontSize: '0.72rem', color: (ordenEditando.descripcion || '').length >= 250 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {(ordenEditando.descripcion || '').length}/250
+              </span>
+            </div>
             <textarea
               rows={3}
               maxLength={250}
               value={ordenEditando.descripcion}
-              onChange={e => setOrdenEditando({ ...ordenEditando, descripcion: e.target.value })}
+              onChange={e => setOrdenEditando({ ...ordenEditando, descripcion: e.target.value.slice(0, 250) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', resize: 'none', boxSizing: 'border-box' }}
               required
             />

@@ -121,14 +121,19 @@ export function ModalProductoForm({
 
           {/* Nombre */}
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>
-              Nombre del Producto *
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontWeight: '600', fontSize: '0.85rem' }}>
+                Nombre del Producto *
+              </label>
+              <span style={{ fontSize: '0.72rem', color: formData.nombre.length >= 70 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {formData.nombre.length}/70
+              </span>
+            </div>
             <input
               type="text"
               maxLength={70}
               value={formData.nombre}
-              onChange={e => onChangeField('nombre', e.target.value)}
+              onChange={e => onChangeField('nombre', e.target.value.slice(0, 70))}
               placeholder={formData.tipo_prod === 'bicicleta' ? 'Ej: Bicicleta Mountain Bike' : 'Ej: Cubierta Maxxis 29'}
               style={{
                 width: '100%',
@@ -147,13 +152,18 @@ export function ModalProductoForm({
           {/* Marca y Modelo */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Marca</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontWeight: '600', fontSize: '0.85rem' }}>Marca</label>
+                <span style={{ fontSize: '0.72rem', color: (formData.marca || '').length >= 50 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                  {(formData.marca || '').length}/50
+                </span>
+              </div>
               <input
                 type="text"
-                maxLength={70}
+                maxLength={50}
                 placeholder="Ej: Shimano / Vairo"
                 value={formData.marca}
-                onChange={e => onChangeField('marca', e.target.value)}
+                onChange={e => onChangeField('marca', e.target.value.slice(0, 50))}
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -167,13 +177,18 @@ export function ModalProductoForm({
               />
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Modelo</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontWeight: '600', fontSize: '0.85rem' }}>Modelo</label>
+                <span style={{ fontSize: '0.72rem', color: (formData.modelo || '').length >= 50 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                  {(formData.modelo || '').length}/50
+                </span>
+              </div>
               <input
                 type="text"
-                maxLength={70}
+                maxLength={50}
                 placeholder="Ej: Deore / XR 3.8"
                 value={formData.modelo}
-                onChange={e => onChangeField('modelo', e.target.value)}
+                onChange={e => onChangeField('modelo', e.target.value.slice(0, 50))}
                 style={{
                   width: '100%',
                   padding: '10px',
