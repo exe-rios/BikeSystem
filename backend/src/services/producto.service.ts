@@ -29,9 +29,21 @@ const validarDatosProducto = (body: any) => {
     errores.push('Escribí el nombre del artículo (al menos 2 letras).');
   }
 
+  if (nombre && typeof nombre === 'string' && nombre.trim().length > 70) {
+    errores.push('El nombre no puede superar los 70 caracteres.');
+  }
+
   const tipoLimpio = String(tipo_prod || '').trim().toLowerCase();
   if (!tipoLimpio || !TIPOS_PRODUCTO_VALIDOS.includes(tipoLimpio)) {
     errores.push('Elegí un tipo válido: Bicicleta, Repuesto o Accesorio.');
+  }
+
+  if (body.marca && typeof body.marca === 'string' && body.marca.trim().length > 70) {
+    errores.push('La marca no puede superar los 70 caracteres.');
+  }
+
+  if (body.modelo && typeof body.modelo === 'string' && body.modelo.trim().length > 70) {
+    errores.push('El modelo no puede superar los 70 caracteres.');
   }
 
   if (tipoLimpio === 'bicicleta') {
@@ -45,6 +57,8 @@ const validarDatosProducto = (body: any) => {
     const precioNum = Number(precio);
     if (isNaN(precioNum) || precioNum < 0) {
       errores.push('El precio no puede ser negativo.');
+    } else if (precioNum > 99999999.99) {
+      errores.push('El precio no puede superar los $99.999.999,99.');
     }
   }
 
@@ -52,6 +66,8 @@ const validarDatosProducto = (body: any) => {
     const cantNum = Number(cantidad);
     if (isNaN(cantNum) || cantNum < 0 || !Number.isInteger(cantNum)) {
       errores.push('La cantidad debe ser un número entero (0 o más).');
+    } else if (cantNum > 1000000) {
+      errores.push('La cantidad no puede superar 1.000.000 de unidades.');
     }
   }
 
@@ -59,6 +75,8 @@ const validarDatosProducto = (body: any) => {
     const stockMinNum = Number(stock_minimo);
     if (isNaN(stockMinNum) || stockMinNum < 0 || !Number.isInteger(stockMinNum)) {
       errores.push('El stock mínimo debe ser un número entero (0 o más).');
+    } else if (stockMinNum > 1000000) {
+      errores.push('El stock mínimo no puede superar 1.000.000 de unidades.');
     }
   }
 
@@ -66,8 +84,8 @@ const validarDatosProducto = (body: any) => {
 };
 
 export interface BusquedaParseada {
-  talle?: string;
-  rodado?: string;
+  talle?: string | undefined;
+  rodado?: string | undefined;
   terminos: string[];
 }
 
@@ -90,7 +108,7 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
   // 1. Extraer patrón explícito de talle (ej: "talle m", "talla: XL", "size S")
   const talleRegex = /\b(?:talle|talla|size)\s*[:=]?\s*([a-zA-Z0-9]+)\b/i;
   const matchTalle = texto.match(talleRegex);
-  if (matchTalle) {
+  if (matchTalle && matchTalle[1]) {
     talle = matchTalle[1].trim();
     texto = texto.replace(matchTalle[0], ' ');
   }
@@ -98,7 +116,7 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
   // 2. Extraer patrón explícito de rodado (ej: "rodado 29", "rodado: 29", "r29", "rodado gravel")
   const rodadoRegex = /\b(?:rodado|r)\s*[:=]?\s*([0-9]{2}|gravel)\b/i;
   const matchRodado = texto.match(rodadoRegex);
-  if (matchRodado) {
+  if (matchRodado && matchRodado[1]) {
     rodado = matchRodado[1].trim();
     texto = texto.replace(matchRodado[0], ' ');
   }
@@ -628,6 +646,17 @@ export class ProductoService {
 
     if (!motivo || typeof motivo !== 'string' || motivo.trim().length < 3) {
       throw new BadRequestError('Escribí el motivo del ajuste (al menos 3 letras).');
+    }
+    if (motivo.trim().length > 70) {
+      throw new BadRequestError('El motivo no puede superar los 70 caracteres.');
+    }
+
+    if (observaciones && typeof observaciones === 'string' && observaciones.trim().length > 250) {
+      throw new BadRequestError('Las observaciones no pueden superar los 250 caracteres.');
+    }
+
+    if (cantNum > 1000000) {
+      throw new BadRequestError('La cantidad no puede superar 1.000.000 de unidades.');
     }
 
     if (!idUsuarioOperador || isNaN(Number(idUsuarioOperador)) || Number(idUsuarioOperador) <= 0) {

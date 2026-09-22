@@ -2,11 +2,16 @@
   "name": "frontend",
   "private": true,
   "main": "dist-electron/main.js",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Sistema de gestión integral para bicicleterías",
+  "author": "BikeSystem Team",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "build:backend": "pnpm --filter backend build",
     "build": "tsc -b && vite build",
+    "dist": "pnpm build:backend && pnpm build && electron-builder --win",
+    "dist:dir": "pnpm build:backend && pnpm build && electron-builder --win --dir",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -21,13 +26,53 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "electron": "^42.0.1",
+    "electron-builder": "^26.15.3",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "tslib": "^2.8.1",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
     "vite": "^8.0.12",
     "vite-plugin-electron": "^0.29.1"
+  },
+  "build": {
+    "appId": "com.bikesystem.app",
+    "productName": "BikeSystem",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/server.cjs",
+        "to": "backend/server.cjs"
+      },
+      {
+        "from": "../backend/.env",
+        "to": "backend/.env"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BikeSystem"
+    }
   }
 }

@@ -24,9 +24,16 @@ export function ModalProductoForm({
 }: ModalProductoFormProps) {
   if (!visible) return null;
 
+  const handleClose = () => {
+    if (modo === 'crear' && (formData.nombre.trim() || formData.precio || formData.cantidad)) {
+      if (!window.confirm('Hay datos ingresados sin guardar. ¿Deseas cerrar la ventana?')) return;
+    }
+    onClose();
+  };
+
   return (
     <div
-      onClick={e => e.target === e.currentTarget && onClose()}
+      onClick={e => e.target === e.currentTarget && handleClose()}
       style={{
         position: 'fixed',
         top: 0,
@@ -66,7 +73,7 @@ export function ModalProductoForm({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}
           >
             ✕
@@ -119,6 +126,7 @@ export function ModalProductoForm({
             </label>
             <input
               type="text"
+              maxLength={70}
               value={formData.nombre}
               onChange={e => onChangeField('nombre', e.target.value)}
               placeholder={formData.tipo_prod === 'bicicleta' ? 'Ej: Bicicleta Mountain Bike' : 'Ej: Cubierta Maxxis 29'}
@@ -142,6 +150,7 @@ export function ModalProductoForm({
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Marca</label>
               <input
                 type="text"
+                maxLength={70}
                 placeholder="Ej: Shimano / Vairo"
                 value={formData.marca}
                 onChange={e => onChangeField('marca', e.target.value)}
@@ -161,6 +170,7 @@ export function ModalProductoForm({
               <label style={{ display: 'block', marginBottom: '6px', fontWeight: '600', fontSize: '0.85rem' }}>Modelo</label>
               <input
                 type="text"
+                maxLength={70}
                 placeholder="Ej: Deore / XR 3.8"
                 value={formData.modelo}
                 onChange={e => onChangeField('modelo', e.target.value)}
@@ -218,6 +228,7 @@ export function ModalProductoForm({
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.78rem' }}>Color</label>
                   <input
                     type="text"
+                    maxLength={20}
                     placeholder="Ej: Negro/Rojo"
                     value={formData.color}
                     onChange={e => onChangeField('color', e.target.value)}
@@ -289,6 +300,7 @@ export function ModalProductoForm({
               type="number"
               step="any"
               min="0"
+              max="99999999.99"
               placeholder="0.00"
               value={formData.precio}
               onChange={e => onChangeField('precio', e.target.value)}
@@ -315,6 +327,7 @@ export function ModalProductoForm({
               <input
                 type="number"
                 min="0"
+                max="1000000"
                 value={formData.cantidad}
                 onChange={e => onChangeField('cantidad', e.target.value)}
                 style={{
@@ -337,6 +350,7 @@ export function ModalProductoForm({
               <input
                 type="number"
                 min="0"
+                max="1000000"
                 placeholder="Ej: 2 (0 para sin alerta)"
                 value={formData.stock_minimo}
                 onChange={e => onChangeField('stock_minimo', e.target.value)}
@@ -379,7 +393,7 @@ export function ModalProductoForm({
           <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 flex: 1,
                 padding: '11px',

@@ -492,10 +492,13 @@ export class VentaService {
       throw new UnauthorizedError('No se pudo identificar al usuario que realiza la anulación.');
     }
 
-    // Motivo obligatorio para anulación (mínimo 5 caracteres para evitar justificaciones vacías)
+    // Motivo obligatorio para anulación (mínimo 5 caracteres para evitar justificaciones vacías, máximo 250)
     const motivoLimpio = typeof motivo === 'string' ? motivo.trim() : '';
     if (!motivoLimpio || motivoLimpio.length < 5) {
       throw new BadRequestError('Debés indicar un motivo descriptivo para anular la venta (mínimo 5 caracteres).');
+    }
+    if (motivoLimpio.length > 250) {
+      throw new BadRequestError('El motivo de anulación no puede superar los 250 caracteres.');
     }
 
     const client = await pool.connect();

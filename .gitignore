@@ -28,6 +28,7 @@ dist/
 dist-electron/
 build/
 out/
+release/
 .tscache/
 
 # Variables de entorno

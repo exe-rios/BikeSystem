@@ -28,9 +28,16 @@ export function ModalAjusteStock({
   const productoSeleccionado = productos.find(p => p.id_producto === nuevoMovimiento.id_producto);
   const stockActual = productoSeleccionado ? Number(productoSeleccionado.cantidad || 0) : 0;
 
+  const handleClose = () => {
+    if (nuevoMovimiento.id_producto !== 0 || nuevoMovimiento.observaciones?.trim() || (nuevoMovimiento.cantidad && Number(nuevoMovimiento.cantidad) > 0)) {
+      if (!window.confirm('Hay cambios sin aplicar en el ajuste de stock. ¿Deseas cerrar la ventana?')) return;
+    }
+    onClose();
+  };
+
   return (
     <div
-      onClick={e => e.target === e.currentTarget && onClose()}
+      onClick={e => e.target === e.currentTarget && handleClose()}
       style={{
         position: 'fixed',
         top: 0,
@@ -50,6 +57,8 @@ export function ModalAjusteStock({
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)',
         width: 'min(500px, 100%)',
+        maxHeight: '90vh',
+        overflowY: 'auto',
         padding: '28px',
         borderRadius: '16px',
         border: '1px solid var(--borde-input)',
@@ -68,7 +77,7 @@ export function ModalAjusteStock({
           </div>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}
           >
             ✕
@@ -156,6 +165,7 @@ export function ModalAjusteStock({
               <input
                 type="number"
                 min="1"
+                max="1000000"
                 value={nuevoMovimiento.cantidad}
                 onChange={e => onChangeMovimiento({ ...nuevoMovimiento, cantidad: e.target.value })}
                 style={{
@@ -207,6 +217,7 @@ export function ModalAjusteStock({
             </label>
             <textarea
               rows={3}
+              maxLength={250}
               value={nuevoMovimiento.observaciones}
               onChange={e => onChangeMovimiento({ ...nuevoMovimiento, observaciones: e.target.value })}
               placeholder="Detalles adicionales, número de comprobante de compra o motivo específico..."
@@ -228,7 +239,7 @@ export function ModalAjusteStock({
           <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               style={{
                 flex: 1,
                 padding: '11px',

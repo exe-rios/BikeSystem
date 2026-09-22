@@ -75,13 +75,31 @@ export class ProveedorService {
       throw new ConflictError(`Ya existe un proveedor registrado con el nombre "${nombreLimpio}".`);
     }
 
-    const cuitLimpio = cuit && String(cuit).trim().length > 0 ? String(cuit).trim() : null;
-    const emailLimpio = email && String(email).trim().length > 0 ? String(email).trim() : null;
-    const telefonoLimpio = telefono && String(telefono).trim().length > 0 ? String(telefono).trim() : null;
-    const direccionLimpia = direccion && String(direccion).trim().length > 0 ? String(direccion).trim() : null;
+    if (nombreLimpio.length > 70) {
+      throw new BadRequestError('El nombre de la empresa no puede superar los 70 caracteres.');
+    }
 
+    const cuitLimpio = cuit && String(cuit).trim().length > 0 ? String(cuit).trim() : null;
+    if (cuitLimpio && cuitLimpio.length > 20) {
+      throw new BadRequestError('El CUIT no puede superar los 20 caracteres.');
+    }
+
+    const emailLimpio = email && String(email).trim().length > 0 ? String(email).trim() : null;
+    if (emailLimpio && emailLimpio.length > 70) {
+      throw new BadRequestError('El email no puede superar los 70 caracteres.');
+    }
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
       throw new BadRequestError('El email no es válido. Ejemplo: nombre@correo.com');
+    }
+
+    const telefonoLimpio = telefono && String(telefono).trim().length > 0 ? String(telefono).trim() : null;
+    if (telefonoLimpio && telefonoLimpio.length > 20) {
+      throw new BadRequestError('El teléfono no puede superar los 20 caracteres.');
+    }
+
+    const direccionLimpia = direccion && String(direccion).trim().length > 0 ? String(direccion).trim() : null;
+    if (direccionLimpia && direccionLimpia.length > 70) {
+      throw new BadRequestError('La dirección no puede superar los 70 caracteres.');
     }
 
     const query = `
@@ -142,6 +160,9 @@ export class ProveedorService {
         throw new BadRequestError('El nombre de la empresa debe tener al menos 2 letras.');
       }
       nombreFinal = nombre_empresa.trim();
+      if (nombreFinal.length > 70) {
+        throw new BadRequestError('El nombre de la empresa no puede superar los 70 caracteres.');
+      }
 
       // Validar que el nuevo nombre no esté duplicado en otro proveedor
       const checkDup = await pool.query(
@@ -153,9 +174,24 @@ export class ProveedorService {
       }
     }
 
+    if (cuit !== undefined && typeof cuit === 'string' && cuit.trim().length > 20) {
+      throw new BadRequestError('El CUIT no puede superar los 20 caracteres.');
+    }
+
+    if (telefono !== undefined && typeof telefono === 'string' && telefono.trim().length > 20) {
+      throw new BadRequestError('El teléfono no puede superar los 20 caracteres.');
+    }
+
     const emailLimpio = email !== undefined ? (email && String(email).trim().length > 0 ? String(email).trim() : null) : undefined;
+    if (emailLimpio && emailLimpio.length > 70) {
+      throw new BadRequestError('El email no puede superar los 70 caracteres.');
+    }
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
       throw new BadRequestError('El email no es válido. Ejemplo: contacto@empresa.com');
+    }
+
+    if (direccion !== undefined && typeof direccion === 'string' && direccion.trim().length > 70) {
+      throw new BadRequestError('La dirección no puede superar los 70 caracteres.');
     }
 
     const query = `

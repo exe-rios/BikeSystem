@@ -1,4 +1,5 @@
 import type { Usuario, EditarUsuarioData } from '../types';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface ModalEditarUsuarioProps {
   mostrar: boolean;
@@ -20,14 +21,20 @@ export function ModalEditarUsuario({
   guardando,
   onSubmit
 }: ModalEditarUsuarioProps) {
+  const { user } = useAuth();
   if (!mostrar || !usuarioEditando) return null;
 
+  const esMiPropioUsuario = user?.id_usuario === usuarioEditando.id_usuario;
+
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && onCerrar()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '460px', padding: '28px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -42,11 +49,18 @@ export function ModalEditarUsuario({
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600' }}>Rol en el Sistema</label>
+            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
+              Rol en el Sistema {esMiPropioUsuario && <span style={{ fontSize: '0.78rem', color: '#ea580c', fontWeight: 'normal' }}>(No podés modificar tu propio rol)</span>}
+            </label>
             <select
               value={formEditar.rol}
+              disabled={esMiPropioUsuario}
               onChange={e => setFormEditar({ ...formEditar, rol: e.target.value })}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)' }}
+              style={{
+                width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)',
+                fontSize: '0.9rem', backgroundColor: esMiPropioUsuario ? 'rgba(0,0,0,0.05)' : 'var(--bg-principal)',
+                color: 'var(--texto-principal)', cursor: esMiPropioUsuario ? 'not-allowed' : 'default'
+              }}
             >
               <option value="EMPLEADO">EMPLEADO</option>
               <option value="ADMIN">ADMIN</option>
@@ -59,6 +73,7 @@ export function ModalEditarUsuario({
             <input
               type="password"
               placeholder="Dejar en blanco para conservar la actual"
+              maxLength={70}
               value={formEditar.contrasena}
               onChange={e => setFormEditar({ ...formEditar, contrasena: e.target.value })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', boxSizing: 'border-box' }}

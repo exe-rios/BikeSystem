@@ -21,11 +21,14 @@ export function ModalEditarBicicleta({
   if (!mostrar || !biciAEditar) return null;
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
-    }}>
+    <div
+      onClick={e => e.target === e.currentTarget && onCerrar()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.3)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+      }}
+    >
       <div style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '480px', padding: '30px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
@@ -41,6 +44,7 @@ export function ModalEditarBicicleta({
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Marca *</label>
             <input
               type="text"
+              maxLength={70}
               value={biciAEditar.marca}
               onChange={e => setBiciAEditar({ ...biciAEditar, marca: e.target.value })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
@@ -52,6 +56,7 @@ export function ModalEditarBicicleta({
             <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Modelo *</label>
             <input
               type="text"
+              maxLength={70}
               value={biciAEditar.modelo}
               onChange={e => setBiciAEditar({ ...biciAEditar, modelo: e.target.value })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}

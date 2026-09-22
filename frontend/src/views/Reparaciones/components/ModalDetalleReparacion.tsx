@@ -51,11 +51,15 @@ export function ModalDetalleReparacion({
   if (!mostrar || !ordenDetalle) return null;
 
   return (
-    <div className="modal-overlay" style={{
-      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-      backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)',
-      display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100
-    }}>
+    <div
+      className="modal-overlay"
+      onClick={e => e.target === e.currentTarget && onCerrar()}
+      style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        backgroundColor: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(4px)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1100
+      }}
+    >
       <div className="imprimible" style={{
         backgroundColor: 'var(--bg-tarjeta)', width: '740px', padding: '28px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
