@@ -47,7 +47,7 @@ export function StockFiltros({
           <input
             type="text"
             maxLength={60}
-            placeholder="Buscar por marca y talle (ej: 'marca scott talle m', 'venzo 29', 'talle l')..."
+            placeholder="Buscar por ID, nombre, marca o talle (ej: '8', 'scott', 'venzo 29', 'talle l')..."
             value={busqueda}
             onChange={e => onCambiarBusqueda(e.target.value.slice(0, 60))}
             style={{

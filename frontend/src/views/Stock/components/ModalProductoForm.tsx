@@ -3,6 +3,7 @@ import type { FormProductoData } from '../types';
 interface ModalProductoFormProps {
   visible: boolean;
   modo: 'crear' | 'editar';
+  idProducto?: number;
   formData: FormProductoData;
   guardando: boolean;
   error: string | null;
@@ -15,6 +16,7 @@ interface ModalProductoFormProps {
 export function ModalProductoForm({
   visible,
   modo,
+  idProducto,
   formData,
   guardando,
   error,
@@ -65,10 +67,10 @@ export function ModalProductoForm({
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
             <span style={{ fontSize: '0.78rem', fontWeight: '700', color: 'var(--azul-oscuro)', textTransform: 'uppercase' }}>
-              {modo === 'crear' ? 'Nuevo Registro' : 'Modificación de Catálogo'}
+              {modo === 'crear' ? 'Nuevo Registro' : `Modificación de Catálogo ${idProducto ? `(#${idProducto})` : ''}`}
             </span>
             <h3 style={{ margin: '2px 0 0 0', fontSize: '1.25rem', fontWeight: '800' }}>
-              {modo === 'crear' ? 'Cargar Nuevo Artículo' : 'Editar Datos del Artículo'}
+              {modo === 'crear' ? 'Cargar Nuevo Artículo' : `Editar Datos del Artículo ${idProducto ? `(#${idProducto})` : ''}`}
             </h3>
           </div>
           <button

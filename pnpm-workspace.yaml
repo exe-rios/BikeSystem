@@ -4,4 +4,5 @@ packages:
 
 allowBuilds:
   bcrypt: true
+  electron-winstaller: true
   esbuild: true
