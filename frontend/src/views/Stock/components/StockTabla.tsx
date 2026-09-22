@@ -53,11 +53,14 @@ export function StockTabla({
       backgroundColor: 'var(--bg-tarjeta)',
       border: '1px solid var(--borde-input)',
       borderRadius: '12px',
-      overflow: 'hidden'
+      overflowX: 'auto'
     }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
           <tr style={{ backgroundColor: 'var(--bg-principal)', borderBottom: '1px solid var(--borde-input)' }}>
+            <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase', width: '70px' }}>
+              ID
+            </th>
             <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>
               Artículo / Especificaciones
             </th>
@@ -83,20 +86,20 @@ export function StockTabla({
         <tbody>
           {cargando ? (
             <tr>
-              <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+              <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                 Cargando inventario...
               </td>
             </tr>
           ) : productos.length === 0 ? (
             <tr>
-              <td colSpan={6} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+              <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                 {busqueda && busqueda.trim() ? (
                   <div>
                     <div style={{ fontWeight: '600', color: 'var(--texto-principal)', marginBottom: '4px', fontSize: '0.95rem' }}>
                       No se encontraron artículos ni bicicletas para &quot;{busqueda}&quot;.
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)' }}>
-                      Verificá la marca o el talle, o probá buscar solo por marca (ej: &quot;scott&quot;) o por talle (ej: &quot;talle m&quot;).
+                      Verificá el ID, nombre, marca o talle (ej: &quot;8&quot;, &quot;scott&quot; o &quot;talle m&quot;).
                     </div>
                   </div>
                 ) : (
@@ -120,6 +123,11 @@ export function StockTabla({
                     opacity: !esActivo ? 0.75 : 1
                   }}
                 >
+                  {/* ID */}
+                  <td style={{ padding: '12px 16px', color: 'var(--texto-mutado)', fontFamily: 'monospace', fontWeight: '700', fontSize: '0.88rem', whiteSpace: 'nowrap' }}>
+                    #{p.id_producto}
+                  </td>
+
                   {/* Artículo */}
                   <td style={{ padding: '12px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

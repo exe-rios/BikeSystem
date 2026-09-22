@@ -121,14 +121,14 @@ export function ModalAjusteStock({
               <option value={0}>-- Seleccionar Producto --</option>
               {productos.filter(p => p.activo !== false).map(p => (
                 <option key={p.id_producto} value={p.id_producto}>
-                  {p.nombre} {p.marca ? `(${p.marca})` : ''} — Stock disponible: {p.cantidad}
+                  #{p.id_producto} - {p.nombre} {p.marca ? `(${p.marca})` : ''} — Stock disponible: {p.cantidad}
                 </option>
               ))}
             </select>
 
             {productoSeleccionado && (
               <div style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', marginTop: '4px' }}>
-                Stock actual registrado: <strong>{stockActual}</strong> unidad{stockActual === 1 ? '' : 'es'}
+                ID: #{productoSeleccionado.id_producto} &bull; Stock actual registrado: <strong>{stockActual}</strong> unidad{stockActual === 1 ? '' : 'es'}
               </div>
             )}
           </div>

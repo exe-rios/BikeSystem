@@ -29,6 +29,7 @@ export function StockView() {
     setPaginaActual,
     mostrarModalForm,
     modoModal,
+    productoEditando,
     formData,
     errorForm,
     setFiltroTipo,
@@ -149,6 +150,7 @@ export function StockView() {
       <ModalProductoForm
         visible={mostrarModalForm}
         modo={modoModal}
+        idProducto={productoEditando?.id_producto}
         formData={formData}
         guardando={guardando}
         error={errorForm}

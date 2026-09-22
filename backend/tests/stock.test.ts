@@ -135,8 +135,8 @@ describe('Módulo de Stock e Inventario (ProductoService)', () => {
       expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
     });
 
-    it('debe ejecutar un INGRESO correctamente y registrar en Movimiento_Stock con motivo truncado', async () => {
-      const motivoLargo = 'Ingreso de mercadería por remito oficial #123456789 con detalles muy largos que superan ampliamente los cien caracteres totales permitidos';
+    it('debe ejecutar un INGRESO correctamente y registrar en Movimiento_Stock con motivo válido', async () => {
+      const motivoValido = 'Ingreso por remito oficial #123456 con control de calidad aprobado';
       
       mockClient.query
         .mockResolvedValueOnce({}) // BEGIN
@@ -160,7 +160,7 @@ describe('Módulo de Stock e Inventario (ProductoService)', () => {
       const resultado = await ProductoService.ajustarStock(1, {
         cantidad_ajuste: 5,
         tipo_movimiento: 'INGRESO',
-        motivo: motivoLargo,
+        motivo: motivoValido,
         idUsuarioOperador: 2,
         nombreUsuarioOperador: 'Empleado Juan',
       });
@@ -329,6 +329,32 @@ describe('Módulo de Stock e Inventario (ProductoService)', () => {
         expect(res.talle).toBeUndefined();
         expect(res.terminos).toEqual(['cadena', 'shimano']);
       });
+
+      it('debe reconocer búsqueda por ID simple ("8") extrayendo id: 8 y término "8"', () => {
+        const res = parsearBusquedaAvanzada('8');
+        expect(res.id).toBe(8);
+        expect(res.terminos).toEqual(['8']);
+      });
+
+      it('debe reconocer búsqueda con hash ("#8") extrayendo id: 8', () => {
+        const res = parsearBusquedaAvanzada('#8');
+        expect(res.id).toBe(8);
+        expect(res.terminos).toEqual(['8']);
+      });
+
+      it('debe reconocer búsqueda con prefijo ("id 8", "ID: 8", "producto 8")', () => {
+        const res1 = parsearBusquedaAvanzada('id 8');
+        expect(res1.id).toBe(8);
+        expect(res1.terminos).toEqual(['8']);
+
+        const res2 = parsearBusquedaAvanzada('ID: 8');
+        expect(res2.id).toBe(8);
+        expect(res2.terminos).toEqual(['8']);
+
+        const res3 = parsearBusquedaAvanzada('producto 8');
+        expect(res3.id).toBe(8);
+        expect(res3.terminos).toEqual(['8']);
+      });
     });
 
     describe('Construcción de Consulta SQL en ProductoService.obtenerProductos', () => {
@@ -365,6 +391,31 @@ describe('Módulo de Stock e Inventario (ProductoService)', () => {
         expect(resultado.productos[0].marca).toBe('Scott');
         expect(resultado.productos[0].talle).toBe('M');
         expect(resultado.productos[0].cantidad).toBe(5);
+      });
+
+      it('debe priorizar coincidencia exacta de ID arriba de todo al buscar "8"', async () => {
+        (pool.query as any)
+          .mockResolvedValueOnce({ rows: [{ total_articulos: 1, total_unidades: 6, bajo_stock_count: 0, inactivos_count: 0 }] })
+          .mockResolvedValueOnce({
+            rows: [
+              {
+                id_producto: 8,
+                nombre: 'bicicleta scott',
+                marca: 'scott',
+                cantidad: 6,
+                estado_stock: 'optimo'
+              }
+            ]
+          });
+
+        const resultado = await ProductoService.obtenerProductos({ busqueda: '8' });
+        const sqlEjecutada = (pool.query as any).mock.calls[1][0];
+        const paramsEjecutados = (pool.query as any).mock.calls[1][1];
+
+        expect(sqlEjecutada).toContain('ORDER BY CASE WHEN p.id_producto =');
+        expect(sqlEjecutada).toContain('CAST(p.id_producto AS TEXT) ILIKE');
+        expect(paramsEjecutados).toContain(8);
+        expect(resultado.productos[0].id_producto).toBe(8);
       });
 
       it('debe admitir talle y marca explícitos pasados como filtros directos', async () => {

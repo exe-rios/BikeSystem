@@ -84,6 +84,7 @@ const validarDatosProducto = (body: any) => {
 };
 
 export interface BusquedaParseada {
+  id?: number | undefined;
   talle?: string | undefined;
   rodado?: string | undefined;
   terminos: string[];
@@ -93,8 +94,11 @@ const TALLES_BICICLETA_ESTANDAR = ['xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl'];
 const PALABRAS_VACIAS = new Set(['de', 'del', 'el', 'la', 'los', 'las', 'en', 'para', 'con', 'un', 'una', 'unos', 'unas']);
 
 /**
- * Parsea una consulta en lenguaje natural identificando talle, rodado y términos clave de marca/modelo.
- * Ejemplo: "marca scott talle m" -> talle: "m", terminos: ["scott"]
+ * Parsea una consulta en lenguaje natural identificando ID de producto, talle, rodado y términos clave.
+ * Ejemplos: 
+ *   - "8" -> id: 8, terminos: ["8"]
+ *   - "id 8" -> id: 8, terminos: ["8"]
+ *   - "marca scott talle m" -> talle: "m", terminos: ["scott"]
  */
 export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
   if (!busqueda || typeof busqueda !== 'string') {
@@ -102,10 +106,37 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
   }
 
   let texto = busqueda.trim();
+  let id: number | undefined = undefined;
   let talle: string | undefined = undefined;
   let rodado: string | undefined = undefined;
 
-  // 1. Extraer patrón explícito de talle (ej: "talle m", "talla: XL", "size S")
+  // 1. Extraer ID numérico explícito (ej: "id 8", "id: 8", "producto 8", "art 8", "#8", "# 8", o solo "8")
+  const idRegex = /\b(?:id|codigo|código|prod|producto|art|articulo|artículo)\s*[:=]?\s*#?\s*([0-9]+)\b/i;
+  const matchId = texto.match(idRegex);
+  if (matchId && matchId[1]) {
+    const parsedId = Number(matchId[1]);
+    if (Number.isInteger(parsedId) && parsedId > 0 && parsedId <= 2147483647) {
+      id = parsedId;
+    }
+    texto = texto.replace(matchId[0], ' ');
+  } else {
+    const hashRegex = /#\s*([0-9]+)\b/;
+    const matchHash = texto.match(hashRegex);
+    if (matchHash && matchHash[1]) {
+      const parsedId = Number(matchHash[1]);
+      if (Number.isInteger(parsedId) && parsedId > 0 && parsedId <= 2147483647) {
+        id = parsedId;
+      }
+      texto = texto.replace(matchHash[0], ' ');
+    } else if (/^\s*([0-9]+)\s*$/.test(texto)) {
+      const parsedId = Number(texto.trim());
+      if (Number.isInteger(parsedId) && parsedId > 0 && parsedId <= 2147483647) {
+        id = parsedId;
+      }
+    }
+  }
+
+  // 2. Extraer patrón explícito de talle (ej: "talle m", "talla: XL", "size S")
   const talleRegex = /\b(?:talle|talla|size)\s*[:=]?\s*([a-zA-Z0-9]+)\b/i;
   const matchTalle = texto.match(talleRegex);
   if (matchTalle && matchTalle[1]) {
@@ -113,7 +144,7 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
     texto = texto.replace(matchTalle[0], ' ');
   }
 
-  // 2. Extraer patrón explícito de rodado (ej: "rodado 29", "rodado: 29", "r29", "rodado gravel")
+  // 3. Extraer patrón explícito de rodado (ej: "rodado 29", "rodado: 29", "r29", "rodado gravel")
   const rodadoRegex = /\b(?:rodado|r)\s*[:=]?\s*([0-9]{2}|gravel)\b/i;
   const matchRodado = texto.match(rodadoRegex);
   if (matchRodado && matchRodado[1]) {
@@ -121,17 +152,17 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
     texto = texto.replace(matchRodado[0], ' ');
   }
 
-  // 3. Remover palabras descriptoras semánticas que no corresponden a nombres de marca o modelo
-  texto = texto.replace(/\b(?:marca|modelo)\b/gi, ' ');
+  // 4. Remover palabras descriptoras semánticas que no corresponden a nombres de marca o modelo
+  texto = texto.replace(/\b(?:marca|modelo|id|codigo|código|prod|producto|art|articulo|artículo)\b/gi, ' ');
 
-  // 4. Limpiar signos de puntuación y extraer palabras individuales
+  // 5. Limpiar signos de puntuación y extraer palabras individuales
   let terminos = texto
     .replace(/[.,;:\-_/\\#"'()[\]{}<>]/g, ' ')
     .split(/\s+/)
     .map(t => t.trim())
     .filter(t => t.length > 0 && !PALABRAS_VACIAS.has(t.toLowerCase()));
 
-  // 5. Si no se especificó "talle X", pero hay un término que es estrictamente un talle estándar (ej: "scott m")
+  // 6. Si no se especificó "talle X", pero hay un término que es estrictamente un talle estándar (ej: "scott m")
   if (!talle && terminos.length > 0) {
     const idxTalle = terminos.findIndex(t => TALLES_BICICLETA_ESTANDAR.includes(t.toLowerCase()));
     if (idxTalle !== -1) {
@@ -140,7 +171,13 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
     }
   }
 
+  // Si se reconoció un ID pero no quedó como término de búsqueda textual, incluirlo para el matching SQL
+  if (id && !terminos.includes(String(id))) {
+    terminos.push(String(id));
+  }
+
   return {
+    id,
     talle,
     rodado,
     terminos
@@ -268,7 +305,19 @@ export class ProductoService {
       }
     }
 
-    query += ` ORDER BY p.id_producto DESC`;
+    // Priorización de ID: si la búsqueda especificó un ID o alguno de los términos es un número entero,
+    // colocamos la coincidencia exacta de ID primero en el ordenamiento.
+    const idPrioritario = busquedaParseada.id || (
+      busquedaParseada.terminos.find(t => /^\d+$/.test(t)) ? Number(busquedaParseada.terminos.find(t => /^\d+$/.test(t))) : undefined
+    );
+
+    if (idPrioritario && Number.isInteger(idPrioritario) && idPrioritario > 0 && idPrioritario <= 2147483647) {
+      query += ` ORDER BY CASE WHEN p.id_producto = $${paramIndex} THEN 0 ELSE 1 END, p.id_producto DESC`;
+      params.push(idPrioritario);
+      paramIndex++;
+    } else {
+      query += ` ORDER BY p.id_producto DESC`;
+    }
 
     const paginacion = normalizarPaginacion({ limite, pagina });
     query = aplicarPaginacionSQL(query, params, paginacion);
@@ -793,7 +842,8 @@ export class ProductoService {
         p.nombre ILIKE $${paramIdx} OR 
         u.nombre_usuario ILIKE $${paramIdx} OR 
         ms.motivo ILIKE $${paramIdx} OR 
-        ms.observaciones ILIKE $${paramIdx}
+        ms.observaciones ILIKE $${paramIdx} OR
+        CAST(p.id_producto AS TEXT) ILIKE $${paramIdx}
       )`);
       params.push(term);
       paramIdx++;

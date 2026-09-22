@@ -40,6 +40,7 @@ export function ModalHistorialMovimientos({
       }
       // Filtro por término de búsqueda
       if (!term) return true;
+      const coincideId = String(m.id_producto || '').includes(term) || `#${m.id_producto || ''}`.includes(term);
       const coincideProducto = (m.producto_nombre || '').toLowerCase().includes(term) ||
         (m.producto_marca || '').toLowerCase().includes(term) ||
         (m.producto_modelo || '').toLowerCase().includes(term);
@@ -47,7 +48,7 @@ export function ModalHistorialMovimientos({
       const coincideObs = (m.observaciones || '').toLowerCase().includes(term);
       const coincideUsuario = (m.usuario_nombre || '').toLowerCase().includes(term);
 
-      return coincideProducto || coincideMotivo || coincideObs || coincideUsuario;
+      return coincideId || coincideProducto || coincideMotivo || coincideObs || coincideUsuario;
     });
   }, [movimientos, busqueda, filtroTipo]);
 
@@ -150,7 +151,7 @@ export function ModalHistorialMovimientos({
           <div style={{ flex: 1, minWidth: '220px' }}>
             <input
               type="text"
-              placeholder="Buscar por artículo, motivo, notas o usuario..."
+              placeholder="Buscar por ID, artículo, motivo, notas o usuario..."
               value={busqueda}
               onChange={e => setBusqueda(e.target.value)}
               style={{
@@ -320,7 +321,12 @@ export function ModalHistorialMovimientos({
                         {formatearFechaHora(m.created_at, 'N/D', { dateStyle: 'short', timeStyle: 'short' })}
                       </td>
                       <td style={{ padding: '12px 14px', fontWeight: '600' }}>
-                        <div>{m.producto_nombre}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', fontFamily: 'monospace', color: 'var(--texto-mutado)', fontWeight: '700' }}>
+                            #{m.id_producto}
+                          </span>
+                          <span>{m.producto_nombre}</span>
+                        </div>
                         {(m.producto_marca || m.producto_modelo) && (
                           <div style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)', fontWeight: 'normal' }}>
                             {m.producto_marca} {m.producto_modelo}
