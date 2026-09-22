@@ -212,14 +212,19 @@ export function ModalAjusteStock({
 
           {/* Observaciones */}
           <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-              Observaciones (Opcional)
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600' }}>
+                Observaciones (Opcional)
+              </label>
+              <span style={{ fontSize: '0.72rem', color: (nuevoMovimiento.observaciones || '').length >= 250 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {(nuevoMovimiento.observaciones || '').length}/250
+              </span>
+            </div>
             <textarea
               rows={3}
               maxLength={250}
               value={nuevoMovimiento.observaciones}
-              onChange={e => onChangeMovimiento({ ...nuevoMovimiento, observaciones: e.target.value })}
+              onChange={e => onChangeMovimiento({ ...nuevoMovimiento, observaciones: e.target.value.slice(0, 250) })}
               placeholder="Detalles adicionales, número de comprobante de compra o motivo específico..."
               style={{
                 width: '100%',

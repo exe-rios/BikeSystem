@@ -1,18 +1,17 @@
-import { app, BrowserWindow, shell, Menu, utilityProcess } from 'electron';
+import { app, BrowserWindow, shell, Menu, utilityProcess, dialog, ipcMain } from 'electron';
 import type { UtilityProcess } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-// Desactivar aceleración por hardware para prevenir congelamientos de pantalla por GPU/drivers en Windows
-app.disableHardwareAcceleration();
-
-// Evitar que Chromium suspenda el repintado al calcular oclusión de ventanas en Windows
+// Switches de Chromium para prevenir congelamientos de repintado y pérdida de foco en Windows
 app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 // Definir __dirname manualmente para entornos de módulos ES (ESM)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+let mainWindow: BrowserWindow | null = null;
 let backendProcess: UtilityProcess | null = null;
 
 /** Resuelve la ruta al script server.cjs compilado según el entorno. */
@@ -75,16 +74,34 @@ function stopBackendServer() {
   }
 }
 
+/** Resuelve la ruta al ícono de la aplicación según el entorno (producción empaquetada o desarrollo). */
+function getAppIcon(): string {
+  // 1. En producción empaquetada (dist/icon.ico)
+  const prodPath = path.join(__dirname, '../dist/icon.ico');
+  if (fs.existsSync(prodPath)) {
+    return prodPath;
+  }
+
+  // 2. En modo desarrollo (public/icon.ico)
+  const devPath = path.join(__dirname, '../public/icon.ico');
+  if (fs.existsSync(devPath)) {
+    return devPath;
+  }
+
+  // 3. Fallback a la imagen original
+  return path.join(__dirname, '../src/assets/Fotinhos/iconoDnBike.jpeg');
+}
+
 /** Inicializa y configura la ventana principal de escritorio con restricciones de seguridad. */
 function createWindow() {
   const preloadMjs = path.join(__dirname, 'preload.mjs');
   const preloadPath = fs.existsSync(preloadMjs) ? preloadMjs : path.join(__dirname, 'preload.js');
 
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, '../src/assets/Fotinhos/iconoDnBike.jpeg'),
+    icon: getAppIcon(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -94,6 +111,26 @@ function createWindow() {
       backgroundThrottling: false,
       devTools: false
     }
+  });
+
+  const win = mainWindow;
+
+  // Garantizar que Chromium reciba el foco al activar o restaurar la ventana en Windows
+  win.on('focus', () => {
+    win.webContents.focus();
+  });
+
+  win.on('restore', () => {
+    win.webContents.invalidate();
+    win.webContents.focus();
+  });
+
+  win.on('show', () => {
+    win.webContents.focus();
+  });
+
+  win.on('closed', () => {
+    mainWindow = null;
   });
 
   // Remover la barra de menú superior por defecto de Windows
@@ -144,6 +181,39 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 }
+
+// Handlers IPC para diálogos nativos seguros que no rompen el foco de entrada en Windows
+ipcMain.on('dialog:showMessageBoxSync', (event, options) => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    event.returnValue = 0;
+    return;
+  }
+
+  const result = dialog.showMessageBoxSync(mainWindow, {
+    type: options?.type || 'info',
+    title: options?.title || 'BikeSystem',
+    message: options?.message || '',
+    buttons: options?.buttons && options.buttons.length > 0 ? options.buttons : ['Aceptar'],
+    defaultId: options?.defaultId ?? 0,
+    cancelId: options?.cancelId ?? 0,
+    noLink: true
+  });
+
+  // Forzar restitución inmediata del foco de entrada tras el cierre del diálogo
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus();
+    mainWindow.webContents.focus();
+  }
+
+  event.returnValue = result;
+});
+
+ipcMain.on('window:refocus', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.focus();
+    mainWindow.webContents.focus();
+  }
+});
 
 app.whenReady().then(() => {
   // Desactivar el menú global de la aplicación

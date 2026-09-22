@@ -38,12 +38,12 @@ const validarDatosProducto = (body: any) => {
     errores.push('Elegí un tipo válido: Bicicleta, Repuesto o Accesorio.');
   }
 
-  if (body.marca && typeof body.marca === 'string' && body.marca.trim().length > 70) {
-    errores.push('La marca no puede superar los 70 caracteres.');
+  if (body.marca && typeof body.marca === 'string' && body.marca.trim().length > 20) {
+    errores.push('La marca no puede superar los 20 caracteres.');
   }
 
-  if (body.modelo && typeof body.modelo === 'string' && body.modelo.trim().length > 70) {
-    errores.push('El modelo no puede superar los 70 caracteres.');
+  if (body.modelo && typeof body.modelo === 'string' && body.modelo.trim().length > 20) {
+    errores.push('El modelo no puede superar los 20 caracteres.');
   }
 
   if (tipoLimpio === 'bicicleta') {

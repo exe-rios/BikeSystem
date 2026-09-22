@@ -199,9 +199,9 @@ export function ModalNuevaVenta({
             {/* Buscador de Producto por texto */}
             <input
               type="text"
-              maxLength={70}
+              maxLength={60}
               value={busquedaTexto}
-              onChange={e => setBusquedaTexto(e.target.value)}
+              onChange={e => setBusquedaTexto(e.target.value.slice(0, 60))}
               placeholder="Buscar artículo por nombre, marca o modelo..."
               style={{
                 width: '100%',

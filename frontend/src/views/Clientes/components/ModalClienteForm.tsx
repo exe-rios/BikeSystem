@@ -71,78 +71,106 @@ export function ModalClienteForm({
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Nombre *</label>
+                <span style={{ fontSize: '0.72rem', color: formData.nombre.length >= 15 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                  {formData.nombre.length}/15
+                </span>
+              </div>
               <input
                 type="text"
-                maxLength={70}
+                maxLength={15}
                 value={formData.nombre}
-                onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                onChange={e => setFormData({ ...formData, nombre: e.target.value.slice(0, 15) })}
+                placeholder="Ej: Juan"
                 style={{
                   width: '100%', padding: '10px', borderRadius: '8px',
                   border: `1px solid ${erroresForm.nombre ? '#ef4444' : 'var(--borde-input)'}`,
                   fontSize: '0.9rem', boxSizing: 'border-box'
                 }}
               />
-              {erroresForm.nombre && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.nombre}</span>}
+              {erroresForm.nombre && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{erroresForm.nombre}</span>}
             </div>
             <div>
-              <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Apellido *</label>
+                <span style={{ fontSize: '0.72rem', color: formData.apellido.length >= 15 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                  {formData.apellido.length}/15
+                </span>
+              </div>
               <input
                 type="text"
-                maxLength={70}
+                maxLength={15}
                 value={formData.apellido}
-                onChange={e => setFormData({ ...formData, apellido: e.target.value })}
+                onChange={e => setFormData({ ...formData, apellido: e.target.value.slice(0, 15) })}
+                placeholder="Ej: Pérez"
                 style={{
                   width: '100%', padding: '10px', borderRadius: '8px',
                   border: `1px solid ${erroresForm.apellido ? '#ef4444' : 'var(--borde-input)'}`,
                   fontSize: '0.9rem', boxSizing: 'border-box'
                 }}
               />
-              {erroresForm.apellido && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.apellido}</span>}
+              {erroresForm.apellido && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{erroresForm.apellido}</span>}
             </div>
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>DNI *</label>
+              <span style={{ fontSize: '0.72rem', color: formData.dni.length >= 10 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {formData.dni.length}/10
+              </span>
+            </div>
             <input
               type="text"
-              maxLength={20}
+              inputMode="numeric"
+              maxLength={10}
               value={formData.dni}
-              onChange={e => setFormData({ ...formData, dni: e.target.value })}
-              placeholder="Ej: 40123456"
+              onChange={e => setFormData({ ...formData, dni: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+              placeholder="Ej: 40123456 (7 u 10 números)"
               style={{
                 width: '100%', padding: '10px', borderRadius: '8px',
                 border: `1px solid ${erroresForm.dni ? '#ef4444' : 'var(--borde-input)'}`,
                 fontSize: '0.9rem', boxSizing: 'border-box'
               }}
             />
-            {erroresForm.dni && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.dni}</span>}
+            {erroresForm.dni && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{erroresForm.dni}</span>}
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Teléfono</label>
+              <span style={{ fontSize: '0.72rem', color: formData.telefono.length >= 15 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {formData.telefono.length}/15
+              </span>
+            </div>
             <input
               type="tel"
-              maxLength={20}
+              maxLength={15}
               value={formData.telefono}
-              onChange={e => setFormData({ ...formData, telefono: e.target.value })}
-              placeholder="Ej: 3421234567"
+              onChange={e => setFormData({ ...formData, telefono: e.target.value.replace(/[^\d+]/g, '').slice(0, 15) })}
+              placeholder="Ej: +543421234567"
               style={{
                 width: '100%', padding: '10px', borderRadius: '8px',
                 border: `1px solid ${erroresForm.telefono ? '#ef4444' : 'var(--borde-input)'}`,
                 fontSize: '0.9rem', boxSizing: 'border-box'
               }}
             />
-            {erroresForm.telefono && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.telefono}</span>}
+            {erroresForm.telefono && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{erroresForm.telefono}</span>}
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Email</label>
+              <span style={{ fontSize: '0.72rem', color: formData.email.length >= 30 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {formData.email.length}/30
+              </span>
+            </div>
             <input
               type="email"
-              maxLength={70}
+              maxLength={30}
               value={formData.email}
-              onChange={e => setFormData({ ...formData, email: e.target.value })}
+              onChange={e => setFormData({ ...formData, email: e.target.value.slice(0, 30) })}
               placeholder="ejemplo@correo.com"
               style={{
                 width: '100%', padding: '10px', borderRadius: '8px',
@@ -150,22 +178,29 @@ export function ModalClienteForm({
                 fontSize: '0.9rem', boxSizing: 'border-box'
               }}
             />
-            {erroresForm.email && <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>{erroresForm.email}</span>}
+            {erroresForm.email && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{erroresForm.email}</span>}
           </div>
 
           <div>
-            <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección</label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Dirección</label>
+              <span style={{ fontSize: '0.72rem', color: (formData.direccion || '').length >= 40 ? '#ef4444' : 'var(--texto-mutado)' }}>
+                {(formData.direccion || '').length}/40
+              </span>
+            </div>
             <input
               type="text"
-              maxLength={70}
+              maxLength={40}
               value={formData.direccion}
-              onChange={e => setFormData({ ...formData, direccion: e.target.value })}
+              onChange={e => setFormData({ ...formData, direccion: e.target.value.slice(0, 40) })}
+              placeholder="Ej: San Martín 1234"
               style={{
                 width: '100%', padding: '10px', borderRadius: '8px',
-                border: '1px solid var(--borde-input)',
+                border: `1px solid ${erroresForm.direccion ? '#ef4444' : 'var(--borde-input)'}`,
                 fontSize: '0.9rem', boxSizing: 'border-box'
               }}
             />
+            {erroresForm.direccion && <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '2px', display: 'block' }}>{erroresForm.direccion}</span>}
           </div>
 
           <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>

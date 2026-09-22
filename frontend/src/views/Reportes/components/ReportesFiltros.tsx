@@ -138,9 +138,10 @@ export function ReportesFiltros({
           </label>
           <input
             type="text"
+            maxLength={60}
             placeholder={getPlaceholder()}
             value={searchTerm}
-            onChange={(e) => onCambiarBusqueda(e.target.value)}
+            onChange={(e) => onCambiarBusqueda(e.target.value.slice(0, 60))}
             style={{
               width: '100%', padding: '9px 12px', backgroundColor: 'var(--bg-principal)',
               border: '1px solid var(--borde-input)', borderRadius: '8px', color: 'var(--texto-principal)', fontSize: '0.88rem', outline: 'none'

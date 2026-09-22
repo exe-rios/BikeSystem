@@ -73,9 +73,9 @@ export function ModalEditarUsuario({
             <input
               type="password"
               placeholder="Dejar en blanco para conservar la actual"
-              maxLength={70}
+              maxLength={50}
               value={formEditar.contrasena}
-              onChange={e => setFormEditar({ ...formEditar, contrasena: e.target.value })}
+              onChange={e => setFormEditar({ ...formEditar, contrasena: e.target.value.slice(0, 50) })}
               style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)', boxSizing: 'border-box' }}
             />
           </div>

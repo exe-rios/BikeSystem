@@ -65,9 +65,10 @@ export function ClientesHeader({
 
         <input
           type="text"
+          maxLength={60}
           placeholder="Buscar por nombre, apellido, DNI..."
           value={busqueda}
-          onChange={e => setBusqueda(e.target.value)}
+          onChange={e => setBusqueda(e.target.value.slice(0, 60))}
           style={{
             padding: '10px 16px',
             borderRadius: '10px',
