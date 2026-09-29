@@ -5,10 +5,14 @@ import { validarId } from '../utils/validation.js';
 import { responderOk, responderCreado } from '../utils/response.js';
 
 /** Endpoint GET /api/usuarios: Consulta lista de usuarios con filtros por rol o búsqueda. */
-export const obtenerUsuarios = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const obtenerUsuarios = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { busqueda, rol } = req.query as { busqueda?: string; rol?: string };
-    const resultado = await UsuarioService.obtenerUsuarios({ busqueda, rol });
+    const resultado = await UsuarioService.obtenerUsuarios({
+      busqueda,
+      rol,
+      rolOperador: req.usuarioToken?.rol
+    });
     responderOk(res, resultado);
   } catch (error) {
     next(error);
@@ -16,10 +20,10 @@ export const obtenerUsuarios = async (req: Request, res: Response, next: NextFun
 };
 
 /** Endpoint GET /api/usuarios/:id: Consulta los datos individuales de una cuenta de usuario. */
-export const obtenerUsuarioPorId = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const obtenerUsuarioPorId = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
   try {
     const id = validarId(req.params.id, 'No se encontró ese usuario.');
-    const usuario = await UsuarioService.obtenerUsuarioPorId(id);
+    const usuario = await UsuarioService.obtenerUsuarioPorId(id, req.usuarioToken?.rol);
     responderOk(res, usuario);
   } catch (error) {
     next(error);

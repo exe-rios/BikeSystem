@@ -15,6 +15,7 @@ import { InicioView } from './views/Inicio/InicioView';
 import { LoginView } from './views/Login/LoginView';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { getUserRoleTheme } from './utils/userColors';
 
 const ClientesView = lazy(() => import('./views/Clientes/ClientesView').then(m => ({ default: m.ClientesView })));
 const BicicletasView = lazy(() => import('./views/Bicicletas/BicicletasView').then(m => ({ default: m.BicicletasView })));
@@ -49,7 +50,8 @@ function AppContent() {
 
   const userName = user?.nombre_usuario || 'Usuario';
   const userRole = (user?.rol || 'EMPLEADO').toUpperCase();
-  const esAdmin = userRole === 'ADMIN' || userRole === 'SUPERADMIN';
+  const roleTheme = getUserRoleTheme(userRole, userName);
+  const esAdmin = userRole === 'ADMIN' || roleTheme.isSuperAdmin;
 
   // Configuración de menús con restricción por rol (orden personalizado)
   const menuItems: Array<{ id: VistaTipo; label: string; icon: string; adminOnly?: boolean }> = [
@@ -167,31 +169,50 @@ function AppContent() {
           width: '100%',
           boxSizing: 'border-box'
         }}>
-          {/* Fila superior: Info del Perfil */}
+          {/* Fila superior: Info del Perfil con color distintivo por rol */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
               width: '42px',
               height: '42px',
+              minWidth: '42px',
               borderRadius: '50%',
-              backgroundColor: 'var(--azul-oscuro)',
-              color: 'white',
+              backgroundColor: roleTheme.avatarBg,
+              color: roleTheme.avatarText,
+              border: `2px solid ${roleTheme.avatarBorder}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: '700',
               fontSize: '1rem',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+              boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
             }}>
-              {userName ? userName.slice(0, 2).toUpperCase() : 'U'}
+              {roleTheme.isSuperAdmin ? '👑' : (userName ? userName.slice(0, 2).toUpperCase() : 'U')}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
               <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--texto-principal)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                 {userName}
               </span>
-              <span style={{ fontSize: '0.78rem', color: 'var(--texto-mutado)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                Rol: {userRole}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{
+                  fontSize: '0.72rem',
+                  fontWeight: '700',
+                  padding: '1px 8px',
+                  borderRadius: '12px',
+                  backgroundColor: roleTheme.badgeBg,
+                  color: roleTheme.badgeColor,
+                  border: `1px solid ${roleTheme.badgeBorder}`,
+                  display: 'inline-flex',
+                  alignItems: 'center'
+                }}>
+                  {roleTheme.isSuperAdmin ? 'SUPERADMIN' : roleTheme.label}
+                </span>
+                {roleTheme.isSuperAdmin && (
+                  <span style={{ fontSize: '0.68rem', color: '#7c3aed', fontWeight: '600' }} title="Perfil exclusivo de desarrollador">
+                    (Dev)
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

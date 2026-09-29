@@ -10,7 +10,8 @@
     "start:dist": "node dist/server.cjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:admin": "tsx src/crear_admin.ts"
+    "seed:admin": "tsx src/crear_admin.ts",
+    "seed:superadmin": "tsx src/crear_superadmin.ts"
   },
   "keywords": [],
   "author": "",
