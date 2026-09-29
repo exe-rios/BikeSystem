@@ -151,19 +151,26 @@ export function useReportes() {
     setCargando(true);
     setError(null);
     try {
+      let errorCapturado: string | null = null;
+      const registrarFallo = (e: unknown) => {
+        if (!errorCapturado && e instanceof Error) {
+          errorCapturado = e.message;
+        }
+      };
+
       const [resDash, resKpis, resVentas, resReparaciones, resPagos] = await Promise.all([
-        api.reportes.getDashboard().catch(() => null),
+        api.reportes.getDashboard().catch(err => { registrarFallo(err); return null; }),
         api.reportes.getEstadisticas({
           fechaDesde: fechaDesde || undefined,
           fechaHasta: fechaHasta || undefined
-        }).catch(() => null),
+        }).catch(err => { registrarFallo(err); return null; }),
         api.reportes.getVentas({
           fechaDesde: fechaDesde || undefined,
           fechaHasta: fechaHasta || undefined,
           busqueda: searchTermDebounced || undefined,
           limite: limitePaginacion,
           pagina: paginaVentas
-        }).catch(() => ({ total: 0, total_facturado: 0, ventas_cobradas: 0, ventas_anuladas: 0, ventas: [], totalPaginas: 1 })),
+        }).catch(err => { registrarFallo(err); return { total: 0, total_facturado: 0, ventas_cobradas: 0, ventas_anuladas: 0, ventas: [], totalPaginas: 1 }; }),
         api.reportes.getReparaciones({
           fechaDesde: fechaDesde || undefined,
           fechaHasta: fechaHasta || undefined,
@@ -171,15 +178,19 @@ export function useReportes() {
           busqueda: searchTermDebounced || undefined,
           limite: limitePaginacion,
           pagina: paginaReparaciones
-        }).catch(() => ({ total: 0, entregadas_count: 0, en_proceso_count: 0, total_recaudado: 0, total_mano_obra: 0, monto_estimado_en_proceso: 0, reparaciones: [], totalPaginas: 1 })),
+        }).catch(err => { registrarFallo(err); return { total: 0, entregadas_count: 0, en_proceso_count: 0, total_recaudado: 0, total_mano_obra: 0, monto_estimado_en_proceso: 0, reparaciones: [], totalPaginas: 1 }; }),
         api.reportes.getEgresos({
           fechaDesde: fechaDesde || undefined,
           fechaHasta: fechaHasta || undefined,
           busqueda: searchTermDebounced || undefined,
           limite: limitePaginacion,
           pagina: paginaPagos
-        }).catch(() => ({ total: 0, total_egresos: 0, pagos: [], totalPaginas: 1 }))
+        }).catch(err => { registrarFallo(err); return { total: 0, total_egresos: 0, pagos: [], totalPaginas: 1 }; })
       ]);
+
+      if (errorCapturado) {
+        setError(errorCapturado);
+      }
 
       if (resDash) {
         setDashboard(resDash);

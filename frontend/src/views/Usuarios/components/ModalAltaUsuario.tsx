@@ -88,7 +88,6 @@ export function ModalAltaUsuario({
             >
               <option value="EMPLEADO">EMPLEADO</option>
               <option value="ADMIN">ADMIN</option>
-              <option value="SUPERADMIN">SUPERADMIN</option>
             </select>
           </div>
 

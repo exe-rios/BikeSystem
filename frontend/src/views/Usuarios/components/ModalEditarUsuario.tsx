@@ -51,20 +51,26 @@ export function ModalEditarUsuario({
           <div>
             <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.85rem', fontWeight: '600' }}>
               Rol en el Sistema {esMiPropioUsuario && <span style={{ fontSize: '0.78rem', color: '#ea580c', fontWeight: 'normal' }}>(No podés modificar tu propio rol)</span>}
+              {!esMiPropioUsuario && usuarioEditando.rol === 'SUPERADMIN' && <span style={{ fontSize: '0.78rem', color: '#7c3aed', fontWeight: 'normal' }}>(Rol fijo del sistema)</span>}
             </label>
             <select
               value={formEditar.rol}
-              disabled={esMiPropioUsuario}
+              disabled={esMiPropioUsuario || usuarioEditando.rol === 'SUPERADMIN'}
               onChange={e => setFormEditar({ ...formEditar, rol: e.target.value })}
               style={{
                 width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)',
-                fontSize: '0.9rem', backgroundColor: esMiPropioUsuario ? 'rgba(0,0,0,0.05)' : 'var(--bg-principal)',
-                color: 'var(--texto-principal)', cursor: esMiPropioUsuario ? 'not-allowed' : 'default'
+                fontSize: '0.9rem', backgroundColor: (esMiPropioUsuario || usuarioEditando.rol === 'SUPERADMIN') ? 'rgba(0,0,0,0.05)' : 'var(--bg-principal)',
+                color: 'var(--texto-principal)', cursor: (esMiPropioUsuario || usuarioEditando.rol === 'SUPERADMIN') ? 'not-allowed' : 'default'
               }}
             >
-              <option value="EMPLEADO">EMPLEADO</option>
-              <option value="ADMIN">ADMIN</option>
-              <option value="SUPERADMIN">SUPERADMIN</option>
+              {usuarioEditando.rol === 'SUPERADMIN' ? (
+                <option value="SUPERADMIN">SUPERADMIN (Rol Fijo)</option>
+              ) : (
+                <>
+                  <option value="EMPLEADO">EMPLEADO</option>
+                  <option value="ADMIN">ADMIN</option>
+                </>
+              )}
             </select>
           </div>
 

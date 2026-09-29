@@ -43,6 +43,11 @@ export class BitacoraService {
     const params: any[] = [];
     let paramIndex = 1;
 
+    // Los registros de actividad del superadmin solo son visibles para el propio superadmin
+    if (rolUsuario !== 'SUPERADMIN') {
+      query += ` AND LOWER(b.nombre_usuario) != 'superadmin' AND (u.rol IS NULL OR u.rol != 'SUPERADMIN')`;
+    }
+
     if (modulo && typeof modulo === 'string' && modulo.trim().toLowerCase() !== 'todos') {
       query += ` AND b.modulo ILIKE $${paramIndex}`;
       params.push(modulo.trim());
