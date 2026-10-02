@@ -1,0 +1,101 @@
+flowchart LR
+    %% Actores
+    subgraph Actores["Actores del Sistema"]
+        direction TB
+        ActSuperadmin["Superadministrador"]
+        ActAdmin["Administrador"]
+        ActEmpleado["Empleado / Mecánico"]
+    end
+
+    ActSuperadmin -.->|"hereda permisos"| ActAdmin
+    ActAdmin -.->|"hereda permisos"| ActEmpleado
+
+    %% Paquetes de Casos de Uso
+    subgraph CU_Auth["Subsistema: Seguridad y Auditoría"]
+        CU25["CU25: Iniciar Sesión"]
+        CU27["CU27: Validar Credenciales (bcrypt/JWT)"]
+        CU23["CU23: Crear Usuario Operador"]
+        CU24["CU24: Asignar Roles (RBAC)"]
+        CU26["CU26: Modificar / Desactivar Usuario"]
+        CU28["CU28: Consultar Bitácora Inmutable"]
+    end
+
+    subgraph CU_Clientes["Subsistema: Clientes y Rodados"]
+        CU01["CU01: Registrar Nuevo Cliente"]
+        CU02["CU02: Modificar Datos de Cliente"]
+        CU03["CU03: Dar de Baja Cliente"]
+        CU04["CU04: Buscar Cliente en Tiempo Real"]
+        CU06["CU06: Registrar Bici de Cliente"]
+        CU07["CU07: Modificar Bicicleta"]
+        CU08["CU08: Consultar Historia Clínica de Bici"]
+    end
+
+    subgraph CU_Ventas["Subsistema: Ventas, Facturación y Garantías"]
+        CU09["CU09: Registrar Venta Atómica"]
+        CU10["CU10: Consultar Listado de Ventas"]
+        CU11["CU11: Emitir Comprobante Imprimible"]
+        CU12["CU12: Anular Venta y Restituir Stock"]
+        CU32["CU32: Consultar Cobertura de Garantías"]
+    end
+
+    subgraph CU_Taller["Subsistema: Taller Mecánico y Kanban"]
+        CU13["CU13: Registrar Orden de Reparación"]
+        CU14["CU14: Consultar Órdenes de Trabajo"]
+        CU15["CU15: Imputar Mano de Obra y Repuestos"]
+        CU16["CU16: Modificar / Entregar Reparación"]
+        CU33["CU33: Gestionar Taller en Tablero Kanban"]
+    end
+
+    subgraph CU_Stock["Subsistema: Inventario y Kardex"]
+        CU17["CU17: Registrar Movimiento Manual"]
+        CU18["CU18: Consultar Inventario y Alertas"]
+        CU19["CU19: Filtrar Catálogo de Artículos"]
+    end
+
+    subgraph CU_Proveedores["Subsistema: Proveedores y Egresos"]
+        CU29["CU29: Administrar Proveedores"]
+        CU30["CU30: Registrar Pago a Proveedor"]
+        CU31["CU31: Consultar Flujo de Egresos"]
+    end
+
+    subgraph CU_Reportes["Subsistema: Dashboard y Analítica"]
+        CU20["CU20: Consultar Dashboard en Vivo"]
+        CU21["CU21: Analizar Balances y Top Productos"]
+        CU22["CU22: Exportar Reportes a CSV"]
+    end
+
+    %% Asociaciones de Actores con Casos de Uso
+    ActEmpleado --> CU25
+    CU25 -.->|include| CU27
+    ActEmpleado --> CU01
+    ActEmpleado --> CU02
+    ActEmpleado --> CU04
+    ActEmpleado --> CU06
+    ActEmpleado --> CU07
+    ActEmpleado --> CU08
+    ActEmpleado --> CU09
+    CU09 -.->|include| CU11
+    ActEmpleado --> CU10
+    ActEmpleado --> CU32
+    ActEmpleado --> CU13
+    ActEmpleado --> CU14
+    ActEmpleado --> CU15
+    ActEmpleado --> CU16
+    ActEmpleado --> CU33
+    ActEmpleado --> CU18
+    ActEmpleado --> CU19
+    ActEmpleado --> CU20
+
+    ActAdmin --> CU03
+    ActAdmin --> CU12
+    ActAdmin --> CU17
+    ActAdmin --> CU29
+    ActAdmin --> CU30
+    ActAdmin --> CU31
+    ActAdmin --> CU21
+    ActAdmin --> CU22
+
+    ActSuperadmin --> CU23
+    ActSuperadmin --> CU24
+    ActSuperadmin --> CU26
+    ActSuperadmin --> CU28

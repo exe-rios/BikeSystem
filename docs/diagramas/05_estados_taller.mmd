@@ -1,0 +1,18 @@
+stateDiagram-v2
+    [*] --> Recibida : Recepción de rodado y apertura de orden
+    Recibida --> En_Reparación : Mecánico asigna tareas y banco de trabajo
+    En_Reparación --> En_Reparación : Imputación o ajuste de repuestos y mano de obra
+    En_Reparación --> Lista : Servicio técnico concluido y verificado
+    Lista --> Entregada : Retiro del cliente, cobro final y fijación de fecha_egreso
+    Entregada --> [*]
+
+    note right of En_Reparación
+        Cada repuesto imputado descuenta
+        stock en tiempo real en Supabase
+        y asienta egreso en Kardex.
+    end note
+
+    note right of Entregada
+        Estado terminal. La orden queda
+        bloqueada para nuevas modificaciones.
+    end note

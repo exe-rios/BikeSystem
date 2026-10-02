@@ -1,0 +1,28 @@
+sequenceDiagram
+    autonumber
+    actor Mecanico as Mecánico de Taller
+    participant UI as ModalDetalleReparacion
+    participant API as DetalleReparacionController
+    participant Service as DetalleReparacionService
+    participant Supabase as PostgreSQL (Supabase Cloud)
+
+    Mecanico ->> UI: Selecciona repuesto y cantidad a utilizar
+    UI ->> API: POST /api/detalle-reparacion {id_reparacion, id_producto, cantidad}
+    API ->> Service: agregarRepuesto(datos, operador)
+    Service ->> Supabase: BEGIN TRANSACTION
+    Service ->> Supabase: SELECT estado FROM Reparacion WHERE id = $id FOR UPDATE
+    alt La orden está en estado 'Entregada'
+        Service ->> Supabase: ROLLBACK
+        Service -->> API: throw BadRequestError("Orden ya entregada")
+        API -->> UI: HTTP 400 Bad Request
+    else Orden activa
+        Service ->> Supabase: SELECT precio, cantidad FROM Productos WHERE id = $id FOR UPDATE
+        Service ->> Supabase: INSERT INTO Detalle_Reparacion (...)
+        Service ->> Supabase: UPDATE Productos SET cantidad = cantidad - $cant
+        Service ->> Supabase: UPDATE Reparacion SET costo_total = costo_mano_obra + repuestos
+        Service ->> Supabase: INSERT INTO Movimiento_Stock (EGRESO, 'Taller Mecánico')
+        Service ->> Supabase: COMMIT TRANSACTION
+        Service -->> API: Repuesto imputado
+        API -->> UI: HTTP 201 Created
+        UI -->> Mecanico: Actualiza total de la orden en tiempo real
+    end

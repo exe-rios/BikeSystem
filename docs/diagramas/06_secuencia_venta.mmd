@@ -1,0 +1,41 @@
+sequenceDiagram
+    autonumber
+    actor Vendedor as Vendedor / Cajero
+    participant React as React UI (ModalNuevaVenta)
+    participant API as VentaController (Express)
+    participant Service as VentaService
+    participant Supabase as PostgreSQL (Supabase Cloud)
+    participant Kardex as Movimiento_Stock
+    participant Bitacora as Bitacora_Actividad
+
+    Vendedor ->> React: Confirma venta (Cliente, Medio de Pago, Artículos)
+    React ->> API: POST /api/ventas (Bearer JWT)
+    API ->> Service: crearVenta(datos, operador)
+    Service ->> Supabase: Conectar pool e Iniciar Transacción (BEGIN)
+    Service ->> Supabase: INSERT INTO Venta (id_cliente, id_usuario, ...) RETURNING id_venta
+
+    loop Por cada artículo (ordenado por id_producto ASC)
+        Service ->> Supabase: SELECT ... FROM Productos WHERE id_producto = $1 FOR UPDATE
+        Supabase -->> Service: Producto (precio oficial, stock actual)
+        alt Stock insuficiente o inactivo
+            Service ->> Supabase: ROLLBACK TRANSACTION
+            Service -->> API: throw BadRequestError("Stock insuficiente")
+            API -->> React: HTTP 400 Bad Request
+            React -->> Vendedor: Notificación de error en pantalla
+        else Stock disponible
+            Service ->> Supabase: INSERT INTO Detalle_Venta (...)
+            Service ->> Supabase: UPDATE Productos SET cantidad = cantidad - $cant
+            Service ->> Supabase: INSERT INTO Movimiento_Stock (EGRESO, 'Venta Comercial')
+            opt Es bicicleta completa
+                Service ->> Supabase: INSERT INTO Bicicleta (id_cliente, marca, modelo)
+            end
+        end
+    end
+
+    Service ->> Supabase: UPDATE Venta SET costo_total = $calculado WHERE id_venta = $id
+    Service ->> Supabase: INSERT INTO Bitacora_Actividad ('Ventas', 'Registro de Venta')
+    Service ->> Supabase: COMMIT TRANSACTION
+    Supabase -->> Service: Éxito
+    Service -->> API: Venta confirmada y desglosada
+    API -->> React: HTTP 201 Created (Comprobante generado)
+    React -->> Vendedor: Muestra modal de Comprobante FAC-XXXXXX listo para imprimir
