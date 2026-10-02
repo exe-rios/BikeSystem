@@ -1,0 +1,27 @@
+flowchart TD
+    subgraph Actores["Usuarios del Negocio"]
+        Superadmin["Superadministrador / Dueño<br>(Diego Nagel)"]
+        Admin["Administrador de Salón"]
+        Empleado["Empleado / Mecánico de Taller"]
+    end
+
+    subgraph Sistema["Frontera del Sistema: BikeSystem Desktop"]
+        ElectronApp["Aplicación de Escritorio BikeSystem<br>(Electron 42 + React 19 + Express 5)"]
+    end
+
+    subgraph InfraestructuraNube["Infraestructura y Persistencia en la Nube"]
+        SupabaseDB[("Base de Datos PostgreSQL 16+<br>Alojada en Supabase Cloud<br>(SSL Seguro / Pooler)")]
+    end
+
+    subgraph Salidas["Salidas y Periféricos"]
+        FileSystem["Sistema de Archivos Local<br>(Exportación de Reportes CSV)"]
+        HardwareImp["Impresoras de Sistema<br>(Comprobantes de Venta FAC-XXXXXX)"]
+    end
+
+    Superadmin -->|"Administra usuarios, audita bitácora, analiza balances"| ElectronApp
+    Admin -->|"Controla proveedores, anula ventas, supervisa stock"| ElectronApp
+    Empleado -->|"Registra ventas, actualiza tablero Kanban, recibe bicis"| ElectronApp
+
+    ElectronApp -->|"Conexión TCP cifrada TLS/SSL (DATABASE_URL Supabase)"| SupabaseDB
+    ElectronApp -->|"Exporta planillas tabulares CSV"| FileSystem
+    ElectronApp -->|"Imprime comprobantes y tickets"| HardwareImp
