@@ -4,12 +4,17 @@ import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '.
 import { validarId } from '../utils/validation.js';
 
 const ROLES_VALIDOS = ['ADMIN', 'EMPLEADO', 'SUPERADMIN'];
+const ROLES_CREABLES = ['ADMIN', 'EMPLEADO'];
 
 /** Servicio para la administración de cuentas de usuario, roles y credenciales. */
 export class UsuarioService {
   /** Lista usuarios registrados con filtros opcionales por rol o coincidencia de nombre. */
-  static async obtenerUsuarios(filtros: { busqueda?: string | undefined; rol?: string | undefined }) {
-    const { busqueda, rol } = filtros;
+  static async obtenerUsuarios(filtros: {
+    busqueda?: string | undefined;
+    rol?: string | undefined;
+    rolOperador?: string | undefined;
+  }) {
+    const { busqueda, rol, rolOperador } = filtros;
     let query = `
       SELECT id_usuario, nombre_usuario, rol
       FROM Usuario
@@ -18,6 +23,11 @@ export class UsuarioService {
     const whereClauses: string[] = [];
     const params: any[] = [];
     let paramIdx = 1;
+
+    // El perfil superadmin está completamente oculto para empleados y administradores
+    if (rolOperador !== 'SUPERADMIN') {
+      whereClauses.push(`(rol != 'SUPERADMIN' AND LOWER(nombre_usuario) != 'superadmin')`);
+    }
 
     if (rol && typeof rol === 'string' && rol.trim() && rol.trim() !== 'TODOS') {
       whereClauses.push(`rol = $${paramIdx}`);
@@ -50,7 +60,7 @@ export class UsuarioService {
   }
 
   /** Obtiene un usuario específico por su ID. */
-  static async obtenerUsuarioPorId(id: number) {
+  static async obtenerUsuarioPorId(id: number, rolOperador?: string | undefined) {
     validarId(id, 'No se encontró ese usuario.');
 
     const query = `
@@ -64,7 +74,14 @@ export class UsuarioService {
       throw new NotFoundError('Ese usuario no existe.');
     }
 
-    return result.rows[0];
+    const usuario = result.rows[0];
+
+    // Ocultar al superadmin si quien consulta no es superadmin
+    if (rolOperador !== 'SUPERADMIN' && (usuario.rol === 'SUPERADMIN' || usuario.nombre_usuario?.toLowerCase() === 'superadmin')) {
+      throw new NotFoundError('Ese usuario no existe.');
+    }
+
+    return usuario;
   }
 
   /** Crea una nueva cuenta de usuario con contraseña hasheada y asignación de rol. */
@@ -86,12 +103,20 @@ export class UsuarioService {
       throw new BadRequestError('El nombre de usuario debe tener al menos 3 letras.');
     }
 
+    if (nombre_usuario.trim().toLowerCase() === 'superadmin') {
+      throw new BadRequestError('El nombre de usuario "superadmin" está reservado para el sistema.');
+    }
+
     if (!contrasena || typeof contrasena !== 'string' || contrasena.length < 6) {
       throw new BadRequestError('La contraseña debe tener al menos 6 caracteres.');
     }
 
     const rolNormalizado = String(rol || 'EMPLEADO').trim().toUpperCase();
-    if (!ROLES_VALIDOS.includes(rolNormalizado)) {
+    if (rolNormalizado === 'SUPERADMIN') {
+      throw new BadRequestError('No se puede crear usuarios con el rol SUPERADMIN. El sistema posee un único perfil superadministrador.');
+    }
+
+    if (!ROLES_CREABLES.includes(rolNormalizado)) {
       throw new BadRequestError('Elegí un rol válido: Administrador o Empleado.');
     }
 
@@ -160,8 +185,32 @@ export class UsuarioService {
     if (checkPrevio.rowCount === 0) {
       throw new NotFoundError('Ese usuario no existe.');
     }
-    // Si modifica el nombre_usuario, validar unicidad
+    const usuarioActual = checkPrevio.rows[0];
+
+    // Ocultar al superadmin si quien opera no es superadmin
+    if (rolOperador !== 'SUPERADMIN' && (usuarioActual.rol === 'SUPERADMIN' || usuarioActual.nombre_usuario?.toLowerCase() === 'superadmin')) {
+      throw new NotFoundError('Ese usuario no existe.');
+    }
+
+    // Prohibido asignar el rol SUPERADMIN a otros usuarios
+    if (rol && String(rol).trim().toUpperCase() === 'SUPERADMIN' && usuarioActual.rol !== 'SUPERADMIN') {
+      throw new BadRequestError('No se puede asignar el rol SUPERADMIN a otros usuarios.');
+    }
+
+    // Prohibido degradar o cambiar rol del superadmin
+    if (usuarioActual.rol === 'SUPERADMIN' && rol && String(rol).trim().toUpperCase() !== 'SUPERADMIN') {
+      throw new BadRequestError('No se puede modificar el rol del superadministrador.');
+    }
+
+    // Si modifica el nombre_usuario, validar unicidad y nombres reservados
     if (nombre_usuario && typeof nombre_usuario === 'string') {
+      if (nombre_usuario.trim().toLowerCase() === 'superadmin' && usuarioActual.nombre_usuario.toLowerCase() !== 'superadmin') {
+        throw new BadRequestError('El nombre de usuario "superadmin" está reservado para el sistema.');
+      }
+      if (usuarioActual.nombre_usuario.toLowerCase() === 'superadmin' && nombre_usuario.trim().toLowerCase() !== 'superadmin') {
+        throw new BadRequestError('No se puede cambiar el nombre de usuario del superadministrador.');
+      }
+
       const checkNombre = await pool.query(
         'SELECT id_usuario FROM Usuario WHERE LOWER(nombre_usuario) = LOWER($1) AND id_usuario != $2;',
         [nombre_usuario.trim(), id]
@@ -254,18 +303,28 @@ export class UsuarioService {
       throw new ForbiddenError('Solo un administrador puede eliminar usuarios.');
     }
 
-    if (idUsuarioOperador && idUsuarioOperador === id) {
-      throw new BadRequestError('No podés eliminar tu propia cuenta mientras estás en sesión.');
-    }
-
     const resUser = await pool.query('SELECT nombre_usuario, rol FROM Usuario WHERE id_usuario = $1;', [id]);
     if (resUser.rowCount === 0) {
       throw new NotFoundError('Ese usuario no existe.');
     }
     const usuarioAEliminar = resUser.rows[0];
 
+    // Ocultar al superadmin si quien opera no es superadmin
+    if (rolOperador !== 'SUPERADMIN' && (usuarioAEliminar.rol === 'SUPERADMIN' || usuarioAEliminar.nombre_usuario?.toLowerCase() === 'superadmin')) {
+      throw new NotFoundError('Ese usuario no existe.');
+    }
+
+    // Prohibido eliminar la cuenta de superadmin
+    if (usuarioAEliminar.rol === 'SUPERADMIN' || usuarioAEliminar.nombre_usuario?.toLowerCase() === 'superadmin') {
+      throw new ForbiddenError('La cuenta de superadministrador está reservada para mantenimiento y no puede ser eliminada.');
+    }
+
+    if (idUsuarioOperador && idUsuarioOperador === id) {
+      throw new BadRequestError('No podés eliminar tu propia cuenta mientras estás en sesión.');
+    }
+
     // Verificar que no sea el último administrador del sistema
-    if (usuarioAEliminar.rol === 'ADMIN' || usuarioAEliminar.rol === 'SUPERADMIN') {
+    if (usuarioAEliminar.rol === 'ADMIN') {
       const checkAdmins = await pool.query(
         "SELECT COUNT(*)::int AS admin_count FROM Usuario WHERE rol IN ('ADMIN', 'SUPERADMIN') AND id_usuario != $1;",
         [id]

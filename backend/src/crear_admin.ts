@@ -6,7 +6,7 @@ import { pool } from './config/db.js';
 async function crearUsuarioAdmin() {
     const nombre_usuario = process.argv[2] || 'admin';
     const contrasenaPlana = process.argv[3] || 'admin123';
-    const rol = 'SUPERADMIN';
+    const rol = 'ADMIN';
 
     console.log(`Conectando a la base de datos para crear/actualizar usuario "${nombre_usuario}"...`);
 

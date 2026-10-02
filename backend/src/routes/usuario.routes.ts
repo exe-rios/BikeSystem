@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { 
     obtenerUsuarios, 
+    obtenerUsuarioPorId,
     crearUsuario, 
     actualizarUsuario, 
     eliminarUsuario 
@@ -17,6 +18,7 @@ router.use(autorizarRoles('ADMIN', 'SUPERADMIN'));
 
 router.get('/', obtenerUsuarios);
 router.get('/registrados', obtenerUsuarios); // compatibilidad
+router.get('/:id', obtenerUsuarioPorId);
 router.post('/', crearUsuario);
 router.put('/:id', actualizarUsuario);
 router.delete('/:id', eliminarUsuario);

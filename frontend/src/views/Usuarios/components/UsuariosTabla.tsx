@@ -1,4 +1,5 @@
 import type { Usuario, BadgeRolInfo } from '../types';
+import { getUserRoleTheme } from '../../../utils/userColors';
 
 interface UsuariosTablaProps {
   usuarios: Usuario[];
@@ -53,23 +54,63 @@ export function UsuariosTabla({
             </tr>
           ) : (
             usuariosFiltrados.map(u => {
+              const theme = getUserRoleTheme(u.rol, u.nombre_usuario);
               const badge = getBadgeRol(u.rol);
               const esPropioUsuario = u.id_usuario === usuarioActualId;
+              const esSuperAdmin = theme.isSuperAdmin;
 
               return (
                 <tr key={u.id_usuario} style={{ borderBottom: '1px solid var(--borde-input)' }}>
                   <td style={{ padding: '16px', color: 'var(--texto-mutado)', fontFamily: 'monospace', fontSize: '0.9rem' }}>
                     #{u.id_usuario}
                   </td>
-                  <td style={{ padding: '16px', fontWeight: '700', color: 'var(--texto-principal)', fontSize: '0.95rem' }}>
-                    {u.nombre_usuario} {esPropioUsuario && <span style={{ fontSize: '0.75rem', color: 'var(--azul-oscuro)', fontWeight: '600', marginLeft: '6px' }}>(Tú)</span>}
+                  <td style={{ padding: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '34px',
+                        height: '34px',
+                        minWidth: '34px',
+                        borderRadius: '50%',
+                        backgroundColor: theme.avatarBg,
+                        color: theme.avatarText,
+                        border: `2px solid ${theme.avatarBorder}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '700',
+                        fontSize: '0.82rem',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                      }}>
+                        {theme.isSuperAdmin ? '👑' : (u.nombre_usuario ? u.nombre_usuario.slice(0, 2).toUpperCase() : 'U')}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontWeight: '700', color: 'var(--texto-principal)', fontSize: '0.95rem' }}>
+                          {u.nombre_usuario}
+                        </span>
+                        {esPropioUsuario && (
+                          <span style={{ fontSize: '0.75rem', color: theme.badgeColor, fontWeight: '700' }}>
+                            (Tú)
+                          </span>
+                        )}
+                        {theme.isSuperAdmin && (
+                          <span style={{ fontSize: '0.68rem', backgroundColor: 'rgba(124, 58, 237, 0.1)', color: '#7c3aed', padding: '1px 6px', borderRadius: '6px', fontWeight: '700' }}>
+                            Dev
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td style={{ padding: '16px' }}>
                     <span style={{
-                      backgroundColor: badge.bg, color: badge.color,
-                      padding: '4px 10px', borderRadius: '20px', fontSize: '0.82rem', fontWeight: '700'
+                      backgroundColor: badge.bg,
+                      color: badge.color,
+                      border: `1px solid ${theme.badgeBorder}`,
+                      padding: '4px 10px',
+                      borderRadius: '20px',
+                      fontSize: '0.82rem',
+                      fontWeight: '700'
                     }}>
-                      {badge.label}
+                      {theme.isSuperAdmin ? '👑 ' + badge.label : badge.label}
                     </span>
                   </td>
                   <td style={{ padding: '16px', textAlign: 'right' }}>
@@ -87,13 +128,15 @@ export function UsuariosTabla({
                       </button>
                       <button
                         type="button"
-                        disabled={esPropioUsuario}
+                        disabled={esPropioUsuario || esSuperAdmin}
+                        title={esSuperAdmin ? 'La cuenta de superadministrador está reservada para desarrollo y no se puede eliminar' : (esPropioUsuario ? 'No puedes eliminar tu propia cuenta' : 'Eliminar usuario')}
                         onClick={() => u.id_usuario && onEliminar(u.id_usuario, u.nombre_usuario)}
                         style={{
                           backgroundColor: 'rgba(37, 99, 235, 0.08)', color: 'var(--azul-oscuro)',
                           border: '1px solid rgba(37, 99, 235, 0.2)', borderRadius: '6px', padding: '6px 12px',
-                          fontSize: '0.8rem', fontWeight: '600', cursor: esPropioUsuario ? 'not-allowed' : 'pointer',
-                          opacity: esPropioUsuario ? 0.4 : 1
+                          fontSize: '0.8rem', fontWeight: '600',
+                          cursor: (esPropioUsuario || esSuperAdmin) ? 'not-allowed' : 'pointer',
+                          opacity: (esPropioUsuario || esSuperAdmin) ? 0.4 : 1
                         }}
                       >
                         Eliminar

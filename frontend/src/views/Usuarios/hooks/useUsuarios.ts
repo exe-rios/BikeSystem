@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Usuario, NuevoUsuarioData, EditarUsuarioData, BadgeRolInfo } from '../types';
 import { api } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
+import { getUserRoleTheme } from '../../../utils/userColors';
 
 const INITIAL_NUEVO_USUARIO: NuevoUsuarioData = {
   nombre_usuario: '',
@@ -134,6 +135,12 @@ export function useUsuarios() {
       return;
     }
 
+    const targetUser = usuarios.find(u => u.id_usuario === id);
+    if (targetUser && (targetUser.rol === 'SUPERADMIN' || targetUser.nombre_usuario?.toLowerCase() === 'superadmin')) {
+      alert('La cuenta de superadministrador está reservada para mantenimiento y no puede ser eliminada.');
+      return;
+    }
+
     if (!window.confirm(`¿Estás seguro de que deseas eliminar al usuario "${nombre}"?`)) {
       return;
     }
@@ -147,33 +154,35 @@ export function useUsuarios() {
         alert(`No se pudo eliminar: ${err.message}`);
       }
     }
-  }, [usuarioActual?.id_usuario, cargarUsuarios]);
+  }, [usuarioActual?.id_usuario, usuarios, cargarUsuarios]);
+
+  const esSuperAdmin = usuarioActual?.rol === 'SUPERADMIN' || (usuarioActual?.nombre_usuario || '').toLowerCase() === 'superadmin';
+
+  // Ocultar al superadmin si quien está en sesión no es superadmin
+  const usuariosPermitidos = useMemo(() => {
+    if (esSuperAdmin) return usuarios;
+    return usuarios.filter(u => u.rol !== 'SUPERADMIN' && (u.nombre_usuario || '').toLowerCase() !== 'superadmin');
+  }, [usuarios, esSuperAdmin]);
 
   const usuariosFiltrados = useMemo(() => {
     const term = busqueda.toLowerCase().trim();
-    if (!term) return usuarios;
-    return usuarios.filter(u => {
+    if (!term) return usuariosPermitidos;
+    return usuariosPermitidos.filter(u => {
       const nombre = (u.nombre_usuario || '').toLowerCase();
       const rol = (u.rol || '').toLowerCase();
       return nombre.includes(term) || rol.includes(term);
     });
-  }, [usuarios, busqueda]);
+  }, [usuariosPermitidos, busqueda]);
 
   const getBadgeRol = useCallback((rol: string): BadgeRolInfo => {
-    const rolUpper = (rol || '').toUpperCase();
-    if (rolUpper === 'SUPERADMIN') {
-      return { bg: 'rgba(168, 85, 247, 0.12)', color: '#9333ea', label: 'SUPERADMIN' };
-    }
-    if (rolUpper === 'ADMIN') {
-      return { bg: 'rgba(37, 99, 235, 0.12)', color: '#2563eb', label: 'ADMIN' };
-    }
-    return { bg: 'rgba(16, 185, 129, 0.12)', color: '#059669', label: 'EMPLEADO' };
+    const theme = getUserRoleTheme(rol);
+    return { bg: theme.badgeBg, color: theme.badgeColor, label: theme.label };
   }, []);
 
   return {
-    usuarios,
+    usuarios: usuariosPermitidos,
     usuariosFiltrados,
-    totalUsuarios: usuarios.length,
+    totalUsuarios: usuariosPermitidos.length,
     usuarioActual,
     cargando,
     guardando,

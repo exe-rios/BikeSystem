@@ -22,7 +22,7 @@ const construirFiltroFecha = (columna: string, desde?: string | undefined, hasta
     if (!DATE_REGEX.test(hastaLimpio)) {
       throw new BadRequestError('El formato de fecha "hasta" no es válido. Usá AAAA-MM-DD (ej: 2026-05-31).');
     }
-    condiciones.push(`${columna} <= $${idx++}`);
+    condiciones.push(`${columna} < ($${idx++}::date + INTERVAL '1 day')`);
     params.push(hastaLimpio);
   }
 
@@ -253,7 +253,7 @@ export class ReporteService {
       params.push(fechaDesde.trim());
     }
     if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
-      condiciones.push(`v.fecha <= $${idx++}`);
+      condiciones.push(`v.fecha < ($${idx++}::date + INTERVAL '1 day')`);
       params.push(fechaHasta.trim());
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
@@ -341,7 +341,7 @@ export class ReporteService {
       params.push(fechaDesde.trim());
     }
     if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
-      condiciones.push(`COALESCE(r.fecha_egreso, r.fecha_ingreso) <= $${idx++}`);
+      condiciones.push(`COALESCE(r.fecha_egreso, r.fecha_ingreso) < ($${idx++}::date + INTERVAL '1 day')`);
       params.push(fechaHasta.trim());
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
@@ -441,7 +441,7 @@ export class ReporteService {
       params.push(fechaDesde.trim());
     }
     if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
-      condiciones.push(`p.fecha <= $${idx++}`);
+      condiciones.push(`p.fecha < ($${idx++}::date + INTERVAL '1 day')`);
       params.push(fechaHasta.trim());
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
