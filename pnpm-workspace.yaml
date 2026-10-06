@@ -4,5 +4,6 @@ packages:
 
 allowBuilds:
   bcrypt: true
+  core-js: false
   electron-winstaller: true
   esbuild: true
