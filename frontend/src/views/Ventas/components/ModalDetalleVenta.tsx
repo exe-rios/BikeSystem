@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { VentaDetallada } from '../types';
 import { formatearMoneda, formatearFecha, formatearFechaHora } from '../../../utils/formatters';
+import { generarPDFVenta } from '../../../utils/generarPDFVenta';
 
 interface ModalDetalleVentaProps {
   ventaSeleccionada: VentaDetallada | null;
@@ -102,6 +103,25 @@ export function ModalDetalleVenta({
               <div className="no-imprimir" style={{ display: 'flex', gap: '8px' }}>
                 <button
                   type="button"
+                  onClick={() => generarPDFVenta(ventaSeleccionada)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--azul-oscuro)',
+                    backgroundColor: 'var(--azul-oscuro)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <span>Descargar PDF</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => window.print()}
                   style={{
                     padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--borde-input)',
@@ -115,38 +135,63 @@ export function ModalDetalleVenta({
                   onClick={handleClose}
                   style={{ background: 'none', border: 'none', fontSize: '1.3rem', cursor: 'pointer', color: 'var(--texto-mutado)', padding: '0 4px' }}
                 >
-                  ✕
+                  X
                 </button>
               </div>
             </div>
 
-            {/* Datos del Cliente y Vendedor */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: 'var(--bg-principal)', padding: '16px', borderRadius: '10px' }}>
-              <div>
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Cliente Comprador</span>
-                <p style={{ margin: '4px 0 0 0', fontWeight: '700', fontSize: '1rem', color: 'var(--texto-principal)' }}>
-                  {ventaSeleccionada.venta.cliente_nombre} {ventaSeleccionada.venta.cliente_apellido}
-                </p>
-                <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
-                  DNI: {ventaSeleccionada.venta.cliente_dni || 'No registrado'}
-                </p>
-                {ventaSeleccionada.venta.cliente_telefono && (
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
-                    Tel: {ventaSeleccionada.venta.cliente_telefono}
-                  </p>
-                )}
-              </div>
+            {/* Datos del Cliente y de la Operación */}
+            {(() => {
+              const esConsumidorFinal = 
+                ventaSeleccionada.venta.es_consumidor_final ||
+                (ventaSeleccionada.venta.cliente_nombre?.toLowerCase().trim() === 'consumidor' && ventaSeleccionada.venta.cliente_apellido?.toLowerCase().trim() === 'final') ||
+                (ventaSeleccionada.venta.cliente_nombre?.toLowerCase().trim() === 'final' && ventaSeleccionada.venta.cliente_apellido?.toLowerCase().trim() === 'consumidor') ||
+                ventaSeleccionada.venta.cliente_direccion?.toLowerCase().includes('mostrador');
 
-              <div>
-                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Información de la Operación</span>
-                <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'var(--texto-principal)' }}>
-                  <strong>Vendedor:</strong> {ventaSeleccionada.venta.vendedor || 'Sistema'}
-                </p>
-                <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
-                  Método de Pago: <strong style={{ color: 'var(--texto-principal)' }}>{ventaSeleccionada.venta.metodo_pago_nombre || 'Efectivo'}</strong>
-                </p>
-              </div>
-            </div>
+              const tieneNombrePersonalizado = 
+                esConsumidorFinal && 
+                ventaSeleccionada.venta.cliente_nombre && 
+                ventaSeleccionada.venta.cliente_nombre.toLowerCase().trim() !== 'consumidor';
+
+              const nombreClienteMostrar = tieneNombrePersonalizado
+                ? `${ventaSeleccionada.venta.cliente_nombre} ${ventaSeleccionada.venta.cliente_apellido || ''} (Consumidor Final)`
+                : esConsumidorFinal
+                ? 'Consumidor Final'
+                : `${ventaSeleccionada.venta.cliente_nombre} ${ventaSeleccionada.venta.cliente_apellido || ''}`;
+
+              const dniMostrar = esConsumidorFinal
+                ? (ventaSeleccionada.venta.cliente_dni ? ventaSeleccionada.venta.cliente_dni : 'S/DNI (Venta Mostrador)')
+                : (ventaSeleccionada.venta.cliente_dni || 'S/DNI');
+
+              return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: 'var(--bg-principal)', padding: '16px', borderRadius: '10px' }}>
+                  <div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Cliente Comprador</span>
+                    <p style={{ margin: '4px 0 0 0', fontWeight: '700', fontSize: '1rem', color: 'var(--texto-principal)' }}>
+                      {nombreClienteMostrar}
+                    </p>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
+                      DNI: {dniMostrar}
+                    </p>
+                    {!esConsumidorFinal && ventaSeleccionada.venta.cliente_telefono && (
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
+                        Tel: {ventaSeleccionada.venta.cliente_telefono}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Información de la Operación</span>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'var(--texto-principal)' }}>
+                      Método de Pago: <strong style={{ color: 'var(--texto-principal)' }}>{ventaSeleccionada.venta.metodo_pago_nombre || 'Efectivo'}</strong>
+                    </p>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
+                      Fecha y Hora: {formatearFechaHora(ventaSeleccionada.venta.fecha)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Tabla de Artículos Facturados */}
             <div>
@@ -204,8 +249,8 @@ export function ModalDetalleVenta({
             {/* PIE DE PÁGINA IMPRESIÓN */}
             <div className="imprimir-membrete" style={{ marginTop: '16px', paddingTop: '12px', fontSize: '0.8rem', borderTop: '1px dashed #666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <strong>Garantía:</strong> 30 días corridos a partir de la fecha de entrega en bicicletas nuevas y cuadros.<br />
-                ¡Gracias por elegir <strong>BIKESYSTEM</strong>!
+                <strong>Garantía:</strong> 30 días corridos para 1° service obligatorio de asentamiento que extiende la cobertura a 6 meses en bicicletas nuevas.<br />
+                Gracias por elegir <strong>BIKESYSTEM</strong>.
               </div>
               <div style={{ textAlign: 'center', width: '220px', borderTop: '1px solid #000', paddingTop: '4px', marginTop: '24px' }}>
                 Firma / Conformidad
@@ -222,7 +267,7 @@ export function ModalDetalleVenta({
                 borderRadius: '10px',
                 fontSize: '0.88rem'
               }}>
-                <strong>⚠️ Esta venta fue anulada:</strong> {ventaSeleccionada.venta.motivo_anulacion || 'Sin motivo especificado'}.
+                <strong>Esta venta fue anulada:</strong> {ventaSeleccionada.venta.motivo_anulacion || 'Sin motivo especificado'}.
                 {ventaSeleccionada.venta.fecha_anulacion && (
                   <div style={{ fontSize: '0.78rem', color: '#991b1b', marginTop: '4px' }}>
                     Fecha: {formatearFechaHora(ventaSeleccionada.venta.fecha_anulacion)} — Stock de los productos repuesto al inventario.
@@ -253,15 +298,35 @@ export function ModalDetalleVenta({
                       opacity: anulando ? 0.6 : 1
                     }}
                   >
-                    <span>⚠️ Anular Venta y Reponer Stock</span>
+                    <span>Anular Venta y Reponer Stock</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => generarPDFVenta(ventaSeleccionada)}
+                    style={{
+                      padding: '10px 18px',
+                      backgroundColor: 'var(--azul-oscuro)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: '700',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <span>Descargar PDF</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={handleClose}
                     style={{
-                      padding: '10px 24px', backgroundColor: 'var(--azul-oscuro)', color: '#fff',
-                      border: 'none', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'
+                      padding: '10px 24px', backgroundColor: 'transparent', color: 'var(--texto-principal)',
+                      border: '1px solid var(--borde-input)', borderRadius: '8px', fontWeight: '600', cursor: 'pointer'
                     }}
                   >
                     Cerrar
@@ -354,7 +419,23 @@ export function ModalDetalleVenta({
               )}
 
               {ventaSeleccionada.venta.estado === 'ANULADA' && (
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => generarPDFVenta(ventaSeleccionada)}
+                    style={{
+                      padding: '10px 18px',
+                      backgroundColor: 'transparent',
+                      color: 'var(--texto-principal)',
+                      border: '1px solid var(--borde-input)',
+                      borderRadius: '8px',
+                      fontWeight: '600',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <span>Descargar PDF</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleClose}

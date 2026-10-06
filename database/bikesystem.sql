@@ -93,6 +93,9 @@ CREATE TABLE Venta (
     estado VARCHAR(20) NOT NULL DEFAULT 'COMPLETADA' CONSTRAINT chk_venta_estado CHECK (estado IN ('COMPLETADA', 'ANULADA')),
     fecha_anulacion TIMESTAMPTZ NULL,
     motivo_anulacion TEXT NULL,
+    cliente_nombre VARCHAR(100) NULL,
+    cliente_apellido VARCHAR(100) NULL,
+    cliente_dni VARCHAR(20) NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_venta_cliente FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente) ON DELETE RESTRICT,
@@ -140,8 +143,14 @@ CREATE TABLE Detalle_Venta (
     cantidad INT NOT NULL CONSTRAINT chk_detventa_cantidad CHECK (cantidad > 0),
     precio_unitario DECIMAL(10, 2) NOT NULL,
     costo_total DECIMAL(10, 2) NOT NULL,
+    primer_service_realizado BOOLEAN NOT NULL DEFAULT false,
+    fecha_primer_service DATE NULL,
+    observaciones_service TEXT NULL,
+    id_usuario_service INT NULL,
+    service_excepcion BOOLEAN NOT NULL DEFAULT false,
     CONSTRAINT fk_detventa_venta FOREIGN KEY (id_venta) REFERENCES Venta(id_venta) ON DELETE CASCADE,
-    CONSTRAINT fk_detventa_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE RESTRICT
+    CONSTRAINT fk_detventa_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE RESTRICT,
+    CONSTRAINT fk_detventa_usuario_service FOREIGN KEY (id_usuario_service) REFERENCES Usuario(id_usuario) ON DELETE SET NULL
 );
 
 CREATE TABLE Detalle_Reparacion (

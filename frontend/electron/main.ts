@@ -109,7 +109,7 @@ function createWindow() {
       preload: preloadPath,
       webSecurity: true,
       backgroundThrottling: false,
-      devTools: false
+      devTools: Boolean(process.env.VITE_DEV_SERVER_URL)
     }
   });
 
@@ -161,15 +161,22 @@ function createWindow() {
     }
   });
 
-  // Bloquear recarga accidental y atajos de DevTools (F12, Ctrl+Shift+I)
+  // Bloquear recarga accidental y atajos de DevTools en producción; habilitar en desarrollo
   win.webContents.on('before-input-event', (event, input) => {
     const esRecarga = input.key === 'F5' || ((input.control || input.meta) && input.key.toLowerCase() === 'r');
     const esDevTools = input.key === 'F12' || ((input.control || input.meta) && input.shift && (input.key.toLowerCase() === 'i' || input.key.toLowerCase() === 'j'));
+    const esDesarrollo = Boolean(process.env.VITE_DEV_SERVER_URL);
 
     if (esDevTools) {
-      event.preventDefault();
-    } else if (esRecarga && !process.env.VITE_DEV_SERVER_URL) {
-      event.preventDefault();
+      if (!esDesarrollo) {
+        event.preventDefault();
+      }
+    } else if (esRecarga) {
+      if (!esDesarrollo) {
+        event.preventDefault();
+      } else {
+        win.webContents.reload();
+      }
     }
   });
 

@@ -43,7 +43,13 @@ export class ClienteService {
       params.push(term);
     }
 
-    query += ` ORDER BY id_cliente DESC`;
+    query += ` ORDER BY 
+      CASE 
+        WHEN (LOWER(TRIM(nombre)) = 'consumidor' AND LOWER(TRIM(apellido)) = 'final')
+          OR (LOWER(TRIM(nombre)) = 'final' AND LOWER(TRIM(apellido)) = 'consumidor') THEN 0 
+        ELSE 1 
+      END,
+      id_cliente DESC`;
 
     const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
     query = aplicarPaginacionSQL(query, params, paginacion);

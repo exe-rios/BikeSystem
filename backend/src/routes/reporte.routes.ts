@@ -4,7 +4,9 @@ import {
     obtenerEstadisticas, 
     obtenerVentasReporte, 
     obtenerReparacionesReporte, 
-    obtenerEgresosReporte 
+    obtenerEgresosReporte,
+    obtenerRankingProductos,
+    obtenerReporteCapitalStock
 } from '../controllers/reporte.controller.js';
 import { verificarToken } from '../middlewares/auth.middleware.js';
 import { autorizarRoles } from '../middlewares/roles.middleware.js';
@@ -23,5 +25,7 @@ router.get('/estadisticas', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerEstadi
 router.get('/ventas', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerVentasReporte);
 router.get('/reparaciones', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerReparacionesReporte);
 router.get('/egresos', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerEgresosReporte);
+router.get('/top-productos', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerRankingProductos);
+router.get('/capital-stock', autorizarRoles('ADMIN', 'SUPERADMIN'), obtenerReporteCapitalStock);
 
 export default router;

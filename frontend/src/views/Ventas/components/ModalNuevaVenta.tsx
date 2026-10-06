@@ -15,6 +15,12 @@ interface ModalNuevaVentaProps {
   totalVenta: number;
   guardando: boolean;
   errorCarrito?: string | null;
+  nombreConsumidorFinal: string;
+  apellidoConsumidorFinal: string;
+  dniConsumidorFinal: string;
+  onCambiarNombreCF: (val: string) => void;
+  onCambiarApellidoCF: (val: string) => void;
+  onCambiarDniCF: (val: string) => void;
   onCambiarCliente: (id: number) => void;
   onCambiarMetodoPago: (id: number) => void;
   onCambiarProductoBuscado: (id: number) => void;
@@ -41,6 +47,12 @@ export function ModalNuevaVenta({
   totalVenta,
   guardando,
   errorCarrito,
+  nombreConsumidorFinal,
+  apellidoConsumidorFinal,
+  dniConsumidorFinal,
+  onCambiarNombreCF,
+  onCambiarApellidoCF,
+  onCambiarDniCF,
   onCambiarCliente,
   onCambiarMetodoPago,
   onCambiarProductoBuscado,
@@ -82,6 +94,43 @@ export function ModalNuevaVenta({
     return productos.find(p => p.id_producto === productoBuscadoId);
   }, [productos, productoBuscadoId]);
 
+  // Identificar cliente Consumidor Final para venta rápida de mostrador
+  const clienteConsumidorFinal = useMemo(() => {
+    return clientes.find(c => 
+      (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
+      (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
+      c.direccion?.toLowerCase().includes('mostrador')
+    );
+  }, [clientes]);
+
+  // Determinar si el cliente actualmente seleccionado es Consumidor Final
+  const esConsumidorFinal = useMemo(() => {
+    if (!clienteSeleccionadoId || clienteSeleccionadoId === 0) return true;
+    if (clienteConsumidorFinal && clienteSeleccionadoId === clienteConsumidorFinal.id_cliente) return true;
+    const c = clientes.find(cli => cli.id_cliente === clienteSeleccionadoId);
+    if (!c) return false;
+    return (
+      (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
+      (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
+      c.direccion?.toLowerCase().includes('mostrador')
+    );
+  }, [clienteSeleccionadoId, clienteConsumidorFinal, clientes]);
+
+  // Priorizar Consumidor Final al inicio de la lista de selección
+  const clientesOrdenados = useMemo(() => {
+    return [...clientes].sort((a, b) => {
+      const aEsCF = (a.nombre?.toLowerCase().trim() === 'consumidor' && a.apellido?.toLowerCase().trim() === 'final') ||
+                    (a.nombre?.toLowerCase().trim() === 'final' && a.apellido?.toLowerCase().trim() === 'consumidor') ||
+                    a.direccion?.toLowerCase().includes('mostrador');
+      const bEsCF = (b.nombre?.toLowerCase().trim() === 'consumidor' && b.apellido?.toLowerCase().trim() === 'final') ||
+                    (b.nombre?.toLowerCase().trim() === 'final' && b.apellido?.toLowerCase().trim() === 'consumidor') ||
+                    b.direccion?.toLowerCase().includes('mostrador');
+      if (aEsCF && !bEsCF) return -1;
+      if (!aEsCF && bEsCF) return 1;
+      return (a.apellido || '').localeCompare(b.apellido || '');
+    });
+  }, [clientes]);
+
   const handleClose = () => {
     if (carritoDetalle.length > 0) {
       if (!window.confirm('Hay artículos agregados al comprobante. ¿Seguro que deseas salir y descartar la venta?')) return;
@@ -99,9 +148,17 @@ export function ModalNuevaVenta({
       }}
     >
       <div style={{
-        backgroundColor: 'var(--bg-tarjeta)', width: '780px', padding: '28px',
-        borderRadius: '16px', border: '1px solid var(--borde-input)',
-        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)', maxHeight: '90vh', overflowY: 'auto',
+        backgroundColor: 'var(--bg-tarjeta)',
+        width: '760px',
+        maxWidth: '94vw',
+        padding: '24px',
+        borderRadius: '16px',
+        border: '1px solid var(--borde-input)',
+        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15)',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        boxSizing: 'border-box',
         color: 'var(--texto-principal)'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -122,9 +179,28 @@ export function ModalNuevaVenta({
           {/* SELECCIÓN DE CLIENTE Y MÉTODO DE PAGO */}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '14px' }}>
             <div>
-              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                Cliente Comprador *
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600' }}>
+                  Cliente Comprador *
+                </label>
+                {clienteConsumidorFinal && clienteSeleccionadoId !== clienteConsumidorFinal.id_cliente && (
+                  <button
+                    type="button"
+                    onClick={() => onCambiarCliente(clienteConsumidorFinal.id_cliente!)}
+                    style={{
+                      border: 'none',
+                      background: 'none',
+                      color: 'var(--azul-oscuro)',
+                      fontSize: '0.78rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Usar Consumidor Final
+                  </button>
+                )}
+              </div>
               <select
                 value={clienteSeleccionadoId}
                 onChange={e => onCambiarCliente(Number(e.target.value))}
@@ -135,12 +211,17 @@ export function ModalNuevaVenta({
                 }}
                 required
               >
-                <option value={0}>Seleccionar Cliente ({clientes.length} disponibles)</option>
-                {clientes.map(c => (
-                  <option key={c.id_cliente} value={c.id_cliente}>
-                    {c.apellido} {c.nombre} (DNI: {c.dni || 'S/DNI'})
-                  </option>
-                ))}
+                <option value={0}>Seleccionar Cliente ({clientesOrdenados.length} disponibles)</option>
+                {clientesOrdenados.map(c => {
+                  const esCF = (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
+                               (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
+                               c.direccion?.toLowerCase().includes('mostrador');
+                  return (
+                    <option key={c.id_cliente} value={c.id_cliente}>
+                      {esCF ? 'Consumidor Final (S/DNI - Venta Mostrador)' : `${c.apellido} ${c.nombre} (DNI: ${c.dni || 'S/DNI'})`}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -166,6 +247,115 @@ export function ModalNuevaVenta({
               </select>
             </div>
           </div>
+
+          {/* CAMPOS RÁPIDOS PARA DATOS DE CONSUMIDOR FINAL */}
+          {esConsumidorFinal && (
+            <div style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.04)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              borderRadius: '10px',
+              padding: '12px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                <span style={{ fontSize: '0.84rem', fontWeight: '700', color: 'var(--azul-oscuro)', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span>👤 Datos del Comprador (Consumidor Final)</span>
+                  <span style={{ fontSize: '0.74rem', fontWeight: '500', color: 'var(--texto-mutado)' }}>(Opcional)</span>
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--texto-mutado)' }}>
+                  Asigna nombre y DNI a este comprobante sin crear nuevo cliente
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', fontWeight: '600', color: 'var(--texto-mutado)' }}>
+                    Nombre
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={50}
+                    value={nombreConsumidorFinal}
+                    onChange={e => onCambiarNombreCF(e.target.value)}
+                    placeholder="Ej. Juan"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--borde-input)',
+                      fontSize: '0.85rem',
+                      backgroundColor: 'var(--bg-principal)',
+                      color: 'var(--texto-principal)'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', fontWeight: '600', color: 'var(--texto-mutado)' }}>
+                    Apellido
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={50}
+                    value={apellidoConsumidorFinal}
+                    onChange={e => onCambiarApellidoCF(e.target.value)}
+                    placeholder="Ej. Pérez"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--borde-input)',
+                      fontSize: '0.85rem',
+                      backgroundColor: 'var(--bg-principal)',
+                      color: 'var(--texto-principal)'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.75rem', fontWeight: '600', color: 'var(--texto-mutado)' }}>
+                    DNI / Identificación
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={20}
+                    value={dniConsumidorFinal}
+                    onChange={e => onCambiarDniCF(e.target.value.replace(/[^0-9a-zA-Z]/g, ''))}
+                    placeholder="Ej. 38123456"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--borde-input)',
+                      fontSize: '0.85rem',
+                      backgroundColor: 'var(--bg-principal)',
+                      color: 'var(--texto-principal)'
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Aviso informativo de garantía si se vende bicicleta a Consumidor Final */}
+          {esConsumidorFinal && carritoDetalle.some(item => {
+            const prod = productos.find(p => p.id_producto === item.id_producto);
+            return prod?.tipo_prod === 'bicicleta';
+          }) && (
+            <div style={{
+              backgroundColor: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              color: '#1d4ed8',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              fontSize: '0.82rem',
+              fontWeight: '500'
+            }}>
+              Aviso: Se ha agregado una bicicleta al comprobante. {nombreConsumidorFinal.trim() || dniConsumidorFinal.trim() ? `La garantía oficial de 30 días quedará emitida para "${`${nombreConsumidorFinal} ${apellidoConsumidorFinal}`.trim()}${dniConsumidorFinal ? ` (DNI: ${dniConsumidorFinal})` : ''}".` : 'Podés completar el nombre y DNI arriba para que la garantía oficial quede registrada a nombre del titular comprador.'}
+            </div>
+          )}
 
           <hr style={{ border: 'none', borderTop: '1px dashed var(--borde-input)', margin: '4px 0' }} />
 
@@ -228,84 +418,187 @@ export function ModalNuevaVenta({
               </div>
             )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 100px auto', gap: '10px' }}>
-              <select
-                value={productoBuscadoId}
-                onChange={e => onCambiarProductoBuscado(Number(e.target.value))}
-                style={{
-                  padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)',
-                  fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)'
-                }}
-              >
-                <option value={0}>
-                  {productosFiltrados.length > 0
-                    ? `Seleccionar Artículo (${productosFiltrados.length} encontrados)`
-                    : 'No hay artículos coincidentes con stock activo'}
-                </option>
-                {productosFiltrados.map(p => {
-                  const sinStock = Number(p.cantidad) <= 0;
-                  return (
-                    <option key={p.id_producto} value={p.id_producto} disabled={sinStock}>
-                      {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
-                    </option>
-                  );
-                })}
-              </select>
-
-              <input
-                type="number"
-                min="1"
-                max="1000000"
-                value={cantidadAnadir}
-                onChange={e => onCambiarCantidad(e.target.value)}
-                placeholder="Cant."
-                style={{
-                  padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)',
-                  fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)',
-                  textAlign: 'center'
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={onAgregarItem}
-                style={{
-                  backgroundColor: 'var(--azul-oscuro)',
-                  color: '#ffffff',
-                  border: 'none',
-                  padding: '10px 18px',
-                  borderRadius: '8px',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '0.88rem'
-                }}
-              >
-                Añadir
-              </button>
-            </div>
-
-            {productoSeleccionado && (
-              <div style={{
-                fontSize: '0.82rem',
-                color: 'var(--texto-principal)',
-                backgroundColor: 'var(--bg-principal)',
-                padding: '8px 12px',
-                borderRadius: '6px',
+            {/* Selector de Producto a ancho completo */}
+            <select
+              value={productoBuscadoId}
+              onChange={e => onCambiarProductoBuscado(Number(e.target.value))}
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                padding: '10px 12px',
+                borderRadius: '8px',
                 border: '1px solid var(--borde-input)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>
-                  <strong>Stock disponible:</strong> {productoSeleccionado.cantidad} unidades | <strong>Precio Unitario:</strong> {formatearMoneda(productoSeleccionado.precio)}
-                </span>
-                {productoSeleccionado.tipo_prod === 'bicicleta' && (
-                  <span style={{ color: '#2563eb', fontWeight: '700' }}>
-                    🛡️ Garantía 30 días incluida
+                fontSize: '0.9rem',
+                backgroundColor: 'var(--bg-principal)',
+                color: 'var(--texto-principal)',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              <option value={0}>
+                {productosFiltrados.length > 0
+                  ? `Seleccionar Artículo (${productosFiltrados.length} encontrados)`
+                  : 'No hay artículos coincidentes con stock activo'}
+              </option>
+              {productosFiltrados.map(p => {
+                const sinStock = Number(p.cantidad) <= 0;
+                return (
+                  <option key={p.id_producto} value={p.id_producto} disabled={sinStock}>
+                    {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
+                  </option>
+                );
+              })}
+            </select>
+
+            {/* Barra Integrada: Información de Stock + Cantidad + Botón Añadir */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '12px',
+              backgroundColor: 'var(--bg-principal)',
+              padding: '10px 14px',
+              borderRadius: '8px',
+              border: '1px solid var(--borde-input)',
+              flexWrap: 'wrap',
+              boxSizing: 'border-box'
+            }}>
+              {/* Info del producto seleccionado */}
+              <div style={{ flex: '1 1 200px', fontSize: '0.84rem', color: 'var(--texto-principal)', minWidth: 0 }}>
+                {productoSeleccionado ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>
+                      <strong>Stock:</strong>{' '}
+                      <span style={{ color: Number(productoSeleccionado.cantidad) > 0 ? '#16a34a' : '#ef4444', fontWeight: '700' }}>
+                        {productoSeleccionado.cantidad} un.
+                      </span>
+                    </span>
+                    <span style={{ color: 'var(--texto-mutado)' }}>&bull;</span>
+                    <span>
+                      <strong>Precio:</strong>{' '}
+                      <span style={{ fontWeight: '700' }}>{formatearMoneda(productoSeleccionado.precio)}</span>
+                    </span>
+                    {productoSeleccionado.tipo_prod === 'bicicleta' && (
+                      <span style={{
+                        backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                        color: '#2563eb',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        fontSize: '0.74rem',
+                        fontWeight: '700'
+                      }}>
+                        🛡️ Garantía 30 días
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ color: 'var(--texto-mutado)', fontStyle: 'italic', fontSize: '0.82rem' }}>
+                    Seleccioná un artículo de la lista de arriba para agregarlo.
                   </span>
                 )}
               </div>
-            )}
+
+              {/* Controles de Cantidad y Botón Añadir */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <label style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--texto-mutado)' }}>
+                    Cant:
+                  </label>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    border: '1px solid var(--borde-input)',
+                    borderRadius: '6px',
+                    backgroundColor: 'var(--bg-tarjeta)',
+                    overflow: 'hidden'
+                  }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = parseInt(String(cantidadAnadir), 10) || 1;
+                        if (actual > 1) onCambiarCantidad(actual - 1);
+                      }}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        padding: '6px 10px',
+                        cursor: 'pointer',
+                        color: 'var(--texto-principal)',
+                        fontWeight: '700',
+                        fontSize: '0.9rem'
+                      }}
+                      title="Disminuir cantidad"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000000"
+                      value={cantidadAnadir}
+                      onChange={e => onCambiarCantidad(e.target.value)}
+                      style={{
+                        width: '54px',
+                        padding: '6px 4px',
+                        border: 'none',
+                        borderLeft: '1px solid var(--borde-input)',
+                        borderRight: '1px solid var(--borde-input)',
+                        fontSize: '0.88rem',
+                        backgroundColor: 'transparent',
+                        color: 'var(--texto-principal)',
+                        textAlign: 'center',
+                        fontWeight: '700',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const actual = parseInt(String(cantidadAnadir), 10) || 1;
+                        onCambiarCantidad(actual + 1);
+                      }}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        padding: '6px 10px',
+                        cursor: 'pointer',
+                        color: 'var(--texto-principal)',
+                        fontWeight: '700',
+                        fontSize: '0.9rem'
+                      }}
+                      title="Aumentar cantidad"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onAgregarItem}
+                  disabled={!productoBuscadoId || (productoSeleccionado && Number(productoSeleccionado.cantidad) <= 0)}
+                  style={{
+                    backgroundColor: (!productoBuscadoId || (productoSeleccionado && Number(productoSeleccionado.cantidad) <= 0))
+                      ? '#94a3b8'
+                      : 'var(--azul-oscuro)',
+                    color: '#ffffff',
+                    border: 'none',
+                    padding: '8px 18px',
+                    borderRadius: '8px',
+                    fontWeight: '700',
+                    cursor: (!productoBuscadoId || (productoSeleccionado && Number(productoSeleccionado.cantidad) <= 0)) ? 'not-allowed' : 'pointer',
+                    fontSize: '0.86rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  <span>＋ Añadir</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* LISTA DEL CARRITO / DETALLE ACTUAL */}

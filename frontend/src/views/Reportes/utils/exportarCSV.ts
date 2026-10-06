@@ -1,4 +1,4 @@
-import type { Venta, Reparacion, PagoProveedor, DashboardTopProducto } from '../../../types';
+import type { Venta, Reparacion, PagoProveedor, DashboardTopProducto, ReporteCapitalStockResponse } from '../../../types';
 import type { TabTipo } from '../types';
 import { formatearFecha } from '../../../utils/formatters';
 
@@ -22,11 +22,12 @@ interface ExportarCSVParams {
   reparaciones: Reparacion[];
   pagos: PagoProveedor[];
   topProductos: DashboardTopProducto[];
+  capitalStock?: ReporteCapitalStockResponse | null;
 }
 
 /** Exportador de reportes contables a formato CSV con cabecera BOM para Excel. */
 export const exportarCSV = (params: ExportarCSVParams): void => {
-  const { activeTab, kpis, ventas, reparaciones, topProductos } = params;
+  const { activeTab, kpis, ventas, reparaciones, topProductos, capitalStock } = params;
   let csvContent = '';
   const fechaReporte = formatearFecha(new Date()).replace(/\//g, '-');
 
@@ -74,6 +75,29 @@ export const exportarCSV = (params: ExportarCSVParams): void => {
     topProductos.forEach((p, idx) => {
       csvContent += `"${idx + 1}";"${p.nombre}";"${p.marca || 'Genérico'}";"${p.tipo_prod}";${p.total_vendido};$${Number(p.total_recaudado || 0).toFixed(2)}\n`;
     });
+  } else if (activeTab === 'inventario') {
+    csvContent = 'ID;Bicicleta;Marca;Modelo;Color;Rodado;Gama;Stock Fisico;Precio Venta Unitario;Capital Total Inmovilizado;Ventas Ultimos 90d;Rotacion\n';
+    if (capitalStock) {
+      capitalStock.bicicletas.forEach(b => {
+        const id = `BIC-${String(b.id_producto).padStart(5, '0')}`;
+        const nombre = b.nombre;
+        const marca = b.marca || 'S/D';
+        const modelo = b.modelo || 'S/D';
+        const color = b.color || 'S/D';
+        const rodado = b.rodado || 'S/D';
+        const gama = b.gama;
+        const stock = b.stock_disponible;
+        const precioUnit = Number(b.precio_unitario || 0).toFixed(2);
+        const capitalTotal = Number(b.capital_inmovilizado || 0).toFixed(2);
+        const ventas90d = b.unidades_vendidas_90d;
+        const rotacion = b.estado_rotacion;
+        csvContent += `"${id}";"${nombre}";"${marca}";"${modelo}";"${color}";"${rodado}";"${gama}";${stock};$${precioUnit};$${capitalTotal};${ventas90d};"${rotacion}"\n`;
+      });
+      csvContent += `\n;;;;;;TOTAL INVENTARIO BICICLETAS;${capitalStock.resumen.unidades_total_bicicletas};;$${Number(capitalStock.resumen.capital_total_bicicletas || 0).toFixed(2)};;\n`;
+      csvContent += `;;;;;;CAPITAL TOTAL MERCADERIA (TODOS LOS RUBROS);;;$${Number(capitalStock.resumen.capital_total_inventario || 0).toFixed(2)};;\n`;
+      csvContent += `;;;;;;PROPORCION CAPITAL EN BICICLETAS;;;${capitalStock.resumen.porcentaje_bicicletas_capital}%;;\n`;
+      csvContent += `;;;;;;CAPITAL EN BICICLETAS ESTANCADAS (>90d sin venta);;;$${Number(capitalStock.resumen.capital_estancado || 0).toFixed(2)};;\n`;
+    }
   } else {
     // Consolidado General
     csvContent = 'METRICA;VALOR\n';

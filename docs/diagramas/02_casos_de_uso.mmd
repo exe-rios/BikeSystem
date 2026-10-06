@@ -1,101 +1,124 @@
 flowchart LR
-    %% Actores
+    %% Definicion de Actores del Negocio
     subgraph Actores["Actores del Sistema"]
         direction TB
-        ActSuperadmin["Superadministrador"]
-        ActAdmin["Administrador"]
-        ActEmpleado["Empleado / Mecánico"]
+        ActSuperadmin["<b>Superadministrador</b><br>(Dueño General)"]
+        ActAdmin["<b>Administrador</b><br>(Encargado de Salón)"]
+        ActEmpleado["<b>Empleado</b><br>(Vendedor / Mecánico)"]
+        
+        ActSuperadmin -.->|"hereda permisos"| ActAdmin
+        ActAdmin -.->|"hereda permisos"| ActEmpleado
     end
 
-    ActSuperadmin -.->|"hereda permisos"| ActAdmin
-    ActAdmin -.->|"hereda permisos"| ActEmpleado
+    %% Paquetes del Sistema
+    subgraph Sistema["Frontera del Sistema: BikeSystem"]
+        
+        subgraph ModVentas["Subsistema 1: Ventas y Facturación"]
+            direction TB
+            CU_Venta(["CU09: Registrar Venta Atómica"])
+            CU_Ticket(["CU11: Emitir Comprobante PDF"])
+            CU_Garantia(["CU32: Aplicar Garantía / 1° Service"])
+            CU_Anular(["CU12: Anular Venta y Restituir Stock"])
+            
+            CU_Venta -.->|"include"| CU_Ticket
+            CU_Garantia -.->|"extend"| CU_Venta
+            CU_Anular -.->|"extend"| CU_Venta
+        end
 
-    %% Paquetes de Casos de Uso
-    subgraph CU_Auth["Subsistema: Seguridad y Auditoría"]
-        CU25["CU25: Iniciar Sesión"]
-        CU27["CU27: Validar Credenciales (bcrypt/JWT)"]
-        CU23["CU23: Crear Usuario Operador"]
-        CU24["CU24: Asignar Roles (RBAC)"]
-        CU26["CU26: Modificar / Desactivar Usuario"]
-        CU28["CU28: Consultar Bitácora Inmutable"]
+        subgraph ModTaller["Subsistema 2: Taller Mecánico (Kanban)"]
+            direction TB
+            CU_Kanban(["CU14: Gestionar Tablero Kanban"])
+            CU_Orden(["CU13: Abrir Orden de Reparación"])
+            CU_Repuesto(["CU15: Imputar Repuestos y Mano de Obra"])
+            CU_Entrega(["CU16: Finalizar y Entregar Rodado"])
+
+            CU_Kanban -.->|"include"| CU_Orden
+            CU_Repuesto -.->|"extend"| CU_Kanban
+            CU_Entrega -.->|"extend"| CU_Kanban
+        end
+
+        subgraph ModClientes["Subsistema 3: Clientes y Rodados"]
+            direction TB
+            CU_Cliente(["CU01: Registrar Cliente / Consumidor Final"])
+            CU_Bici(["CU07: Registrar Bicicleta en Taller"])
+            CU_Historia(["CU09: Consultar Historia Clínica"])
+
+            CU_Bici -.->|"extend"| CU_Cliente
+            CU_Historia -.->|"extend"| CU_Bici
+        end
+
+        subgraph ModStock["Subsistema 4: Inventario y Proveedores"]
+            direction TB
+            CU_Stock(["CU18: Consultar Stock y Alertas"])
+            CU_Ajuste(["CU17: Ajuste Manual de Kardex"])
+            CU_Prov(["CU29: Administrar Proveedores (CUIT)"])
+            CU_PagoProv(["CU30: Registrar Pago a Proveedor"])
+
+            CU_PagoProv -.->|"extend"| CU_Prov
+            CU_Ajuste -.->|"extend"| CU_Stock
+        end
+
+        subgraph ModSeguridad["Subsistema 5: Administración y Auditoría"]
+            direction TB
+            CU_Dashboard(["CU20: Consultar Dashboard y Balances"])
+            CU_Usuarios(["CU23: Gestionar Usuarios y Roles"])
+            CU_Auditoria(["CU28: Auditar Bitácora Inmutable"])
+            CU_Backup(["CU35: Descargar Respaldo SQL"])
+
+            CU_Auditoria -.->|"extend"| CU_Dashboard
+            CU_Backup -.->|"extend"| CU_Auditoria
+        end
+
     end
 
-    subgraph CU_Clientes["Subsistema: Clientes y Rodados"]
-        CU01["CU01: Registrar Nuevo Cliente"]
-        CU02["CU02: Modificar Datos de Cliente"]
-        CU03["CU03: Dar de Baja Cliente"]
-        CU04["CU04: Buscar Cliente en Tiempo Real"]
-        CU06["CU06: Registrar Bici de Cliente"]
-        CU07["CU07: Modificar Bicicleta"]
-        CU08["CU08: Consultar Historia Clínica de Bici"]
-    end
+    %% Asociaciones de Actores a Subsistemas
+    ActEmpleado --> CU_Venta
+    ActEmpleado --> CU_Kanban
+    ActEmpleado --> CU_Cliente
+    ActEmpleado --> CU_Stock
 
-    subgraph CU_Ventas["Subsistema: Ventas, Facturación y Garantías"]
-        CU09["CU09: Registrar Venta Atómica"]
-        CU10["CU10: Consultar Listado de Ventas"]
-        CU11["CU11: Emitir Comprobante Imprimible"]
-        CU12["CU12: Anular Venta y Restituir Stock"]
-        CU32["CU32: Consultar Cobertura de Garantías"]
-    end
+    ActAdmin --> CU_Anular
+    ActAdmin --> CU_Ajuste
+    ActAdmin --> CU_Prov
+    ActAdmin --> CU_PagoProv
+    ActAdmin --> CU_Dashboard
 
-    subgraph CU_Taller["Subsistema: Taller Mecánico y Kanban"]
-        CU13["CU13: Registrar Orden de Reparación"]
-        CU14["CU14: Consultar Órdenes de Trabajo"]
-        CU15["CU15: Imputar Mano de Obra y Repuestos"]
-        CU16["CU16: Modificar / Entregar Reparación"]
-        CU33["CU33: Gestionar Taller en Tablero Kanban"]
-    end
+    ActSuperadmin --> CU_Usuarios
+    ActSuperadmin --> CU_Auditoria
+    ActSuperadmin --> CU_Backup
 
-    subgraph CU_Stock["Subsistema: Inventario y Kardex"]
-        CU17["CU17: Registrar Movimiento Manual"]
-        CU18["CU18: Consultar Inventario y Alertas"]
-        CU19["CU19: Filtrar Catálogo de Artículos"]
-    end
+    %% Estilos de Nodos
+    style ActSuperadmin fill:#F1F5F9,stroke:#475569,stroke-width:2px,color:#0F172A
+    style ActAdmin fill:#F1F5F9,stroke:#475569,stroke-width:2px,color:#0F172A
+    style ActEmpleado fill:#F1F5F9,stroke:#475569,stroke-width:2px,color:#0F172A
 
-    subgraph CU_Proveedores["Subsistema: Proveedores y Egresos"]
-        CU29["CU29: Administrar Proveedores"]
-        CU30["CU30: Registrar Pago a Proveedor"]
-        CU31["CU31: Consultar Flujo de Egresos"]
-    end
+    style CU_Venta fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#1E3A8A
+    style CU_Ticket fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#1E3A8A
+    style CU_Garantia fill:#EFF6FF,stroke:#2563EB,stroke-width:2px,color:#1E3A8A
+    style CU_Anular fill:#FEF2F2,stroke:#DC2626,stroke-width:2px,color:#991B1B
 
-    subgraph CU_Reportes["Subsistema: Dashboard y Analítica"]
-        CU20["CU20: Consultar Dashboard en Vivo"]
-        CU21["CU21: Analizar Balances y Top Productos"]
-        CU22["CU22: Exportar Reportes a CSV"]
-    end
+    style CU_Kanban fill:#F0FDF4,stroke:#16A34A,stroke-width:2px,color:#166534
+    style CU_Orden fill:#F0FDF4,stroke:#16A34A,stroke-width:2px,color:#166534
+    style CU_Repuesto fill:#F0FDF4,stroke:#16A34A,stroke-width:2px,color:#166534
+    style CU_Entrega fill:#F0FDF4,stroke:#16A34A,stroke-width:2px,color:#166534
 
-    %% Asociaciones de Actores con Casos de Uso
-    ActEmpleado --> CU25
-    CU25 -.->|include| CU27
-    ActEmpleado --> CU01
-    ActEmpleado --> CU02
-    ActEmpleado --> CU04
-    ActEmpleado --> CU06
-    ActEmpleado --> CU07
-    ActEmpleado --> CU08
-    ActEmpleado --> CU09
-    CU09 -.->|include| CU11
-    ActEmpleado --> CU10
-    ActEmpleado --> CU32
-    ActEmpleado --> CU13
-    ActEmpleado --> CU14
-    ActEmpleado --> CU15
-    ActEmpleado --> CU16
-    ActEmpleado --> CU33
-    ActEmpleado --> CU18
-    ActEmpleado --> CU19
-    ActEmpleado --> CU20
+    style CU_Cliente fill:#FAF5FF,stroke:#9333EA,stroke-width:2px,color:#581C87
+    style CU_Bici fill:#FAF5FF,stroke:#9333EA,stroke-width:2px,color:#581C87
+    style CU_Historia fill:#FAF5FF,stroke:#9333EA,stroke-width:2px,color:#581C87
 
-    ActAdmin --> CU03
-    ActAdmin --> CU12
-    ActAdmin --> CU17
-    ActAdmin --> CU29
-    ActAdmin --> CU30
-    ActAdmin --> CU31
-    ActAdmin --> CU21
-    ActAdmin --> CU22
+    style CU_Stock fill:#FFFBEB,stroke:#D97706,stroke-width:2px,color:#92400E
+    style CU_Ajuste fill:#FFFBEB,stroke:#D97706,stroke-width:2px,color:#92400E
+    style CU_Prov fill:#FFFBEB,stroke:#D97706,stroke-width:2px,color:#92400E
+    style CU_PagoProv fill:#FFFBEB,stroke:#D97706,stroke-width:2px,color:#92400E
 
-    ActSuperadmin --> CU23
-    ActSuperadmin --> CU24
-    ActSuperadmin --> CU26
-    ActSuperadmin --> CU28
+    style CU_Dashboard fill:#F8FAFC,stroke:#0284C7,stroke-width:2px,color:#0369A1
+    style CU_Usuarios fill:#F8FAFC,stroke:#0284C7,stroke-width:2px,color:#0369A1
+    style CU_Auditoria fill:#F8FAFC,stroke:#0284C7,stroke-width:2px,color:#0369A1
+    style CU_Backup fill:#F8FAFC,stroke:#0284C7,stroke-width:2px,color:#0369A1
+
+    style ModVentas fill:#FFFFFF,stroke:#93C5FD,stroke-width:2px
+    style ModTaller fill:#FFFFFF,stroke:#86EFAC,stroke-width:2px
+    style ModClientes fill:#FFFFFF,stroke:#D8B4FE,stroke-width:2px
+    style ModStock fill:#FFFFFF,stroke:#FDE68A,stroke-width:2px
+    style ModSeguridad fill:#FFFFFF,stroke:#7DD3FC,stroke-width:2px
+    style Sistema fill:#F8FAFC,stroke:#64748B,stroke-width:2px

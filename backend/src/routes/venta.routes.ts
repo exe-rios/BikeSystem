@@ -5,6 +5,7 @@ import {
     obtenerVentas, 
     obtenerVentaPorId,
     obtenerGarantiasBicicletas,
+    registrarPrimerService,
     obtenerMetodosPago,
     anularVenta
 } from '../controllers/venta.controller.js';
@@ -19,6 +20,7 @@ router.post('/', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN
 router.get('/', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerVentas);
 router.get('/metodos-pago', verificarToken, obtenerMetodosPago);
 router.get('/garantias', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerGarantiasBicicletas);
+router.patch('/garantias/:id_detalle_venta/primer-service', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), registrarPrimerService);
 router.get('/:id', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerVentaPorId);
 router.put('/:id/anular', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), anularVenta);
 router.patch('/:id/anular', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), anularVenta);

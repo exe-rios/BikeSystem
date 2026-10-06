@@ -1,27 +1,46 @@
-flowchart TD
-    subgraph Actores["Usuarios del Negocio"]
-        Superadmin["Superadministrador / Dueño<br>(Diego Nagel)"]
-        Admin["Administrador de Salón"]
-        Empleado["Empleado / Mecánico de Taller"]
+flowchart LR
+    %% Definicion de Actores del Negocio
+    subgraph Actores["Actores del Sistema"]
+        direction TB
+        Superadmin["Superadministrador<br><b>(Dueño General)</b>"]
+        Admin["Administrador<br><b>(Encargado de Salón)</b>"]
+        Empleado["Empleado<br><b>(Vendedor / Mecánico)</b>"]
     end
 
-    subgraph Sistema["Frontera del Sistema: BikeSystem Desktop"]
-        ElectronApp["Aplicación de Escritorio BikeSystem<br>(Electron 42 + React 19 + Express 5)"]
+    %% Nucleo del Sistema
+    subgraph Frontera["Frontera del Sistema Desktop"]
+        Sistema["<b>BikeSystem Desktop</b><br><br>• Frontend: React 19 + TypeScript + Electron 42<br>• Backend: API REST Express 5 + Node.js<br>• Control de Acceso Basado en Roles (RBAC)<br>• Reglas de Negocio, Kardex y Taller Kanban"]
     end
 
-    subgraph InfraestructuraNube["Infraestructura y Persistencia en la Nube"]
-        SupabaseDB[("Base de Datos PostgreSQL 16+<br>Alojada en Supabase Cloud<br>(SSL Seguro / Pooler)")]
+    %% Servicios y Periféricos Externos
+    subgraph Externos["Infraestructura y Salidas"]
+        direction TB
+        Supabase[("<b>PostgreSQL 16+ (Supabase Cloud)</b><br>Persistencia Relacional / Pooler SSL<br>Transacciones ACID y Bloqueo Pesimista")]
+        Archivos["<b>Sistema de Archivos Local (Windows)</b><br>• Comprobantes de Venta en PDF (FAC-XXXXXX)<br>• Reportes Analíticos (PDF / CSV)<br>• Copias de Seguridad SQL Nativo (Backup)"]
+        Impresora["<b>Impresoras de Sistema</b><br>Impresión directa de Tickets y Comprobantes"]
     end
 
-    subgraph Salidas["Salidas y Periféricos"]
-        FileSystem["Sistema de Archivos Local<br>(Exportación de Reportes CSV)"]
-        HardwareImp["Impresoras de Sistema<br>(Comprobantes de Venta FAC-XXXXXX)"]
-    end
+    %% Relaciones Actores -> Sistema
+    Superadmin -->|"Administración de usuarios,<br>auditoría y backup SQL"| Sistema
+    Admin -->|"Supervisión de inventario,<br>proveedores y anulación"| Sistema
+    Empleado -->|"Ventas, atención de taller<br>y registro de rodados"| Sistema
 
-    Superadmin -->|"Administra usuarios, audita bitácora, analiza balances"| ElectronApp
-    Admin -->|"Controla proveedores, anula ventas, supervisa stock"| ElectronApp
-    Empleado -->|"Registra ventas, actualiza tablero Kanban, recibe bicis"| ElectronApp
+    %% Relaciones Sistema -> Externos
+    Sistema -->|"Consultas SQL parametrizadas<br>conexión cifrada TLS/SSL"| Supabase
+    Sistema -->|"Generación y descarga<br>de documentos locales"| Archivos
+    Sistema -->|"Envío de trabajos<br>a cola de impresión"| Impresora
 
-    ElectronApp -->|"Conexión TCP cifrada TLS/SSL (DATABASE_URL Supabase)"| SupabaseDB
-    ElectronApp -->|"Exporta planillas tabulares CSV"| FileSystem
-    ElectronApp -->|"Imprime comprobantes y tickets"| HardwareImp
+    %% Estilos de Nodos
+    style Superadmin fill:#F1F5F9,stroke:#475569,stroke-width:2px,color:#0F172A
+    style Admin fill:#F1F5F9,stroke:#475569,stroke-width:2px,color:#0F172A
+    style Empleado fill:#F1F5F9,stroke:#475569,stroke-width:2px,color:#0F172A
+
+    style Sistema fill:#EFF6FF,stroke:#2563EB,stroke-width:3px,color:#1E3A8A
+
+    style Supabase fill:#ECFDF5,stroke:#059669,stroke-width:2px,color:#065F46
+    style Archivos fill:#FFFBEB,stroke:#D97706,stroke-width:2px,color:#92400E
+    style Impresora fill:#FAF5FF,stroke:#9333EA,stroke-width:2px,color:#581C87
+
+    style Actores fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray: 5 5
+    style Frontera fill:#FFFFFF,stroke:#3B82F6,stroke-width:2px
+    style Externos fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray: 5 5

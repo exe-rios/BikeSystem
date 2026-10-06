@@ -1,3 +1,5 @@
+import { useState, useMemo } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useVentas } from './hooks/useVentas';
 import { useCarritoVenta } from './hooks/useCarritoVenta';
 import { VentasHeader } from './components/VentasHeader';
@@ -5,9 +7,13 @@ import { TabVentasListado } from './tabs/TabVentasListado';
 import { TabGarantiasListado } from './tabs/TabGarantiasListado';
 import { ModalNuevaVenta } from './components/ModalNuevaVenta';
 import { ModalDetalleVenta } from './components/ModalDetalleVenta';
+import { ModalRegistroPrimerService } from './components/ModalRegistroPrimerService';
+import type { GarantiaConEstado } from './types';
 
 /** Vista principal de facturación, punto de venta (POS) y gestión de garantías. */
 export function VentasView() {
+  const { user } = useAuth();
+
   const {
     tabActiva,
     setTabActiva,
@@ -20,6 +26,7 @@ export function VentasView() {
     garantias,
     countTotalGarantias,
     countVigentes,
+    countServicePendiente,
     countPorVencer,
     countVencidas,
     clientes,
@@ -44,6 +51,7 @@ export function VentasView() {
     handleVerDetalleVenta,
     handleAnularVenta,
     finalizarVenta,
+    registrarPrimerService,
     recargar
   } = useVentas();
 
@@ -52,6 +60,12 @@ export function VentasView() {
     setClienteSeleccionadoId,
     metodoPagoSeleccionadoId,
     setMetodoPagoSeleccionadoId,
+    nombreConsumidorFinal,
+    setNombreConsumidorFinal,
+    apellidoConsumidorFinal,
+    setApellidoConsumidorFinal,
+    dniConsumidorFinal,
+    setDniConsumidorFinal,
     carritoDetalle,
     productoBuscadoId,
     setProductoBuscadoId,
@@ -68,8 +82,25 @@ export function VentasView() {
     limpiarCarrito
   } = useCarritoVenta();
 
+  const [garantiaParaService, setGarantiaParaService] = useState<GarantiaConEstado | null>(null);
+  const [mostrarModalPrimerService, setMostrarModalPrimerService] = useState<boolean>(false);
+
+  const handleAbrirModalPrimerService = (g: GarantiaConEstado) => {
+    setGarantiaParaService(g);
+    setMostrarModalPrimerService(true);
+  };
+
+  const clienteConsumidorFinal = useMemo(() => {
+    return clientes.find(c => 
+      (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
+      (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
+      c.direccion?.toLowerCase().includes('mostrador')
+    );
+  }, [clientes]);
+
   const handleAbrirNuevaVenta = () => {
-    limpiarCarrito(metodosPago[0]?.id_metodo_pago || 1);
+    const defaultClienteId = clienteConsumidorFinal?.id_cliente || clientes[0]?.id_cliente || 0;
+    limpiarCarrito(metodosPago[0]?.id_metodo_pago || 1, defaultClienteId);
     recargar();
     setMostrarModalNuevaVenta(true);
   };
@@ -77,7 +108,11 @@ export function VentasView() {
   const handleFinalizarVentaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!clienteSeleccionadoId || clienteSeleccionadoId <= 0) {
+    const clienteIdFinal = (clienteSeleccionadoId && clienteSeleccionadoId > 0)
+      ? clienteSeleccionadoId
+      : (clienteConsumidorFinal?.id_cliente || 0);
+
+    if (!clienteIdFinal || clienteIdFinal <= 0) {
       setErrorCarrito('Seleccioná un cliente comprador primero.');
       return;
     }
@@ -97,9 +132,16 @@ export function VentasView() {
       cantidad: item.cantidad
     }));
 
-    const exito = await finalizarVenta(clienteSeleccionadoId, metodoPagoSeleccionadoId, itemsPayload);
+    const esCF = clienteIdFinal === clienteConsumidorFinal?.id_cliente;
+    const datosCF = esCF ? {
+      cliente_nombre: nombreConsumidorFinal.trim() || undefined,
+      cliente_apellido: apellidoConsumidorFinal.trim() || undefined,
+      cliente_dni: dniConsumidorFinal.trim() || undefined
+    } : undefined;
+
+    const exito = await finalizarVenta(clienteIdFinal, metodoPagoSeleccionadoId, itemsPayload, datosCF);
     if (exito) {
-      limpiarCarrito(metodosPago[0]?.id_metodo_pago || 1);
+      limpiarCarrito(metodosPago[0]?.id_metodo_pago || 1, clienteConsumidorFinal?.id_cliente || 0);
     }
   };
 
@@ -148,14 +190,17 @@ export function VentasView() {
           garantias={garantias}
           countTotalGarantias={countTotalGarantias}
           countVigentes={countVigentes}
+          countServicePendiente={countServicePendiente}
           countPorVencer={countPorVencer}
           countVencidas={countVencidas}
           cargando={cargando}
           busquedaGarantia={busquedaGarantia}
           filtroGarantia={filtroGarantia}
+          rolUsuario={user?.rol}
           onCambiarBusqueda={setBusquedaGarantia}
           onCambiarFiltro={setFiltroGarantia}
           onVerDetalle={handleVerDetalleVenta}
+          onRegistrarService={handleAbrirModalPrimerService}
         />
       )}
 
@@ -174,6 +219,12 @@ export function VentasView() {
           totalVenta={totalVenta}
           guardando={guardando}
           errorCarrito={errorCarrito}
+          nombreConsumidorFinal={nombreConsumidorFinal}
+          apellidoConsumidorFinal={apellidoConsumidorFinal}
+          dniConsumidorFinal={dniConsumidorFinal}
+          onCambiarNombreCF={setNombreConsumidorFinal}
+          onCambiarApellidoCF={setApellidoConsumidorFinal}
+          onCambiarDniCF={setDniConsumidorFinal}
           onCambiarCliente={setClienteSeleccionadoId}
           onCambiarMetodoPago={setMetodoPagoSeleccionadoId}
           onCambiarProductoBuscado={setProductoBuscadoId}
@@ -195,6 +246,20 @@ export function VentasView() {
           anulando={anulando}
           onAnularVenta={handleAnularVenta}
           onClose={() => setMostrarModalDetalle(false)}
+        />
+      )}
+
+      {/* 6. Modal de Registro de 1° Service Obligatorio */}
+      {mostrarModalPrimerService && garantiaParaService && (
+        <ModalRegistroPrimerService
+          garantia={garantiaParaService}
+          abierto={mostrarModalPrimerService}
+          rolUsuario={user?.rol}
+          onClose={() => {
+            setMostrarModalPrimerService(false);
+            setGarantiaParaService(null);
+          }}
+          onConfirmar={registrarPrimerService}
         />
       )}
 

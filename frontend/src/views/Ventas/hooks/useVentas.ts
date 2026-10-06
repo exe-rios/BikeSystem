@@ -21,7 +21,9 @@ export function useVentas() {
   const [resumenGarantias, setResumenGarantias] = useState({
     total: 0,
     vigentes: 0,
+    service_pendiente: 0,
     por_vencer: 0,
+    concluidas: 0,
     vencidas: 0
   });
   const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
@@ -37,6 +39,7 @@ export function useVentas() {
 
   // Reiniciar a página 1 al cambiar el término de búsqueda
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaVentas(1);
   }, [busquedaVentaDebounced]);
 
@@ -81,7 +84,14 @@ export function useVentas() {
       setProductos(listaProductos);
       setGarantias(listaGarantias);
       if (dataGarantias?.resumen) {
-        setResumenGarantias(dataGarantias.resumen);
+        setResumenGarantias({
+          total: dataGarantias.resumen.total ?? 0,
+          vigentes: dataGarantias.resumen.vigentes ?? 0,
+          service_pendiente: dataGarantias.resumen.service_pendiente ?? 0,
+          por_vencer: dataGarantias.resumen.por_vencer ?? 0,
+          concluidas: dataGarantias.resumen.concluidas ?? 0,
+          vencidas: dataGarantias.resumen.vencidas ?? dataGarantias.resumen.concluidas ?? 0
+        });
       }
       setMetodosPago(listaMetodos);
       setError(null);
@@ -165,14 +175,16 @@ export function useVentas() {
   const finalizarVenta = async (
     clienteId: number,
     metodoPagoId: number,
-    items: { id_producto: number; cantidad: number }[]
+    items: { id_producto: number; cantidad: number }[],
+    datosCF?: { cliente_nombre?: string; cliente_apellido?: string; cliente_dni?: string }
   ) => {
     setGuardando(true);
     try {
       const payload = {
         id_cliente: clienteId,
         id_metodo_pago: metodoPagoId,
-        detalles: items
+        detalles: items,
+        ...(datosCF || {})
       };
 
       const res = await api.ventas.create(payload);
@@ -194,6 +206,26 @@ export function useVentas() {
       return false;
     } finally {
       setGuardando(false);
+    }
+  };
+
+  // Registrar 1° Service Obligatorio
+  const handleRegistrarPrimerService = async (
+    idDetalleVenta: number,
+    payload: { fecha_service?: string; observaciones?: string }
+  ) => {
+    try {
+      const res = await api.ventas.registrarPrimerService(idDetalleVenta, payload);
+      alert(res.message || '1° Service registrado exitosamente. La garantía quedó extendida a 6 meses.');
+      await cargarDatos();
+      return true;
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert(`Error al registrar el primer service: ${err.message}`);
+      } else {
+        alert('Error inesperado al registrar el primer service.');
+      }
+      return false;
     }
   };
 
@@ -220,21 +252,45 @@ export function useVentas() {
   // Enriquecer visualmente las garantías con la información provista por PostgreSQL
   const todasLasGarantiasConEstado = useMemo<GarantiaConEstado[]>(() => {
     return garantias.map(g => {
-      const estado = g.estado_garantia || 'vigente';
+      const estado = (g.estado_garantia || 'service_pendiente') as
+        | 'service_pendiente'
+        | 'service_por_vencer'
+        | 'caducada_sin_service'
+        | 'vigente'
+        | 'por_vencer'
+        | 'concluida';
       const dias = g.dias_restantes ?? 0;
 
       let colorBg = '#dcfce7';
       let colorText = '#15803d';
-      let label = `Vigente (${dias} días)`;
+      let label = `Vigente (${dias} d)`;
+      let sublabel = 'Garantía extendida (6 meses)';
 
-      if (estado === 'vencida') {
-        colorBg = '#f1f5f9';
-        colorText = '#64748b';
-        label = `Vencida (${Math.abs(dias)} d)`;
+      if (estado === 'service_pendiente') {
+        colorBg = '#e0f2fe';
+        colorText = '#0369a1';
+        label = `1° Service Pendiente (${dias} d)`;
+        sublabel = 'Plazo de asentamiento (30 días)';
+      } else if (estado === 'service_por_vencer') {
+        colorBg = '#fef3c7';
+        colorText = '#b45309';
+        label = `Service por vencer (${dias} d)`;
+        sublabel = 'Próximo a caducar (últimos 7 días)';
+      } else if (estado === 'caducada_sin_service') {
+        colorBg = '#fee2e2';
+        colorText = '#b91c1c';
+        label = 'Caducada sin Service';
+        sublabel = 'No realizó el 1° service obligatorio';
       } else if (estado === 'por_vencer') {
         colorBg = '#fef3c7';
         colorText = '#b45309';
-        label = `Por vencer (${dias} días)`;
+        label = `Por vencer (${dias} d)`;
+        sublabel = 'Garantía de 6 meses próxima a concluir';
+      } else if (estado === 'concluida' || (estado as string) === 'vencida') {
+        colorBg = '#f1f5f9';
+        colorText = '#64748b';
+        label = 'Garantía Concluida';
+        sublabel = 'Período cumplido de 6 meses';
       }
 
       return {
@@ -243,6 +299,7 @@ export function useVentas() {
           estado,
           diasRestantes: dias,
           label,
+          sublabel,
           colorBg,
           colorText,
           fechaVencimiento: g.fecha_vencimiento
@@ -254,9 +311,27 @@ export function useVentas() {
   // Listado filtrado de Garantías
   const garantiasFiltradas = useMemo(() => {
     return todasLasGarantiasConEstado.filter(g => {
-      // 1. Filtro por vigencia temporal
-      if (filtroGarantia !== 'todas' && g.infoGarantia.estado !== filtroGarantia) {
-        return false;
+      // 1. Filtro por vigencia / fase
+      if (filtroGarantia === 'service_pendiente') {
+        if (g.infoGarantia.estado !== 'service_pendiente' && g.infoGarantia.estado !== 'service_por_vencer') {
+          return false;
+        }
+      } else if (filtroGarantia === 'vigentes') {
+        if (g.infoGarantia.estado !== 'vigente' && g.infoGarantia.estado !== 'por_vencer') {
+          return false;
+        }
+      } else if (filtroGarantia === 'por_vencer') {
+        if (g.infoGarantia.estado !== 'por_vencer' && g.infoGarantia.estado !== 'service_por_vencer') {
+          return false;
+        }
+      } else if (filtroGarantia === 'concluidas') {
+        if (
+          g.infoGarantia.estado !== 'concluida' &&
+          g.infoGarantia.estado !== 'caducada_sin_service' &&
+          (g.infoGarantia.estado as string) !== 'vencida'
+        ) {
+          return false;
+        }
       }
 
       // 2. Filtro por búsqueda
@@ -285,8 +360,10 @@ export function useVentas() {
     garantias: garantiasFiltradas,
     countTotalGarantias: resumenGarantias.total,
     countVigentes: resumenGarantias.vigentes,
+    countServicePendiente: resumenGarantias.service_pendiente,
     countPorVencer: resumenGarantias.por_vencer,
-    countVencidas: resumenGarantias.vencidas,
+    countVencidas: resumenGarantias.concluidas || resumenGarantias.vencidas,
+    countConcluidas: resumenGarantias.concluidas || resumenGarantias.vencidas,
     clientes,
     productos,
     metodosPago,
@@ -309,6 +386,7 @@ export function useVentas() {
     handleVerDetalleVenta,
     handleAnularVenta,
     finalizarVenta,
+    registrarPrimerService: handleRegistrarPrimerService,
     recargar: cargarDatos
   };
 }
