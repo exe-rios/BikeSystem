@@ -6,10 +6,12 @@ import type {
   ReporteEstadisticasTaller, 
   Venta, 
   Reparacion, 
-  PagoProveedor 
+  PagoProveedor,
+  ReporteCapitalStockResponse 
 } from '../../../types';
 import type { TabTipo, RangoRapido } from '../types';
 import { exportarCSV } from '../utils/exportarCSV';
+import { exportarPDFReporte } from '../utils/exportarPDFReporte';
 import { useDebounce } from '../../../hooks/useDebounce';
 
 const getMesActualFechas = () => {
@@ -102,6 +104,7 @@ export function useReportes() {
   });
 
   const [pagos, setPagos] = useState<PagoProveedor[]>([]);
+  const [capitalStockData, setCapitalStockData] = useState<ReporteCapitalStockResponse | null>(null);
 
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -158,7 +161,7 @@ export function useReportes() {
         }
       };
 
-      const [resDash, resKpis, resVentas, resReparaciones, resPagos] = await Promise.all([
+      const [resDash, resKpis, resVentas, resReparaciones, resPagos, resCapitalStock] = await Promise.all([
         api.reportes.getDashboard().catch(err => { registrarFallo(err); return null; }),
         api.reportes.getEstadisticas({
           fechaDesde: fechaDesde || undefined,
@@ -185,7 +188,8 @@ export function useReportes() {
           busqueda: searchTermDebounced || undefined,
           limite: limitePaginacion,
           pagina: paginaPagos
-        }).catch(err => { registrarFallo(err); return { total: 0, total_egresos: 0, pagos: [], totalPaginas: 1 }; })
+        }).catch(err => { registrarFallo(err); return { total: 0, total_egresos: 0, pagos: [], totalPaginas: 1 }; }),
+        api.reportes.getCapitalStock().catch(err => { registrarFallo(err); return null; })
       ]);
 
       if (errorCapturado) {
@@ -199,6 +203,10 @@ export function useReportes() {
       if (resKpis) {
         setKpis(resKpis.kpis);
         setEstadisticasTaller(resKpis.estadisticas_taller);
+      }
+
+      if (resCapitalStock) {
+        setCapitalStockData(resCapitalStock);
       }
 
       setVentas(resVentas.ventas || []);
@@ -252,7 +260,22 @@ export function useReportes() {
       ventas,
       reparaciones,
       pagos,
-      topProductos: topProductosList
+      topProductos: topProductosList,
+      capitalStock: capitalStockData
+    });
+  };
+
+  const handleExportarPDF = () => {
+    exportarPDFReporte({
+      activeTab,
+      fechaDesde,
+      fechaHasta,
+      kpis,
+      ventas,
+      reparaciones,
+      pagos,
+      topProductos: topProductosList,
+      capitalStock: capitalStockData
     });
   };
 
@@ -297,9 +320,12 @@ export function useReportes() {
     limitePaginacion,
     topProductosList,
     maxVentasProducto,
+    capitalStockData,
+    bicicletasCount: capitalStockData?.resumen.unidades_total_bicicletas || 0,
     cargando,
     error,
     handleExportar,
+    handleExportarPDF,
     handleImprimir,
     recargar: cargarDatos
   };

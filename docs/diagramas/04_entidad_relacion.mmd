@@ -1,136 +1,122 @@
 erDiagram
+    %% ===================================================
+    %% RELACIONES ENTRE TABLAS (CARDINALIDADES EXACTAS)
+    %% ===================================================
+    Cliente ||--o{ Bicicleta : "posee"
+    Cliente ||--o{ Venta : "compra"
+    Bicicleta ||--o{ Reparacion : "ingresa_a"
+
+    Venta ||--|{ Detalle_Venta : "contiene"
+    Metodo_Pago ||--o{ Venta : "cancela"
+    Metodo_Pago ||--o{ Pago_Proveedor : "abona_con"
+
+    Reparacion ||--o{ Detalle_Reparacion : "consume"
+
+    Productos ||--o| Producto_BiciNueva : "especializa"
+    Productos ||--o{ Detalle_Venta : "vendido_en"
+    Productos ||--o{ Detalle_Reparacion : "utilizado_en"
+    Productos ||--o{ Movimiento_Stock : "registrado_en"
+
+    Proveedor ||--o{ Pago_Proveedor : "percibe"
+
     Usuario ||--o{ Venta : "registra"
     Usuario ||--o{ Reparacion : "atiende"
     Usuario ||--o{ Pago_Proveedor : "liquida"
-    Usuario ||--o{ Movimiento_Stock : "autoriza"
+    Usuario ||--o{ Movimiento_Stock : "opera"
     Usuario ||--o{ Bitacora_Actividad : "genera"
+    Usuario ||--o{ Detalle_Venta : "tecnico_service"
 
-    Cliente ||--o{ Bicicleta : "posee"
-    Cliente ||--o{ Venta : "compra"
-
-    Bicicleta ||--o{ Reparacion : "recibe_servicio"
-
-    Metodo_Pago ||--o{ Venta : "se_cancela_con"
-    Metodo_Pago ||--o{ Pago_Proveedor : "medio_de_egreso"
-
-    Venta ||--|{ Detalle_Venta : "contiene"
-    Reparacion ||--o{ Detalle_Reparacion : "consume"
-
-    Productos ||--o| Producto_BiciNueva : "especializa_como"
-    Productos ||--o{ Detalle_Venta : "se_vende_en"
-    Productos ||--o{ Detalle_Reparacion : "se_instala_en"
-    Productos ||--o{ Movimiento_Stock : "traza_en"
-
-    Proveedor ||--o{ Pago_Proveedor : "recibe_pago"
-
+    %% ===================================================
+    %% DEFINICION DE ENTIDADES Y CAMPOS
+    %% ===================================================
     Usuario {
-        int id_usuario PK "GENERATED ALWAYS AS IDENTITY"
-        varchar nombre_usuario UK "CHECK length >= 3"
+        int id_usuario PK "IDENTITY"
+        varchar nombre_usuario UK
         varchar contrasena "Hash bcrypt"
-        varchar rol "CHECK in (EMPLEADO, ADMIN, SUPERADMIN)"
+        varchar rol "EMPLEADO, ADMIN, SUPERADMIN"
         timestamptz created_at
-        timestamptz updated_at
     }
 
     Cliente {
-        int id_cliente PK "GENERATED ALWAYS AS IDENTITY"
-        varchar nombre "CHECK length >= 2"
-        varchar apellido "CHECK length >= 2"
-        varchar dni UK "Nullable, length >= 6"
+        int id_cliente PK "IDENTITY"
+        varchar nombre
+        varchar apellido
+        varchar dni UK "Nullable (Consumidor Final)"
         varchar telefono
         varchar email
         varchar direccion
-        timestamptz created_at
-        timestamptz updated_at
     }
 
-    Proveedor {
-        int id_proveedor PK "GENERATED ALWAYS AS IDENTITY"
-        varchar nombre_empresa "CHECK length >= 2"
-        varchar cuit UK
-        varchar telefono
-        varchar email
-        varchar direccion
-        timestamptz created_at
-        timestamptz updated_at
+    Bicicleta {
+        int id_bicicleta PK "IDENTITY"
+        int id_cliente FK "ON DELETE RESTRICT"
+        varchar marca
+        varchar modelo
     }
 
     Productos {
-        int id_producto PK "GENERATED ALWAYS AS IDENTITY"
-        varchar nombre "CHECK length >= 2"
+        int id_producto PK "IDENTITY"
+        varchar nombre
         varchar marca
         varchar modelo
-        varchar tipo_prod "CHECK in (bicicleta, repuesto, accesorio)"
+        varchar tipo_prod "bicicleta, repuesto, accesorio"
         int cantidad "CHECK >= 0"
         decimal precio "CHECK >= 0"
         int stock_minimo "CHECK >= 0"
-        boolean activo "DEFAULT true"
-        timestamptz created_at
-        timestamptz updated_at
+        boolean activo
     }
 
     Producto_BiciNueva {
         int id_producto PK, FK "ON DELETE CASCADE"
-        varchar marca
         varchar color
         varchar rodado
         varchar talle
-        varchar genero "CHECK in (hombre, mujer, unisex)"
+        varchar genero "hombre, mujer, unisex"
     }
 
     Metodo_Pago {
-        int id_metodo_pago PK "GENERATED ALWAYS AS IDENTITY"
+        int id_metodo_pago PK "IDENTITY"
         varchar nombre UK "Efectivo, Débito, Transferencia, etc."
     }
 
-    Bicicleta {
-        int id_bicicleta PK "GENERATED ALWAYS AS IDENTITY"
-        int id_cliente FK "ON DELETE RESTRICT"
-        varchar marca "CHECK length >= 1"
-        varchar modelo
-        timestamptz created_at
-        timestamptz updated_at
-    }
-
     Venta {
-        int id_venta PK "GENERATED ALWAYS AS IDENTITY"
+        int id_venta PK "IDENTITY"
         int id_cliente FK "ON DELETE RESTRICT"
         int id_usuario FK "ON DELETE RESTRICT"
         int id_metodo_pago FK "ON DELETE RESTRICT"
         date fecha "DEFAULT CURRENT_DATE"
         decimal costo_total "CHECK >= 0"
-        varchar estado "CHECK in (COMPLETADA, ANULADA)"
-        timestamptz fecha_anulacion
+        varchar estado "COMPLETADA, ANULADA"
         text motivo_anulacion
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     Detalle_Venta {
-        int id_detalle_venta PK "GENERATED ALWAYS AS IDENTITY"
+        int id_detalle_venta PK "IDENTITY"
         int id_venta FK "ON DELETE CASCADE"
         int id_producto FK "ON DELETE RESTRICT"
         int cantidad "CHECK > 0"
         decimal precio_unitario
         decimal costo_total
+        boolean primer_service_realizado "DEFAULT false"
+        date fecha_primer_service "Nullable"
+        int id_usuario_service FK "ON DELETE SET NULL, Nullable"
+        boolean service_excepcion "DEFAULT false"
     }
 
     Reparacion {
-        int id_reparacion PK "GENERATED ALWAYS AS IDENTITY"
+        int id_reparacion PK "IDENTITY"
         int id_bicicleta FK "ON DELETE RESTRICT"
         int id_usuario FK "ON DELETE RESTRICT"
         date fecha_ingreso "DEFAULT CURRENT_DATE"
-        date fecha_egreso
-        varchar estado "CHECK in (Recibida, En Reparación, Lista, Entregada)"
+        date fecha_egreso "Nullable"
+        varchar estado "Recibida, En Reparación, Lista, Entregada"
         text descripcion
         decimal costo_mano_obra "CHECK >= 0"
         decimal costo_total "CHECK >= 0"
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     Detalle_Reparacion {
-        int id_detalle_rep PK "GENERATED ALWAYS AS IDENTITY"
+        int id_detalle_rep PK "IDENTITY"
         int id_reparacion FK "ON DELETE CASCADE"
         int id_producto FK "ON DELETE RESTRICT"
         int cantidad "CHECK > 0"
@@ -138,35 +124,38 @@ erDiagram
         decimal costo_total
     }
 
+    Proveedor {
+        int id_proveedor PK "IDENTITY"
+        varchar nombre_empresa
+        varchar cuit UK
+        varchar telefono
+        varchar email
+    }
+
     Pago_Proveedor {
-        int id_pago PK "GENERATED ALWAYS AS IDENTITY"
+        int id_pago PK "IDENTITY"
         int id_proveedor FK "ON DELETE RESTRICT"
         int id_usuario FK "ON DELETE RESTRICT"
         int id_metodo_pago FK "ON DELETE RESTRICT"
         date fecha "DEFAULT CURRENT_DATE"
         decimal monto_total "CHECK > 0"
         text observaciones
-        timestamptz created_at
-        timestamptz updated_at
     }
 
     Movimiento_Stock {
-        int id_movimiento PK "GENERATED ALWAYS AS IDENTITY"
+        int id_movimiento PK "IDENTITY"
         int id_producto FK "ON DELETE RESTRICT"
         int id_usuario FK "ON DELETE RESTRICT"
-        varchar tipo_movimiento "CHECK in (INGRESO, EGRESO)"
+        varchar tipo_movimiento "INGRESO, EGRESO"
         int cantidad "CHECK > 0"
         varchar motivo
-        text observaciones
-        timestamptz created_at
     }
 
     Bitacora_Actividad {
-        int id_bitacora PK "GENERATED ALWAYS AS IDENTITY"
+        int id_bitacora PK "IDENTITY"
         int id_usuario FK "ON DELETE SET NULL"
         varchar nombre_usuario
         varchar modulo
         varchar accion
-        text descripcion
         timestamptz created_at
     }

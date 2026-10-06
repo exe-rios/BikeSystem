@@ -47,7 +47,7 @@ export function TabVentasListado({
         <input
           type="text"
           maxLength={60}
-          placeholder="Buscar por comprobante, cliente o vendedor..."
+          placeholder="Buscar por comprobante o cliente..."
           value={busquedaVenta}
           onChange={e => onCambiarBusqueda(e.target.value.slice(0, 60))}
           style={{
@@ -74,7 +74,6 @@ export function TabVentasListado({
               <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Cliente</th>
               <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Fecha</th>
               <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Método Pago</th>
-              <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Vendedor</th>
               <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>Estado</th>
               <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', textAlign: 'right' }}>Total</th>
               <th style={{ padding: '16px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-mutado)', textTransform: 'uppercase', textAlign: 'right' }}>
@@ -87,19 +86,33 @@ export function TabVentasListado({
           <tbody>
             {cargando ? (
               <tr>
-                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+                <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                   Cargando ventas...
                 </td>
               </tr>
             ) : ventas.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--texto-mutado)', fontSize: '0.95rem' }}>
+                <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--texto-mutado)', fontSize: '0.95rem' }}>
                   {totalVentas === 0 ? 'No hay ventas registradas en el sistema.' : 'No se encontraron ventas con el filtro de búsqueda.'}
                 </td>
               </tr>
             ) : (
               ventas.map(v => {
-                const nombreCliente = v.cliente_nombre ? `${v.cliente_apellido}, ${v.cliente_nombre}` : `Cliente #${v.id_cliente}`;
+                const esCF = 
+                  v.es_consumidor_final ||
+                  (v.cliente_nombre?.toLowerCase().trim() === 'consumidor' && v.cliente_apellido?.toLowerCase().trim() === 'final') ||
+                  (v.cliente_nombre?.toLowerCase().trim() === 'final' && v.cliente_apellido?.toLowerCase().trim() === 'consumidor');
+
+                const tieneNombrePersonalizado = 
+                  esCF && 
+                  v.cliente_nombre && 
+                  v.cliente_nombre.toLowerCase().trim() !== 'consumidor';
+
+                const nombreCliente = tieneNombrePersonalizado
+                  ? `${v.cliente_apellido ? `${v.cliente_apellido}, ` : ''}${v.cliente_nombre}`
+                  : esCF
+                  ? 'Consumidor Final'
+                  : (v.cliente_nombre ? `${v.cliente_apellido}, ${v.cliente_nombre}` : `Cliente #${v.id_cliente}`);
                 const esAnulada = v.estado === 'ANULADA';
 
                 return (
@@ -118,8 +131,25 @@ export function TabVentasListado({
                     <td style={{ padding: '16px', fontSize: '0.95rem', color: esAnulada ? '#ef4444' : 'var(--azul-oscuro)', fontFamily: 'monospace', fontWeight: '700' }}>
                       FAC-{String(v.id_venta).padStart(6, '0')}
                     </td>
-                    <td style={{ padding: '16px', fontSize: '0.95rem', fontWeight: '600', color: 'var(--texto-principal)' }}>
-                      {nombreCliente}
+                    <td style={{ padding: '16px' }}>
+                      <div style={{ fontSize: '0.92rem', fontWeight: '600', color: 'var(--texto-principal)' }}>
+                        {nombreCliente}
+                      </div>
+                      {tieneNombrePersonalizado ? (
+                        <div style={{ fontSize: '0.74rem', color: '#2563eb', fontWeight: '600', marginTop: '2px' }}>
+                          Cons. Final {v.cliente_dni ? `• DNI: ${v.cliente_dni}` : ''}
+                        </div>
+                      ) : esCF ? (
+                        <div style={{ fontSize: '0.74rem', color: 'var(--texto-mutado)', marginTop: '2px' }}>
+                          Venta Mostrador
+                        </div>
+                      ) : (
+                        v.cliente_dni && (
+                          <div style={{ fontSize: '0.74rem', color: 'var(--texto-mutado)', marginTop: '2px' }}>
+                            DNI: {v.cliente_dni}
+                          </div>
+                        )
+                      )}
                     </td>
                     <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>
                       {formatearFecha(v.fecha, 'Hoy')}
@@ -136,9 +166,6 @@ export function TabVentasListado({
                       }}>
                         {v.metodo_pago_nombre || 'Efectivo'}
                       </span>
-                    </td>
-                    <td style={{ padding: '16px', fontSize: '0.9rem', color: 'var(--texto-mutado)' }}>
-                      {v.vendedor || 'Sistema'}
                     </td>
                     <td style={{ padding: '16px' }}>
                       <span style={{

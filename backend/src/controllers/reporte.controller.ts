@@ -83,3 +83,17 @@ export const obtenerRankingProductos = async (_req: Request, res: Response, next
     next(error);
   }
 };
+
+/** Endpoint GET /api/reportes/capital-stock: Análisis de capital inmovilizado y estratificación por gamas de bicicletas. */
+export const obtenerReporteCapitalStock = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { gamaBajaMax, gamaMediaMax } = req.query as {
+      gamaBajaMax?: string;
+      gamaMediaMax?: string;
+    };
+    const resultado = await ReporteService.obtenerReporteCapitalStock({ gamaBajaMax, gamaMediaMax });
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
+};

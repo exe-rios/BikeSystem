@@ -16,11 +16,13 @@ import proveedorRoutes from './routes/proveedor.routes.js';
 import pagoProveedorRoutes from './routes/pagoProveedor.routes.js';
 import reporteRoutes from './routes/reporte.routes.js';
 import bitacoraRoutes from './routes/bitacora.routes.js';
+import backupRoutes from './routes/backup.routes.js';
 
 import { manejarErrores } from './middlewares/error.middleware.js';
 
 import compression from 'compression';
 import { cerrarPool } from './config/db.js';
+import { asegurarConsumidorFinal } from './crear_consumidor_final.js';
 
 // Validación de variables de entorno obligatorias (fail-fast)
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
@@ -77,12 +79,16 @@ app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/pagos-proveedores', pagoProveedorRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/bitacora', bitacoraRoutes);
+app.use('/api/backup', backupRoutes);
 
 // Middleware de captura global de errores
 app.use(manejarErrores);
 
 const server = app.listen(PORT, () => {
   console.log(`[Server]: Backend de BikeSystem corriendo en http://localhost:${PORT}`);
+  asegurarConsumidorFinal().catch(err => {
+    console.error('[Consumidor Final]: Error al asegurar registro en BD:', err?.message || err);
+  });
 });
 
 // Cierre ordenado (Graceful Shutdown)

@@ -6,20 +6,23 @@ interface ReportesHeaderProps {
   fechaDesde: string;
   fechaHasta: string;
   onExportar: () => void;
+  onExportarPDF: () => void;
   onImprimir: () => void;
 }
 
-/** Cabecera del módulo de reportes con botones de exportación CSV e impresión. */
+/** Cabecera del módulo de reportes con botones de exportación CSV, PDF e impresión. */
 export function ReportesHeader({
   activeTab,
   fechaDesde,
   fechaHasta,
   onExportar,
+  onExportarPDF,
   onImprimir
 }: ReportesHeaderProps) {
   const getTituloPestana = () => {
     switch (activeTab) {
       case 'general': return 'Consolidado General';
+      case 'inventario': return 'Inventario y Capital de Bicicletas';
       case 'ventas': return 'Ventas de Mostrador';
       case 'reparaciones': return 'Taller y Reparaciones';
       case 'balance': return 'Balance Financiero y Flujo de Caja';
@@ -80,6 +83,27 @@ export function ReportesHeader({
             }}
           >
             Exportar CSV (Excel)
+          </button>
+          <button
+            type="button"
+            onClick={onExportarPDF}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              backgroundColor: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontWeight: '600',
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            Exportar PDF
           </button>
           <button
             type="button"

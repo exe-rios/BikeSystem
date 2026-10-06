@@ -7,10 +7,13 @@ import { responderOk, responderCreado } from '../utils/response.js';
 /** Endpoint POST /api/ventas: Registra una nueva venta comercial y descuenta stock. */
 export const crearVenta = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id_cliente, detalles, id_metodo_pago } = req.body;
+    const { id_cliente, detalles, id_metodo_pago, cliente_nombre, cliente_apellido, cliente_dni } = req.body;
     const resultado = await VentaService.crearVenta({
       id_cliente,
       id_metodo_pago,
+      cliente_nombre,
+      cliente_apellido,
+      cliente_dni,
       detalles,
       idUsuarioOperador: req.usuarioToken?.id,
       nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
@@ -99,6 +102,32 @@ export const agregarDetalleVenta = async (req: Request, res: Response, next: Nex
       precio_unitario
     });
     responderCreado(res, 'Artículo agregado a la venta con éxito', { detalle: resultado });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Endpoint PATCH /api/ventas/garantias/:id_detalle_venta/primer-service: Registra el primer service para extender garantía a 6 meses. */
+export const registrarPrimerService = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { id_detalle_venta } = req.params;
+    const { fecha_service, observaciones } = req.body;
+    const idUsuarioOperador = (req as any).usuarioToken?.id ?? (req as any).usuario?.id;
+    const rolUsuarioOperador = (req as any).usuarioToken?.rol ?? (req as any).usuario?.rol;
+    const nombreUsuarioOperador = (req as any).usuarioToken?.nombre_usuario ?? (req as any).usuario?.nombre_usuario;
+
+    const resultado = await VentaService.registrarPrimerService(id_detalle_venta, {
+      fecha_service,
+      observaciones,
+      idUsuarioOperador,
+      rolUsuarioOperador,
+      nombreUsuarioOperador
+    });
+
+    responderOk(res, {
+      mensaje: 'Primer service registrado exitosamente. Garantía extendida a 6 meses.',
+      detalle: resultado
+    });
   } catch (error) {
     next(error);
   }

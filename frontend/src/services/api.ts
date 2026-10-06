@@ -18,7 +18,8 @@ import type {
   ReporteEstadisticasResponse,
   ReporteVentasResponse,
   ReporteReparacionesResponse,
-  ReporteEgresosResponse
+  ReporteEgresosResponse,
+  ReporteCapitalStockResponse
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -269,13 +270,44 @@ export const api = {
       const qs = q.toString();
       return request<{
         total: number;
-        resumen?: { total: number; vigentes: number; por_vencer: number; vencidas: number };
+        resumen?: {
+          total: number;
+          vigentes: number;
+          service_pendiente: number;
+          por_vencer: number;
+          concluidas: number;
+          vencidas?: number;
+        };
         garantias: GarantiaBicicleta[];
       }>(qs ? `/api/ventas/garantias?${qs}` : '/api/ventas/garantias');
     },
+    registrarPrimerService: (id_detalle_venta: number, payload: { fecha_service?: string; observaciones?: string }) =>
+      request<{
+        message: string;
+        detalle: unknown;
+        garantia: {
+          estado_garantia: string;
+          fecha_limite_service: string;
+          fecha_vencimiento_extendida: string;
+          fecha_vencimiento: string;
+          primer_service_realizado: boolean;
+          fecha_primer_service: string;
+          service_excepcion: boolean;
+        };
+      }>(`/api/ventas/garantias/${id_detalle_venta}/primer-service`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      }),
     getById: (id: number) =>
       request<{ venta: Venta; productos_vendidos: DetalleVentaItem[] }>(`/api/ventas/${id}`),
-    create: (payload: { id_cliente: number; id_metodo_pago?: number; detalles: Array<{ id_producto: number; cantidad: number; precio_unitario?: number }> }) =>
+    create: (payload: {
+      id_cliente: number;
+      id_metodo_pago?: number;
+      cliente_nombre?: string;
+      cliente_apellido?: string;
+      cliente_dni?: string;
+      detalles: Array<{ id_producto: number; cantidad: number; precio_unitario?: number }>;
+    }) =>
       request<{ message: string; venta: Venta; detalles?: DetalleVentaItem[] }>('/api/ventas', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -418,6 +450,13 @@ export const api = {
       const qs = params.toString();
       return request<ReporteEgresosResponse>(qs ? `/api/reportes/egresos?${qs}` : '/api/reportes/egresos');
     },
+    getCapitalStock: (filtros?: { gamaBajaMax?: number; gamaMediaMax?: number }) => {
+      const params = new URLSearchParams();
+      if (filtros?.gamaBajaMax) params.append('gamaBajaMax', String(filtros.gamaBajaMax));
+      if (filtros?.gamaMediaMax) params.append('gamaMediaMax', String(filtros.gamaMediaMax));
+      const qs = params.toString();
+      return request<ReporteCapitalStockResponse>(qs ? `/api/reportes/capital-stock?${qs}` : '/api/reportes/capital-stock');
+    },
   },
 
   // Bitácora de Auditoría (CU28)
@@ -433,5 +472,49 @@ export const api = {
         qs ? `/api/bitacora?${qs}` : '/api/bitacora'
       );
     },
+  },
+
+  // Respaldo y Copias de Seguridad (RNF3)
+  backup: {
+    descargarSql: async (): Promise<{ nombreArchivo: string; tamanoBytes: number }> => {
+      const token = localStorage.getItem('token');
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${API_URL}/api/backup/descargar`, {
+        method: 'GET',
+        headers
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'No se pudo generar el respaldo de la base de datos');
+      }
+
+      const disposition = res.headers.get('Content-Disposition');
+      let nombreArchivo = 'Backup_BikeSystem.sql';
+      if (disposition && disposition.includes('filename=')) {
+        const match = disposition.match(/filename="?([^"]+)"?/);
+        if (match && match[1]) {
+          nombreArchivo = match[1];
+        }
+      }
+
+      const blob = await res.blob();
+      const tamanoBytes = blob.size;
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      return { nombreArchivo, tamanoBytes };
+    }
   },
 };

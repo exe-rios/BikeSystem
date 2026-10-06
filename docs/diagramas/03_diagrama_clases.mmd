@@ -1,82 +1,16 @@
 classDiagram
-    %% Controladores
-    class AuthController {
-        +login(req, res)
-        +healthCheck(req, res)
-        +dbTest(req, res)
-    }
+    %% ===================================================
+    %% DIAGRAMA DE CLASES DEL DOMINIO - BIKESYSTEM
+    %% ===================================================
 
-    class VentaController {
-        +crearVenta(req, res)
-        +obtenerVentas(req, res)
-        +obtenerVentaPorId(req, res)
-        +anularVenta(req, res)
-        +obtenerGarantiasBicicletas(req, res)
-        +obtenerMetodosPago(req, res)
-    }
-
-    class ReparacionController {
-        +crearReparacion(req, res)
-        +obtenerReparaciones(req, res)
-        +obtenerReparacionPorId(req, res)
-        +actualizarEstadoReparacion(req, res)
-    }
-
-    class ProductoController {
-        +crearProducto(req, res)
-        +obtenerProductos(req, res)
-        +actualizarProducto(req, res)
-        +eliminarProducto(req, res)
-        +registrarMovimientoStock(req, res)
-        +obtenerMovimientosStock(req, res)
-    }
-
-    %% Servicios del Negocio
-    class AuthService {
-        +autenticarUsuario(nombre_usuario, contrasena) Promise~TokenSession~
-        +verificarToken(token) TokenPayload
-    }
-
-    class VentaService {
-        +crearVenta(datos) Promise~VentaResultado~
-        +obtenerVentas(busqueda, paginacion) Promise~VentasPaginadas~
-        +obtenerVentaPorId(id) Promise~VentaCompleta~
-        +anularVenta(id, motivo, operador) Promise~ResultadoAnulacion~
-        +obtenerGarantiasBicicletas(busqueda, paginacion) Promise~ResumenGarantias~
-        +obtenerMetodosPago() Promise~MetodoPago[]~
-    }
-
-    class ReparacionService {
-        +crearReparacion(datos) Promise~Reparacion~
-        +obtenerReparaciones(filtros) Promise~ReparacionesPaginadas~
-        +obtenerReparacionPorId(id) Promise~ReparacionDetallada~
-        +actualizarEstadoReparacion(id, estado, operador) Promise~Reparacion~
-    }
-
-    class DetalleReparacionService {
-        +agregarRepuesto(datos) Promise~DetalleReparacion~
-        +obtenerRepuestosDeReparacion(idReparacion) Promise~DetalleReparacion[]~
-        +eliminarRepuesto(idDetalle, operador) Promise~ResultadoEliminacion~
-    }
-
-    class ProductoService {
-        +crearProducto(datos) Promise~Producto~
-        +obtenerProductos(filtros) Promise~ProductosPaginados~
-        +actualizarProducto(id, datos) Promise~Producto~
-        +eliminarProducto(id, operador) Promise~void~
-        +registrarMovimientoManual(datos) Promise~MovimientoStock~
-        +obtenerMovimientosKardex(filtros) Promise~MovimientoStock[]~
-    }
-
-    %% Entidades de Dominio
     class Usuario {
         +int id_usuario
         +string nombre_usuario
         +string contrasena
         +string rol
-        +DateTime created_at
-        +DateTime updated_at
-        +verificarPassword(plainText) boolean
+        +Date created_at
+        +autenticar(password) boolean
+        +tienePermiso(modulo) boolean
     }
 
     class Cliente {
@@ -87,6 +21,8 @@ classDiagram
         +string telefono
         +string email
         +string direccion
+        +esConsumidorFinal() boolean
+        +obtenerHistorial() Venta[]
     }
 
     class Bicicleta {
@@ -94,6 +30,7 @@ classDiagram
         +int id_cliente
         +string marca
         +string modelo
+        +consultarHistoriaClinica() Reparacion[]
     }
 
     class Producto {
@@ -106,10 +43,12 @@ classDiagram
         +decimal precio
         +int stock_minimo
         +boolean activo
+        +hayStock(cantidad) boolean
+        +descontarStock(cantidad) void
+        +restituirStock(cantidad) void
     }
 
     class ProductoBiciNueva {
-        +int id_producto
         +string color
         +string rodado
         +string talle
@@ -125,6 +64,9 @@ classDiagram
         +decimal costo_total
         +string estado
         +string motivo_anulacion
+        +calcularTotal() decimal
+        +anularVenta(motivo, admin) void
+        +emitirComprobantePDF() void
     }
 
     class DetalleVenta {
@@ -134,6 +76,13 @@ classDiagram
         +int cantidad
         +decimal precio_unitario
         +decimal costo_total
+        +boolean primer_service_realizado
+        +Date fecha_primer_service
+        +string observaciones_service
+        +int id_usuario_service
+        +boolean service_excepcion
+        +estaEnGarantia() boolean
+        +registrarPrimerService(tecnico) void
     }
 
     class Reparacion {
@@ -146,6 +95,9 @@ classDiagram
         +string descripcion
         +decimal costo_mano_obra
         +decimal costo_total
+        +avanzarEstadoKanban(nuevoEstado) void
+        +imputarRepuesto(repuesto, cant) void
+        +calcularCostoTotal() decimal
     }
 
     class DetalleReparacion {
@@ -155,23 +107,78 @@ classDiagram
         +int cantidad
         +decimal precio_unitario
         +decimal costo_total
+        +calcularSubtotal() decimal
     }
 
-    %% Relaciones
-    AuthController ..> AuthService : delega
-    VentaController ..> VentaService : delega
-    ReparacionController ..> ReparacionService : delega
-    ProductoController ..> ProductoService : delega
+    class MetodoPago {
+        +int id_metodo_pago
+        +string nombre
+    }
 
-    VentaService ..> Venta : gestiona
-    VentaService ..> DetalleVenta : crea transaccional
-    ReparacionService ..> Reparacion : gestiona
-    DetalleReparacionService ..> DetalleReparacion : imputa
-    ProductoService ..> Producto : administra
+    class Proveedor {
+        +int id_proveedor
+        +string nombre_empresa
+        +string cuit
+        +string telefono
+        +string email
+        +string direccion
+        +validarCuit() boolean
+    }
 
-    Producto <|-- ProductoBiciNueva : hereda atributos
+    class PagoProveedor {
+        +int id_pago
+        +int id_proveedor
+        +int id_usuario
+        +int id_metodo_pago
+        +Date fecha
+        +decimal monto_total
+        +string observaciones
+        +registrarEgreso() void
+    }
+
+    class MovimientoStock {
+        +int id_movimiento
+        +int id_producto
+        +int id_usuario
+        +string tipo_movimiento
+        +int cantidad
+        +string motivo
+        +string observaciones
+        +asentarKardex() void
+    }
+
+    class BitacoraActividad {
+        +int id_bitacora
+        +int id_usuario
+        +string nombre_usuario
+        +string modulo
+        +string accion
+        +string descripcion
+        +Date created_at
+        +registrarLog() void
+    }
+
+    %% ===================================================
+    %% RELACIONES ENTRE CLASES
+    %% ===================================================
+    Producto <|-- ProductoBiciNueva : especialización
     Cliente "1" *-- "0..*" Bicicleta : posee
+    Cliente "1" --> "0..*" Venta : compra
     Venta "1" *-- "1..*" DetalleVenta : contiene
     Reparacion "1" *-- "0..*" DetalleReparacion : insume
+    Bicicleta "1" --> "0..*" Reparacion : ingresa_a
+
+    Producto "1" --> "0..*" DetalleVenta : comercializado
+    Producto "1" --> "0..*" DetalleReparacion : utilizado
+    Producto "1" --> "0..*" MovimientoStock : registrado_en
+
+    Proveedor "1" --> "0..*" PagoProveedor : percibe
+    MetodoPago "1" --> "0..*" Venta : cancela
+    MetodoPago "1" --> "0..*" PagoProveedor : medio_de_pago
+
     Usuario "1" --> "0..*" Venta : registra
     Usuario "1" --> "0..*" Reparacion : asignado
+    Usuario "1" --> "0..*" PagoProveedor : autoriza
+    Usuario "1" --> "0..*" MovimientoStock : opera
+    Usuario "1" --> "0..*" BitacoraActividad : produce
+    Usuario "0..1" --> "0..*" DetalleVenta : atendio_service

@@ -9,11 +9,14 @@ export class VentaService {
   static async crearVenta(datos: {
     id_cliente: number | string;
     id_metodo_pago?: number | string | undefined;
+    cliente_nombre?: string | undefined;
+    cliente_apellido?: string | undefined;
+    cliente_dni?: string | undefined;
     detalles: Array<{ id_producto: number | string; cantidad: number | string; precio_unitario?: number | string | undefined }>;
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    const { id_cliente, id_metodo_pago, detalles, idUsuarioOperador, nombreUsuarioOperador } = datos;
+    const { id_cliente, id_metodo_pago, cliente_nombre, cliente_apellido, cliente_dni, detalles, idUsuarioOperador, nombreUsuarioOperador } = datos;
     const idUsuarioNum = Number(idUsuarioOperador);
     const idMetodoPagoNum = Number(id_metodo_pago) || 1;
 
@@ -22,7 +25,28 @@ export class VentaService {
       throw new UnauthorizedError('No se pudo identificar al usuario que realiza la operación.');
     }
 
-    const idClienteNum = validarId(id_cliente, 'Seleccioná un cliente para la venta.');
+    // Resolución del cliente: si no se provee o es 0, se asigna el cliente Consumidor Final
+    let idClienteNum = Number(id_cliente);
+    if (!id_cliente || isNaN(idClienteNum) || idClienteNum <= 0) {
+      const resCF = await pool.query(`
+        SELECT id_cliente FROM Cliente 
+        WHERE (LOWER(TRIM(nombre)) = 'consumidor' AND LOWER(TRIM(apellido)) = 'final')
+           OR (LOWER(TRIM(nombre)) = 'final' AND LOWER(TRIM(apellido)) = 'consumidor')
+        LIMIT 1;
+      `);
+      if (resCF.rowCount && resCF.rowCount > 0) {
+        idClienteNum = resCF.rows[0].id_cliente;
+      } else {
+        idClienteNum = validarId(id_cliente, 'Seleccioná un cliente para la venta.');
+      }
+    } else {
+      idClienteNum = validarId(id_cliente, 'Seleccioná un cliente para la venta.');
+    }
+
+    // Datos opcionales de consumidor final para este comprobante específico
+    const nombreFinal = typeof cliente_nombre === 'string' && cliente_nombre.trim() ? cliente_nombre.trim().slice(0, 100) : null;
+    const apellidoFinal = typeof cliente_apellido === 'string' && cliente_apellido.trim() ? cliente_apellido.trim().slice(0, 100) : null;
+    const dniFinal = typeof cliente_dni === 'string' && cliente_dni.trim() ? cliente_dni.trim().slice(0, 20) : null;
 
     if (!detalles || !Array.isArray(detalles) || detalles.length === 0) {
       throw new BadRequestError('Agregá al menos un artículo a la venta.');
@@ -36,11 +60,11 @@ export class VentaService {
       await client.query('BEGIN');
 
       const queryVenta = `
-        INSERT INTO Venta (id_cliente, id_usuario, id_metodo_pago, costo_total)
-        VALUES ($1, $2, $3, 0)
+        INSERT INTO Venta (id_cliente, id_usuario, id_metodo_pago, costo_total, cliente_nombre, cliente_apellido, cliente_dni)
+        VALUES ($1, $2, $3, 0, $4, $5, $6)
         RETURNING *;
       `;
-      const resVenta = await client.query(queryVenta, [idClienteNum, idUsuarioNum, idMetodoPagoNum]);
+      const resVenta = await client.query(queryVenta, [idClienteNum, idUsuarioNum, idMetodoPagoNum, nombreFinal, apellidoFinal, dniFinal]);
       const nuevaVenta = resVenta.rows[0];
       const id_venta = nuevaVenta.id_venta;
 
@@ -166,10 +190,11 @@ export class VentaService {
         COALESCE(v.estado, 'COMPLETADA') AS estado,
         v.id_metodo_pago,
         COALESCE(mp.nombre, 'Efectivo') AS metodo_pago_nombre,
-        c.nombre AS cliente_nombre,
-        c.apellido AS cliente_apellido,
-        c.dni AS cliente_dni,
+        COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre,
+        COALESCE(NULLIF(TRIM(v.cliente_apellido), ''), c.apellido) AS cliente_apellido,
+        COALESCE(NULLIF(TRIM(v.cliente_dni), ''), c.dni) AS cliente_dni,
         c.telefono AS cliente_telefono,
+        ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%') AS es_consumidor_final,
         u.nombre_usuario AS usuario_nombre,
         u.rol AS usuario_rol,
         COUNT(*) OVER()::INT AS total_registros
@@ -186,6 +211,9 @@ export class VentaService {
         c.nombre ILIKE $1 OR 
         c.apellido ILIKE $1 OR 
         c.dni ILIKE $1 OR 
+        v.cliente_nombre ILIKE $1 OR 
+        v.cliente_apellido ILIKE $1 OR 
+        v.cliente_dni ILIKE $1 OR 
         u.nombre_usuario ILIKE $1 OR 
         CAST(v.id_venta AS TEXT) ILIKE $1
       )`;
@@ -222,12 +250,13 @@ export class VentaService {
         COALESCE(v.estado, 'COMPLETADA') AS estado,
         v.id_metodo_pago,
         COALESCE(mp.nombre, 'Efectivo') AS metodo_pago_nombre,
-        c.nombre AS cliente_nombre,
-        c.apellido AS cliente_apellido,
-        c.dni AS cliente_dni,
+        COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre,
+        COALESCE(NULLIF(TRIM(v.cliente_apellido), ''), c.apellido) AS cliente_apellido,
+        COALESCE(NULLIF(TRIM(v.cliente_dni), ''), c.dni) AS cliente_dni,
         c.telefono AS cliente_telefono,
         c.email AS cliente_email,
         c.direccion AS cliente_direccion,
+        ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%') AS es_consumidor_final,
         u.nombre_usuario AS usuario_nombre,
         u.rol AS usuario_rol
       FROM Venta v
@@ -288,7 +317,7 @@ export class VentaService {
     return result.rows;
   }
 
-  /** Consulta el estado de cobertura y días restantes de garantía (30 días) en bicicletas vendidas. */
+  /** Consulta el estado de cobertura de garantías de bicicletas: 30 días para 1° service y extensión a 6 meses. */
   static async obtenerGarantiasBicicletas(busqueda?: string | undefined, paginacion?: { limite?: number | undefined; pagina?: number | undefined }) {
     let query = `
       SELECT 
@@ -297,11 +326,12 @@ export class VentaService {
         v.fecha AS fecha_venta,
         v.costo_total,
         c.id_cliente,
-        c.nombre AS cliente_nombre,
-        c.apellido AS cliente_apellido,
-        c.dni AS cliente_dni,
+        COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre,
+        COALESCE(NULLIF(TRIM(v.cliente_apellido), ''), c.apellido) AS cliente_apellido,
+        COALESCE(NULLIF(TRIM(v.cliente_dni), ''), c.dni) AS cliente_dni,
         c.telefono AS cliente_telefono,
         c.email AS cliente_email,
+        ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%') AS es_consumidor_final,
         u.nombre_usuario AS vendedor,
         p.id_producto,
         p.nombre AS producto_nombre,
@@ -313,12 +343,34 @@ export class VentaService {
         pb.genero,
         dv.cantidad,
         dv.precio_unitario,
-        (v.fecha::DATE + 30) AS fecha_vencimiento,
-        ((v.fecha::DATE + 30) - CURRENT_DATE)::INT AS dias_restantes,
+        dv.primer_service_realizado,
+        dv.fecha_primer_service,
+        dv.observaciones_service,
+        dv.service_excepcion,
+        u_srv.nombre_usuario AS usuario_service,
+        (v.fecha::DATE + 30)::DATE AS fecha_limite_service,
+        (v.fecha::DATE + INTERVAL '6 months')::DATE AS fecha_vencimiento_extendida,
         CASE 
-          WHEN (v.fecha::DATE + 30) < CURRENT_DATE THEN 'vencida'
-          WHEN (v.fecha::DATE + 30) - CURRENT_DATE <= 5 THEN 'por_vencer'
-          ELSE 'vigente'
+          WHEN dv.primer_service_realizado = true THEN (v.fecha::DATE + INTERVAL '6 months')::DATE
+          ELSE (v.fecha::DATE + 30)::DATE
+        END AS fecha_vencimiento,
+        CASE 
+          WHEN dv.primer_service_realizado = true THEN ((v.fecha::DATE + INTERVAL '6 months')::DATE - CURRENT_DATE)::INT
+          ELSE ((v.fecha::DATE + 30)::DATE - CURRENT_DATE)::INT
+        END AS dias_restantes,
+        CASE 
+          WHEN dv.primer_service_realizado = true THEN 
+            CASE 
+              WHEN (v.fecha::DATE + INTERVAL '6 months')::DATE < CURRENT_DATE THEN 'concluida'
+              WHEN ((v.fecha::DATE + INTERVAL '6 months')::DATE - CURRENT_DATE)::INT <= 15 THEN 'por_vencer'
+              ELSE 'vigente'
+            END
+          ELSE 
+            CASE 
+              WHEN (v.fecha::DATE + 30)::DATE < CURRENT_DATE THEN 'caducada_sin_service'
+              WHEN ((v.fecha::DATE + 30)::DATE - CURRENT_DATE)::INT <= 7 THEN 'service_por_vencer'
+              ELSE 'service_pendiente'
+            END
         END AS estado_garantia
       FROM Detalle_Venta dv
       INNER JOIN Venta v ON dv.id_venta = v.id_venta
@@ -326,6 +378,7 @@ export class VentaService {
       INNER JOIN Usuario u ON v.id_usuario = u.id_usuario
       INNER JOIN Productos p ON dv.id_producto = p.id_producto
       LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
+      LEFT JOIN Usuario u_srv ON dv.id_usuario_service = u_srv.id_usuario
       WHERE (v.estado IS NULL OR v.estado != 'ANULADA')
         AND p.tipo_prod = 'bicicleta'
     `;
@@ -341,6 +394,9 @@ export class VentaService {
         c.nombre ILIKE $1 OR 
         c.apellido ILIKE $1 OR 
         c.dni ILIKE $1 OR 
+        v.cliente_nombre ILIKE $1 OR 
+        v.cliente_apellido ILIKE $1 OR 
+        v.cliente_dni ILIKE $1 OR 
         CAST(v.id_venta AS TEXT) ILIKE $1
       )`;
       params.push(term);
@@ -364,16 +420,24 @@ export class VentaService {
     const result = await pool.query(query, params);
 
     let vigentes = 0;
+    let service_pendiente = 0;
     let por_vencer = 0;
-    let vencidas = 0;
+    let concluidas = 0;
 
     result.rows.forEach(g => {
-      if (g.estado_garantia === 'vencida') {
-        vencidas++;
-      } else if (g.estado_garantia === 'por_vencer') {
-        por_vencer++;
-      } else {
+      const st = g.estado_garantia;
+      if (st === 'vigente') {
         vigentes++;
+      } else if (st === 'service_pendiente') {
+        service_pendiente++;
+      } else if (st === 'service_por_vencer') {
+        service_pendiente++;
+        por_vencer++;
+      } else if (st === 'por_vencer') {
+        vigentes++;
+        por_vencer++;
+      } else if (st === 'caducada_sin_service' || st === 'concluida') {
+        concluidas++;
       }
     });
 
@@ -381,12 +445,116 @@ export class VentaService {
       total: result.rowCount || 0,
       resumen: {
         total: result.rowCount || 0,
+        service_pendiente,
         vigentes,
         por_vencer,
-        vencidas
+        concluidas
       },
       garantias: result.rows
     };
+  }
+
+  /** Registra el primer service obligatorio para una bicicleta vendida y extiende la garantía a 6 meses. */
+  static async registrarPrimerService(
+    idDetalleVenta: number | string,
+    datos: {
+      fecha_service?: string | undefined;
+      observaciones?: string | undefined;
+      idUsuarioOperador?: number | undefined;
+      rolUsuarioOperador?: string | undefined;
+      nombreUsuarioOperador?: string | undefined;
+    }
+  ) {
+    const idDetNum = validarId(idDetalleVenta, 'El identificador del detalle de venta no es válido.');
+    const { fecha_service, observaciones, idUsuarioOperador, rolUsuarioOperador, nombreUsuarioOperador } = datos;
+
+    const queryDetalle = `
+      SELECT 
+        dv.id_detalle_venta,
+        dv.id_venta,
+        dv.id_producto,
+        dv.primer_service_realizado,
+        v.fecha AS fecha_venta,
+        v.estado AS estado_venta,
+        p.tipo_prod,
+        p.nombre AS producto_nombre
+      FROM Detalle_Venta dv
+      INNER JOIN Venta v ON dv.id_venta = v.id_venta
+      INNER JOIN Productos p ON dv.id_producto = p.id_producto
+      WHERE dv.id_detalle_venta = $1;
+    `;
+    const res = await pool.query(queryDetalle, [idDetNum]);
+    if (res.rowCount === 0) {
+      throw new NotFoundError('El registro de venta de la bicicleta no existe.');
+    }
+
+    const reg = res.rows[0];
+    if (reg.tipo_prod !== 'bicicleta') {
+      throw new BadRequestError('El artículo seleccionado no corresponde a una bicicleta.');
+    }
+    if (reg.estado_venta === 'ANULADA') {
+      throw new BadRequestError('La venta correspondiente fue anulada.');
+    }
+    if (reg.primer_service_realizado) {
+      throw new BadRequestError('El primer service de esta bicicleta ya se encuentra registrado.');
+    }
+
+    // Cálculo de días transcurridos desde la fecha de venta
+    const fechaVenta = new Date(reg.fecha_venta);
+    const fechaSrv = fecha_service ? new Date(fecha_service) : new Date();
+    const diffMs = fechaSrv.getTime() - fechaVenta.getTime();
+    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    let esExcepcion = false;
+    if (diffDias > 30) {
+      const rol = (rolUsuarioOperador || '').toUpperCase();
+      if (rol !== 'ADMIN' && rol !== 'SUPERADMIN') {
+        throw new BadRequestError(
+          `Han transcurrido ${diffDias} días desde la venta (el plazo regular es de 30 días). Esta acción requiere autorización de un Administrador.`
+        );
+      }
+      esExcepcion = true;
+    }
+
+    const obsLimpia = (observaciones || '').trim();
+
+    const queryUpdate = `
+      UPDATE Detalle_Venta
+      SET 
+        primer_service_realizado = true,
+        fecha_primer_service = $1,
+        observaciones_service = $2,
+        id_usuario_service = $3,
+        service_excepcion = $4
+      WHERE id_detalle_venta = $5
+      RETURNING *;
+    `;
+
+    const resUpdate = await pool.query(queryUpdate, [
+      fechaSrv,
+      obsLimpia || null,
+      idUsuarioOperador || null,
+      esExcepcion,
+      idDetNum
+    ]);
+
+    // Bitácora de auditoría
+    try {
+      await pool.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Ventas', $3, $4);`,
+        [
+          idUsuarioOperador || null,
+          nombreUsuarioOperador || 'Sistema',
+          esExcepcion ? '1° Service Excepción' : '1° Service Registrado',
+          `Registro de 1° Service para bicicleta "${reg.producto_nombre}" (Venta #${reg.id_venta}, ítem #${idDetNum}). Garantía extendida a 6 meses desde fecha de compra. Excepción administrativa: ${esExcepcion ? 'Sí' : 'No'}. Observaciones: ${obsLimpia || 'Sin notas adicionales'}`
+        ]
+      );
+    } catch (bitErr) {
+      console.warn('No se pudo registrar la bitácora del service:', bitErr);
+    }
+
+    return resUpdate.rows[0];
   }
 
   /** Incorpora un artículo adicional a una venta abierta y actualiza el importe total. */

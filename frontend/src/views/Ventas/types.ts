@@ -31,7 +31,7 @@ export interface VentaDetallada {
 }
 
 export type TabVentasTipo = 'ventas' | 'garantias';
-export type FiltroGarantia = 'todas' | 'vigentes' | 'por_vencer' | 'vencidas';
+export type FiltroGarantia = 'todas' | 'service_pendiente' | 'vigentes' | 'por_vencer' | 'concluidas';
 
 export interface ItemCarrito extends DetalleVentaItem {
   nombre: string;
@@ -42,10 +42,19 @@ export interface ItemCarrito extends DetalleVentaItem {
   stockDisponible: number;
 }
 
+export type EstadoGarantiaVisual = 
+  | 'service_pendiente'
+  | 'service_por_vencer'
+  | 'caducada_sin_service'
+  | 'vigente'
+  | 'por_vencer'
+  | 'concluida';
+
 export interface InfoGarantia {
-  estado: 'vigente' | 'por_vencer' | 'vencida';
+  estado: EstadoGarantiaVisual;
   diasRestantes: number;
   label: string;
+  sublabel?: string;
   colorBg: string;
   colorText: string;
   fechaVencimiento: string;
@@ -54,3 +63,4 @@ export interface InfoGarantia {
 export interface GarantiaConEstado extends GarantiaBicicleta {
   infoGarantia: InfoGarantia;
 }
+

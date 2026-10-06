@@ -4,14 +4,16 @@ interface ReportesTabsProps {
   activeTab: TabTipo;
   ventasCount: number;
   reparacionesCount: number;
+  bicicletasCount?: number;
   onTabChange: (tab: TabTipo) => void;
 }
 
-/** Navegación por pestañas: Consolidado, Ventas, Taller, Balance y Top Productos. */
+/** Navegación por pestañas: Consolidado, Ventas, Taller, Balance, Top Productos e Inventario. */
 export function ReportesTabs({
   activeTab,
   ventasCount,
   reparacionesCount,
+  bicicletasCount,
   onTabChange
 }: ReportesTabsProps) {
   const getTabStyle = (tab: TabTipo) => ({
@@ -55,6 +57,19 @@ export function ReportesTabs({
         style={getTabStyle('general')}
       >
         <span>Consolidado General</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onTabChange('inventario')}
+        style={getTabStyle('inventario')}
+      >
+        <span>Inventario y Capital</span>
+        {bicicletasCount !== undefined && bicicletasCount > 0 && (
+          <span style={getBadgeStyle('inventario')}>
+            {bicicletasCount} bicis
+          </span>
+        )}
       </button>
 
       <button

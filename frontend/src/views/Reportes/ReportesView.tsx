@@ -8,6 +8,7 @@ import { TabBalance } from './tabs/TabBalance';
 import { TabTopProductos } from './tabs/TabTopProductos';
 import { TabVentas } from './tabs/TabVentas';
 import { TabTaller } from './tabs/TabTaller';
+import { TabCapitalInventario } from './tabs/TabCapitalInventario';
 
 /** Vista de analítica empresarial, flujo de caja y balance operativo. */
 export function ReportesView() {
@@ -47,9 +48,12 @@ export function ReportesView() {
     limitePaginacion,
     topProductosList,
     maxVentasProducto,
+    capitalStockData,
+    bicicletasCount,
     cargando,
     error,
     handleExportar,
+    handleExportarPDF,
     handleImprimir
   } = useReportes();
 
@@ -62,6 +66,7 @@ export function ReportesView() {
         fechaDesde={fechaDesde}
         fechaHasta={fechaHasta}
         onExportar={handleExportar}
+        onExportarPDF={handleExportarPDF}
         onImprimir={handleImprimir}
       />
 
@@ -77,6 +82,7 @@ export function ReportesView() {
         activeTab={activeTab}
         ventasCount={totalVentasRegistros}
         reparacionesCount={totalReparacionesRegistros}
+        bicicletasCount={bicicletasCount}
         onTabChange={setActiveTab}
       />
 
@@ -153,6 +159,14 @@ export function ReportesView() {
           totalRegistros={totalReparacionesRegistros}
           limite={limitePaginacion}
           onCambiarPagina={setPaginaReparaciones}
+        />
+      )}
+
+      {activeTab === 'inventario' && (
+        <TabCapitalInventario
+          data={capitalStockData}
+          cargando={cargando}
+          onExportarCSV={handleExportar}
         />
       )}
 

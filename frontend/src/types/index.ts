@@ -138,6 +138,8 @@ export interface Venta {
   motivo_anulacion?: string | null;
   cliente_nombre?: string;
   cliente_apellido?: string;
+  cliente_dni?: string;
+  es_consumidor_final?: boolean;
   vendedor?: string;
   detalles?: DetalleVentaItem[];
 }
@@ -172,8 +174,15 @@ export interface GarantiaBicicleta {
   id_bicicleta?: number;
   fecha_venta: string;
   fecha_vencimiento: string;
+  fecha_limite_service?: string;
+  fecha_vencimiento_extendida?: string;
+  primer_service_realizado: boolean;
+  fecha_primer_service?: string | null;
+  observaciones_service?: string | null;
+  service_excepcion?: boolean;
+  usuario_service?: string | null;
   dias_restantes?: number;
-  estado_garantia?: 'vigente' | 'por_vencer' | 'vencida';
+  estado_garantia?: 'service_pendiente' | 'service_por_vencer' | 'caducada_sin_service' | 'vigente' | 'por_vencer' | 'concluida' | 'vencida';
   id_detalle_venta: number;
   id_producto: number;
   cantidad: number;
@@ -191,6 +200,7 @@ export interface GarantiaBicicleta {
   cliente_dni?: string;
   cliente_telefono?: string;
   cliente_email?: string;
+  es_consumidor_final?: boolean;
   vendedor?: string;
 }
 
@@ -295,3 +305,12 @@ export interface ReporteEgresosResponse {
   total_egresos: number;
   pagos: PagoProveedor[];
 }
+
+export type {
+  ReporteCapitalStockResponse,
+  SegmentoGama,
+  BicicletaCapital,
+  ResumenCapitalStock,
+  DesgloseTipoProducto,
+  ClaveGama
+} from '../views/Reportes/types';

@@ -7,6 +7,11 @@ export function useCarritoVenta() {
   const [metodoPagoSeleccionadoId, setMetodoPagoSeleccionadoId] = useState<number>(1);
   const [carritoDetalle, setCarritoDetalle] = useState<DetalleVentaItem[]>([]);
 
+  // Datos personalizados para Consumidor Final de mostrador (sin crear nuevo cliente)
+  const [nombreConsumidorFinal, setNombreConsumidorFinal] = useState<string>('');
+  const [apellidoConsumidorFinal, setApellidoConsumidorFinal] = useState<string>('');
+  const [dniConsumidorFinal, setDniConsumidorFinal] = useState<string>('');
+
   // Estado del selector de artículos
   const [productoBuscadoId, setProductoBuscadoId] = useState<number>(0);
   const [cantidadAnadir, setCantidadAnadir] = useState<number | string>(1);
@@ -118,10 +123,13 @@ export function useCarritoVenta() {
     setCarritoDetalle(prev => prev.filter(item => item.id_producto !== idProd));
   };
 
-  const limpiarCarrito = (primerMetodoPagoId: number = 1) => {
+  const limpiarCarrito = (primerMetodoPagoId: number = 1, defaultClienteId: number = 0) => {
     setCarritoDetalle([]);
-    setClienteSeleccionadoId(0);
+    setClienteSeleccionadoId(defaultClienteId);
     setMetodoPagoSeleccionadoId(primerMetodoPagoId);
+    setNombreConsumidorFinal('');
+    setApellidoConsumidorFinal('');
+    setDniConsumidorFinal('');
     setProductoBuscadoId(0);
     setCantidadAnadir(1);
     setFiltroTipo('todos');
@@ -133,6 +141,12 @@ export function useCarritoVenta() {
     setClienteSeleccionadoId,
     metodoPagoSeleccionadoId,
     setMetodoPagoSeleccionadoId,
+    nombreConsumidorFinal,
+    setNombreConsumidorFinal,
+    apellidoConsumidorFinal,
+    setApellidoConsumidorFinal,
+    dniConsumidorFinal,
+    setDniConsumidorFinal,
     carritoDetalle,
     productoBuscadoId,
     setProductoBuscadoId,

@@ -261,6 +261,9 @@ export class ReporteService {
       condiciones.push(`(
         c.nombre ILIKE $${idx} OR 
         c.apellido ILIKE $${idx} OR 
+        v.cliente_nombre ILIKE $${idx} OR 
+        v.cliente_apellido ILIKE $${idx} OR 
+        v.cliente_dni ILIKE $${idx} OR 
         u.nombre_usuario ILIKE $${idx} OR 
         CAST(v.id_venta AS TEXT) ILIKE $${idx}
       )`);
@@ -279,8 +282,10 @@ export class ReporteService {
         v.id_metodo_pago,
         COALESCE(mp.nombre, 'Efectivo') AS metodo_pago_nombre,
         COALESCE(v.estado, 'COMPLETADA') AS estado,
-        c.nombre AS cliente_nombre, 
-        c.apellido AS cliente_apellido,
+        COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre, 
+        COALESCE(NULLIF(TRIM(v.cliente_apellido), ''), c.apellido) AS cliente_apellido,
+        COALESCE(NULLIF(TRIM(v.cliente_dni), ''), c.dni) AS cliente_dni,
+        ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%') AS es_consumidor_final,
         u.nombre_usuario AS vendedor,
         COUNT(*) OVER()::INT AS total_registros,
         COUNT(*) FILTER (WHERE v.estado != 'ANULADA') OVER()::INT AS total_cobradas_resumen,
@@ -530,6 +535,225 @@ export class ReporteService {
     return {
       total: result.rowCount || 0,
       ranking: result.rows
+    };
+  }
+
+  /**
+   * Genera el reporte de capital inmovilizado en stock y estratificación de bicicletas por gama de precio.
+   * Resuelve el análisis de liquidez vs. mercadería inmovilizada solicitado por la administración.
+   */
+  static async obtenerReporteCapitalStock(parametros?: {
+    gamaBajaMax?: number | string | undefined;
+    gamaMediaMax?: number | string | undefined;
+  }) {
+    const gamaBajaMax = Number(parametros?.gamaBajaMax) > 0 ? Number(parametros?.gamaBajaMax) : 500000;
+    const gamaMediaMax = Number(parametros?.gamaMediaMax) > gamaBajaMax ? Number(parametros?.gamaMediaMax) : 1200000;
+
+    // 1. Resumen por tipo de producto (Bicicletas vs Repuestos vs Accesorios)
+    const queryDesgloseTipo = `
+      SELECT 
+        p.tipo_prod,
+        COUNT(*)::INT AS total_articulos,
+        COALESCE(SUM(p.cantidad), 0)::INT AS total_unidades,
+        COALESCE(SUM(p.precio * p.cantidad), 0)::NUMERIC AS capital_inmovilizado
+      FROM Productos p
+      WHERE p.activo = true AND p.cantidad > 0
+      GROUP BY p.tipo_prod
+      ORDER BY capital_inmovilizado DESC;
+    `;
+
+    // 2. Consulta detallada de bicicletas con rotación de los últimos 90 días
+    const queryBicicletas = `
+      SELECT 
+        p.id_producto,
+        p.nombre,
+        COALESCE(pb.marca, p.marca) AS marca,
+        COALESCE(p.modelo, '') AS modelo,
+        p.tipo_prod,
+        p.precio::NUMERIC AS precio_unitario,
+        p.cantidad AS stock_disponible,
+        p.stock_minimo,
+        (p.precio * p.cantidad)::NUMERIC AS capital_inmovilizado,
+        pb.rodado,
+        pb.talle,
+        pb.color,
+        pb.genero,
+        CASE 
+          WHEN p.precio < $1 THEN 'economica'
+          WHEN p.precio <= $2 THEN 'intermedia'
+          ELSE 'alta'
+        END AS gama,
+        COALESCE(v90.unidades_vendidas, 0)::INT AS unidades_vendidas_90d,
+        COALESCE(v90.monto_vendido, 0)::NUMERIC AS monto_vendido_90d,
+        CASE
+          WHEN COALESCE(v90.unidades_vendidas, 0) >= 3 THEN 'alta_rotacion'
+          WHEN COALESCE(v90.unidades_vendidas, 0) >= 1 THEN 'rotacion_regular'
+          ELSE 'estancada'
+        END AS estado_rotacion
+      FROM Productos p
+      LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
+      LEFT JOIN (
+        SELECT 
+          dv.id_producto,
+          SUM(dv.cantidad) AS unidades_vendidas,
+          SUM(dv.costo_total) AS monto_vendido
+        FROM Detalle_Venta dv
+        INNER JOIN Venta v ON dv.id_venta = v.id_venta
+        WHERE (v.estado IS NULL OR v.estado != 'ANULADA')
+          AND v.fecha >= CURRENT_DATE - INTERVAL '90 days'
+        GROUP BY dv.id_producto
+      ) v90 ON p.id_producto = v90.id_producto
+      WHERE p.tipo_prod = 'bicicleta' AND p.activo = true AND p.cantidad > 0
+      ORDER BY capital_inmovilizado DESC, p.precio DESC;
+    `;
+
+    const [resDesglose, resBicis] = await Promise.all([
+      pool.query(queryDesgloseTipo),
+      pool.query(queryBicicletas, [gamaBajaMax, gamaMediaMax])
+    ]);
+
+    // Calcular totales generales
+    let capitalTotalInventario = 0;
+    let unidadesTotalInventario = 0;
+    let capitalBicicletas = 0;
+    let unidadesBicicletas = 0;
+
+    const desglosePorTipo = resDesglose.rows.map(row => {
+      const cap = Number(row.capital_inmovilizado) || 0;
+      const unid = Number(row.total_unidades) || 0;
+      capitalTotalInventario += cap;
+      unidadesTotalInventario += unid;
+      if (row.tipo_prod === 'bicicleta') {
+        capitalBicicletas = cap;
+        unidadesBicicletas = unid;
+      }
+      return {
+        tipo_prod: row.tipo_prod,
+        total_articulos: Number(row.total_articulos) || 0,
+        total_unidades: unid,
+        capital_inmovilizado: cap,
+        porcentaje_capital: 0
+      };
+    });
+
+    desglosePorTipo.forEach(item => {
+      item.porcentaje_capital = capitalTotalInventario > 0
+        ? Math.round((item.capital_inmovilizado / capitalTotalInventario) * 1000) / 10
+        : 0;
+    });
+
+    // Estratificación por gamas de bicicletas
+    const gamas = {
+      economica: {
+        clave: 'economica',
+        nombre: 'Gama Económica / Entrada',
+        rango_texto: `Menor a $${gamaBajaMax.toLocaleString('es-AR')}`,
+        modelos: 0,
+        unidades: 0,
+        capital_inmovilizado: 0,
+        porcentaje_unidades: 0,
+        porcentaje_capital: 0,
+        precio_promedio: 0
+      },
+      intermedia: {
+        clave: 'intermedia',
+        nombre: 'Gama Intermedia / Media',
+        rango_texto: `$${gamaBajaMax.toLocaleString('es-AR')} a $${gamaMediaMax.toLocaleString('es-AR')}`,
+        modelos: 0,
+        unidades: 0,
+        capital_inmovilizado: 0,
+        porcentaje_unidades: 0,
+        porcentaje_capital: 0,
+        precio_promedio: 0
+      },
+      alta: {
+        clave: 'alta',
+        nombre: 'Gama Alta / Premium',
+        rango_texto: `Mayor a $${gamaMediaMax.toLocaleString('es-AR')}`,
+        modelos: 0,
+        unidades: 0,
+        capital_inmovilizado: 0,
+        porcentaje_unidades: 0,
+        porcentaje_capital: 0,
+        precio_promedio: 0
+      }
+    };
+
+    let sumaPrecios = 0;
+    let minPrecio = Infinity;
+    let maxPrecio = 0;
+    let estancadasCapital = 0;
+    let estancadasUnidades = 0;
+
+    resBicis.rows.forEach(bici => {
+      const g = (bici.gama as 'economica' | 'intermedia' | 'alta') || 'economica';
+      const cap = Number(bici.capital_inmovilizado) || 0;
+      const unid = Number(bici.stock_disponible) || 0;
+      const precio = Number(bici.precio_unitario) || 0;
+
+      if (gamas[g]) {
+        gamas[g].modelos += 1;
+        gamas[g].unidades += unid;
+        gamas[g].capital_inmovilizado += cap;
+      }
+
+      sumaPrecios += precio * unid;
+      if (precio < minPrecio) minPrecio = precio;
+      if (precio > maxPrecio) maxPrecio = precio;
+
+      if (bici.estado_rotacion === 'estancada') {
+        estancadasCapital += cap;
+        estancadasUnidades += unid;
+      }
+    });
+
+    if (minPrecio === Infinity) minPrecio = 0;
+
+    // Calcular porcentajes y promedios por gama
+    Object.values(gamas).forEach(g => {
+      g.porcentaje_unidades = unidadesBicicletas > 0
+        ? Math.round((g.unidades / unidadesBicicletas) * 1000) / 10
+        : 0;
+      g.porcentaje_capital = capitalBicicletas > 0
+        ? Math.round((g.capital_inmovilizado / capitalBicicletas) * 1000) / 10
+        : 0;
+      g.precio_promedio = g.unidades > 0
+        ? Math.round(g.capital_inmovilizado / g.unidades)
+        : 0;
+    });
+
+    const precioPromedioPonderado = unidadesBicicletas > 0
+      ? Math.round(capitalBicicletas / unidadesBicicletas)
+      : 0;
+
+    const porcentajeBicisSobreTotal = capitalTotalInventario > 0
+      ? Math.round((capitalBicicletas / capitalTotalInventario) * 1000) / 10
+      : 0;
+
+    return {
+      umbrales: {
+        gamaBajaMax,
+        gamaMediaMax
+      },
+      resumen: {
+        capital_total_inventario: capitalTotalInventario,
+        unidades_total_inventario: unidadesTotalInventario,
+        capital_total_bicicletas: capitalBicicletas,
+        unidades_total_bicicletas: unidadesBicicletas,
+        modelos_activos_bicicletas: resBicis.rowCount || 0,
+        porcentaje_bicicletas_capital: porcentajeBicisSobreTotal,
+        precio_promedio_bicicleta: precioPromedioPonderado,
+        precio_minimo_bicicleta: minPrecio,
+        precio_maximo_bicicleta: maxPrecio,
+        capital_estancado: estancadasCapital,
+        unidades_estancadas: estancadasUnidades,
+        porcentaje_capital_estancado: capitalBicicletas > 0
+          ? Math.round((estancadasCapital / capitalBicicletas) * 1000) / 10
+          : 0
+      },
+      desglose_por_tipo: desglosePorTipo,
+      gamas: [gamas.economica, gamas.intermedia, gamas.alta],
+      bicicletas: resBicis.rows
     };
   }
 }

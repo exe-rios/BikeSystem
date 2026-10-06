@@ -71,4 +71,29 @@ export class BitacoraService {
       registros: result.rows
     };
   }
+
+  /** Registra un nuevo evento o acción en la bitácora de actividad. */
+  static async registrar(datos: {
+    id_usuario?: number | null;
+    nombre_usuario?: string | null;
+    modulo: string;
+    accion: string;
+    descripcion: string;
+  }): Promise<void> {
+    try {
+      await pool.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          datos.id_usuario || null,
+          datos.nombre_usuario || 'SISTEMA',
+          datos.modulo,
+          datos.accion,
+          datos.descripcion
+        ]
+      );
+    } catch (error) {
+      console.error('[BitacoraService.registrar] Error registrando auditoria:', error);
+    }
+  }
 }
