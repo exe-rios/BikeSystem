@@ -79,11 +79,20 @@ export function ModalNuevaVenta({
 
       if (busquedaTexto.trim()) {
         const term = busquedaTexto.toLowerCase().trim();
+        const cleanTerm = term.replace(/^(bic-?|id\s*:?\s*#?|#)\s*/i, '').trim();
         const nombre = (p.nombre || '').toLowerCase();
         const marca = (p.marca || '').toLowerCase();
         const modelo = (p.modelo || '').toLowerCase();
         const idStr = String(p.id_producto || '');
-        return nombre.includes(term) || marca.includes(term) || modelo.includes(term) || idStr.includes(term);
+
+        const coincideId =
+          idStr === term ||
+          idStr.includes(term) ||
+          `#${idStr}`.includes(term) ||
+          `id ${idStr}`.includes(term) ||
+          (cleanTerm !== '' && (idStr === cleanTerm || idStr.includes(cleanTerm)));
+
+        return coincideId || nombre.includes(term) || marca.includes(term) || modelo.includes(term);
       }
 
       return true;
@@ -392,7 +401,7 @@ export function ModalNuevaVenta({
               maxLength={60}
               value={busquedaTexto}
               onChange={e => setBusquedaTexto(e.target.value.slice(0, 60))}
-              placeholder="Buscar artículo por nombre, marca o modelo..."
+              placeholder="Buscar artículo por ID, nombre, marca o modelo..."
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -444,7 +453,7 @@ export function ModalNuevaVenta({
                 const sinStock = Number(p.cantidad) <= 0;
                 return (
                   <option key={p.id_producto} value={p.id_producto} disabled={sinStock}>
-                    {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
+                    #{p.id_producto} - {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
                   </option>
                 );
               })}
