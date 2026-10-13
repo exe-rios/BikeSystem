@@ -26,6 +26,7 @@ describe('Módulo de Ventas y Transaccionalidad de Stock (VentaService)', () => 
     mockClient.query.mockReset();
     mockClient.release.mockReset();
     (pool.query as any).mockReset();
+    (pool.query as any).mockResolvedValue({ rows: [], rowCount: 0 });
   });
 
   describe('Creación de Venta (VentaService.crearVenta)', () => {
