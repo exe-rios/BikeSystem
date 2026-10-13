@@ -34,7 +34,7 @@ export class VentaService {
            OR (LOWER(TRIM(nombre)) = 'final' AND LOWER(TRIM(apellido)) = 'consumidor')
         LIMIT 1;
       `);
-      if (resCF.rowCount && resCF.rowCount > 0) {
+      if (resCF?.rowCount && resCF.rowCount > 0) {
         idClienteNum = resCF.rows[0].id_cliente;
       } else {
         idClienteNum = validarId(id_cliente, 'Seleccioná un cliente para la venta.');
