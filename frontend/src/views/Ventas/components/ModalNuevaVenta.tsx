@@ -79,11 +79,20 @@ export function ModalNuevaVenta({
 
       if (busquedaTexto.trim()) {
         const term = busquedaTexto.toLowerCase().trim();
+        const cleanTerm = term.replace(/^(bic-?|id\s*:?\s*#?|#)\s*/i, '').trim();
         const nombre = (p.nombre || '').toLowerCase();
         const marca = (p.marca || '').toLowerCase();
         const modelo = (p.modelo || '').toLowerCase();
         const idStr = String(p.id_producto || '');
-        return nombre.includes(term) || marca.includes(term) || modelo.includes(term) || idStr.includes(term);
+
+        const coincideId =
+          idStr === term ||
+          idStr.includes(term) ||
+          `#${idStr}`.includes(term) ||
+          `id ${idStr}`.includes(term) ||
+          (cleanTerm !== '' && (idStr === cleanTerm || idStr.includes(cleanTerm)));
+
+        return coincideId || nombre.includes(term) || marca.includes(term) || modelo.includes(term);
       }
 
       return true;
@@ -96,7 +105,7 @@ export function ModalNuevaVenta({
 
   // Identificar cliente Consumidor Final para venta rápida de mostrador
   const clienteConsumidorFinal = useMemo(() => {
-    return clientes.find(c => 
+    return clientes.find(c =>
       (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
       (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
       c.direccion?.toLowerCase().includes('mostrador')
@@ -120,11 +129,11 @@ export function ModalNuevaVenta({
   const clientesOrdenados = useMemo(() => {
     return [...clientes].sort((a, b) => {
       const aEsCF = (a.nombre?.toLowerCase().trim() === 'consumidor' && a.apellido?.toLowerCase().trim() === 'final') ||
-                    (a.nombre?.toLowerCase().trim() === 'final' && a.apellido?.toLowerCase().trim() === 'consumidor') ||
-                    a.direccion?.toLowerCase().includes('mostrador');
+        (a.nombre?.toLowerCase().trim() === 'final' && a.apellido?.toLowerCase().trim() === 'consumidor') ||
+        a.direccion?.toLowerCase().includes('mostrador');
       const bEsCF = (b.nombre?.toLowerCase().trim() === 'consumidor' && b.apellido?.toLowerCase().trim() === 'final') ||
-                    (b.nombre?.toLowerCase().trim() === 'final' && b.apellido?.toLowerCase().trim() === 'consumidor') ||
-                    b.direccion?.toLowerCase().includes('mostrador');
+        (b.nombre?.toLowerCase().trim() === 'final' && b.apellido?.toLowerCase().trim() === 'consumidor') ||
+        b.direccion?.toLowerCase().includes('mostrador');
       if (aEsCF && !bEsCF) return -1;
       if (!aEsCF && bEsCF) return 1;
       return (a.apellido || '').localeCompare(b.apellido || '');
@@ -214,8 +223,8 @@ export function ModalNuevaVenta({
                 <option value={0}>Seleccionar Cliente ({clientesOrdenados.length} disponibles)</option>
                 {clientesOrdenados.map(c => {
                   const esCF = (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
-                               (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
-                               c.direccion?.toLowerCase().includes('mostrador');
+                    (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
+                    c.direccion?.toLowerCase().includes('mostrador');
                   return (
                     <option key={c.id_cliente} value={c.id_cliente}>
                       {esCF ? 'Consumidor Final (S/DNI - Venta Mostrador)' : `${c.apellido} ${c.nombre} (DNI: ${c.dni || 'S/DNI'})`}
@@ -344,18 +353,18 @@ export function ModalNuevaVenta({
             const prod = productos.find(p => p.id_producto === item.id_producto);
             return prod?.tipo_prod === 'bicicleta';
           }) && (
-            <div style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.08)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-              color: '#1d4ed8',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontSize: '0.82rem',
-              fontWeight: '500'
-            }}>
-              Aviso: Se ha agregado una bicicleta al comprobante. {nombreConsumidorFinal.trim() || dniConsumidorFinal.trim() ? `La garantía oficial de 30 días quedará emitida para "${`${nombreConsumidorFinal} ${apellidoConsumidorFinal}`.trim()}${dniConsumidorFinal ? ` (DNI: ${dniConsumidorFinal})` : ''}".` : 'Podés completar el nombre y DNI arriba para que la garantía oficial quede registrada a nombre del titular comprador.'}
-            </div>
-          )}
+              <div style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                color: '#1d4ed8',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: '500'
+              }}>
+                Aviso: Se ha agregado una bicicleta al comprobante. {nombreConsumidorFinal.trim() || dniConsumidorFinal.trim() ? `La garantía oficial de 30 días quedará emitida para "${`${nombreConsumidorFinal} ${apellidoConsumidorFinal}`.trim()}${dniConsumidorFinal ? ` (DNI: ${dniConsumidorFinal})` : ''}".` : 'Podés completar el nombre y DNI arriba para que la garantía oficial quede registrada a nombre del titular comprador.'}
+              </div>
+            )}
 
           <hr style={{ border: 'none', borderTop: '1px dashed var(--borde-input)', margin: '4px 0' }} />
 
@@ -392,7 +401,7 @@ export function ModalNuevaVenta({
               maxLength={60}
               value={busquedaTexto}
               onChange={e => setBusquedaTexto(e.target.value.slice(0, 60))}
-              placeholder="Buscar artículo por nombre, marca o modelo..."
+              placeholder="Buscar artículo por ID, nombre, marca o modelo..."
               style={{
                 width: '100%',
                 padding: '8px 12px',
@@ -444,7 +453,7 @@ export function ModalNuevaVenta({
                 const sinStock = Number(p.cantidad) <= 0;
                 return (
                   <option key={p.id_producto} value={p.id_producto} disabled={sinStock}>
-                    {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
+                    #{p.id_producto} - {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
                   </option>
                 );
               })}
