@@ -64,10 +64,12 @@ CREATE TABLE Metodo_Pago (
 );
 
 INSERT INTO Metodo_Pago (nombre) VALUES 
-('Efectivo'), 
+('Efectivo'),
+('Tarjeta de debito'),
+('Tarjeta de credito'),  
 ('Transferencia Bancaria'), 
-('Cheque'), 
-('Mercado Pago');
+('Mercado Pago'),
+('Cheque');
 
 -- 2. TABLAS DEPENDIENTES
 
