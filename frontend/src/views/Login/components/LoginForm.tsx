@@ -118,7 +118,7 @@ export function LoginForm({
               title={mostrarPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
               aria-label={mostrarPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
             >
-              {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              {mostrarPassword ? <Eye size={18} /> : <EyeOff size={18} />}
             </button>
           </div>
         </div>

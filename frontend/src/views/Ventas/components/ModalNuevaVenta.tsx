@@ -105,7 +105,7 @@ export function ModalNuevaVenta({
 
   // Identificar cliente Consumidor Final para venta rápida de mostrador
   const clienteConsumidorFinal = useMemo(() => {
-    return clientes.find(c => 
+    return clientes.find(c =>
       (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
       (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
       c.direccion?.toLowerCase().includes('mostrador')
@@ -129,11 +129,11 @@ export function ModalNuevaVenta({
   const clientesOrdenados = useMemo(() => {
     return [...clientes].sort((a, b) => {
       const aEsCF = (a.nombre?.toLowerCase().trim() === 'consumidor' && a.apellido?.toLowerCase().trim() === 'final') ||
-                    (a.nombre?.toLowerCase().trim() === 'final' && a.apellido?.toLowerCase().trim() === 'consumidor') ||
-                    a.direccion?.toLowerCase().includes('mostrador');
+        (a.nombre?.toLowerCase().trim() === 'final' && a.apellido?.toLowerCase().trim() === 'consumidor') ||
+        a.direccion?.toLowerCase().includes('mostrador');
       const bEsCF = (b.nombre?.toLowerCase().trim() === 'consumidor' && b.apellido?.toLowerCase().trim() === 'final') ||
-                    (b.nombre?.toLowerCase().trim() === 'final' && b.apellido?.toLowerCase().trim() === 'consumidor') ||
-                    b.direccion?.toLowerCase().includes('mostrador');
+        (b.nombre?.toLowerCase().trim() === 'final' && b.apellido?.toLowerCase().trim() === 'consumidor') ||
+        b.direccion?.toLowerCase().includes('mostrador');
       if (aEsCF && !bEsCF) return -1;
       if (!aEsCF && bEsCF) return 1;
       return (a.apellido || '').localeCompare(b.apellido || '');
@@ -223,8 +223,8 @@ export function ModalNuevaVenta({
                 <option value={0}>Seleccionar Cliente ({clientesOrdenados.length} disponibles)</option>
                 {clientesOrdenados.map(c => {
                   const esCF = (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
-                               (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
-                               c.direccion?.toLowerCase().includes('mostrador');
+                    (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
+                    c.direccion?.toLowerCase().includes('mostrador');
                   return (
                     <option key={c.id_cliente} value={c.id_cliente}>
                       {esCF ? 'Consumidor Final (S/DNI - Venta Mostrador)' : `${c.apellido} ${c.nombre} (DNI: ${c.dni || 'S/DNI'})`}
@@ -353,18 +353,18 @@ export function ModalNuevaVenta({
             const prod = productos.find(p => p.id_producto === item.id_producto);
             return prod?.tipo_prod === 'bicicleta';
           }) && (
-            <div style={{
-              backgroundColor: 'rgba(59, 130, 246, 0.08)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
-              color: '#1d4ed8',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontSize: '0.82rem',
-              fontWeight: '500'
-            }}>
-              Aviso: Se ha agregado una bicicleta al comprobante. {nombreConsumidorFinal.trim() || dniConsumidorFinal.trim() ? `La garantía oficial de 30 días quedará emitida para "${`${nombreConsumidorFinal} ${apellidoConsumidorFinal}`.trim()}${dniConsumidorFinal ? ` (DNI: ${dniConsumidorFinal})` : ''}".` : 'Podés completar el nombre y DNI arriba para que la garantía oficial quede registrada a nombre del titular comprador.'}
-            </div>
-          )}
+              <div style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                color: '#1d4ed8',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: '500'
+              }}>
+                Aviso: Se ha agregado una bicicleta al comprobante. {nombreConsumidorFinal.trim() || dniConsumidorFinal.trim() ? `La garantía oficial de 30 días quedará emitida para "${`${nombreConsumidorFinal} ${apellidoConsumidorFinal}`.trim()}${dniConsumidorFinal ? ` (DNI: ${dniConsumidorFinal})` : ''}".` : 'Podés completar el nombre y DNI arriba para que la garantía oficial quede registrada a nombre del titular comprador.'}
+              </div>
+            )}
 
           <hr style={{ border: 'none', borderTop: '1px dashed var(--borde-input)', margin: '4px 0' }} />
 
