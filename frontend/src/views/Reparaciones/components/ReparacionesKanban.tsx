@@ -155,7 +155,6 @@ export function ReparacionesKanban({
                           flexDirection: 'column',
                           gap: '8px',
                           cursor: 'grab',
-                          opacity: draggingId != null && draggingId === rep.id_reparacion ? 0.5 : 1,
                           transition: 'box-shadow 0.2s, transform 0.1s'
                         }}
                       >
