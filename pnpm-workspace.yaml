@@ -5,6 +5,7 @@ packages:
 allowBuilds:
   bcrypt: true
   core-js: false
+  electron: set this to true or false
   electron-winstaller: true
   esbuild: true
 
