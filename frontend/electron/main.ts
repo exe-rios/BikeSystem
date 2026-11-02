@@ -45,6 +45,7 @@ function startBackendServer() {
       cwd: backendDir,
       env: {
         ...process.env,
+        NODE_ENV: 'production',
         PORT: '3000'
       }
     });

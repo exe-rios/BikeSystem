@@ -34,7 +34,8 @@ for (const key of REQUIRED_ENV) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Cabeceras de seguridad HTTP
 app.use(helmet());
@@ -84,8 +85,8 @@ app.use('/api/backup', backupRoutes);
 // Middleware de captura global de errores
 app.use(manejarErrores);
 
-const server = app.listen(PORT, () => {
-  console.log(`[Server]: Backend de BikeSystem corriendo en http://localhost:${PORT}`);
+const server = app.listen(PORT, HOST, () => {
+  console.log(`[Server]: Backend de BikeSystem corriendo en http://${HOST}:${PORT}`);
   asegurarConsumidorFinal().catch(err => {
     console.error('[Consumidor Final]: Error al asegurar registro en BD:', err?.message || err);
   });
