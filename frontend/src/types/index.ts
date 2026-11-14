@@ -23,6 +23,9 @@ export interface Bicicleta {
   modelo: string;
   nombre?: string;
   apellido?: string;
+  dni?: string;
+  telefono?: string;
+  email?: string;
 }
 
 export interface Reparacion {
@@ -39,6 +42,8 @@ export interface Reparacion {
   modelo?: string;
   cliente_nombre?: string;
   cliente_apellido?: string;
+  cliente_dni?: string;
+  mecanico?: string;
 }
 
 export interface DetalleReparacionItem {

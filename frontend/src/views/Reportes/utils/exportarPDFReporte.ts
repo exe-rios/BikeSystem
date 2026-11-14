@@ -114,7 +114,7 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
   doc.line(14, 42, pageWidth - 14, 42);
 
   // 4. Tablas Dinamicas segun la Pestana Seleccionada
-  let startY = 46;
+  const startY = 46;
 
   if (activeTab === 'general') {
     const kpisData = [
@@ -371,7 +371,7 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
         }
       });
 
-      const nextY = (doc as any).lastAutoTable.finalY + 8;
+      const nextY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
 
       const filasBicis = capitalStock.bicicletas.map(b => [
         `BIC-${String(b.id_producto).padStart(5, '0')}`,

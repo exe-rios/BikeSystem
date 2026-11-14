@@ -18,10 +18,11 @@ export function useMovimientosStock() {
   const [cargandoMovimientos, setCargandoMovimientos] = useState(false);
   const [guardandoMovimiento, setGuardandoMovimiento] = useState(false);
   const [historialMovimientos, setHistorialMovimientos] = useState<MovimientoStock[]>([]);
+  const [productosCatalogo, setProductosCatalogo] = useState<Producto[]>([]);
   const [nuevoMovimiento, setNuevoMovimiento] = useState<FormMovimientoData>(INITIAL_MOVIMIENTO);
   const [errorMovimiento, setErrorMovimiento] = useState<string | null>(null);
 
-  const abrirAjuste = useCallback((p?: Producto) => {
+  const abrirAjuste = useCallback(async (p?: Producto) => {
     setErrorMovimiento(null);
     setNuevoMovimiento({
       id_producto: p?.id_producto || 0,
@@ -31,6 +32,14 @@ export function useMovimientosStock() {
       observaciones: ''
     });
     setMostrarModalMovimiento(true);
+    try {
+      const data = await api.productos.getAll(true);
+      if (Array.isArray(data?.productos)) {
+        setProductosCatalogo(data.productos);
+      }
+    } catch {
+      // Si falla la precarga completa, se usa la lista disponible en vista
+    }
   }, []);
 
   const cerrarModalAjuste = useCallback(() => {
@@ -108,6 +117,7 @@ export function useMovimientosStock() {
     cargandoMovimientos,
     guardandoMovimiento,
     historialMovimientos,
+    productosCatalogo,
     nuevoMovimiento,
     errorMovimiento,
     setNuevoMovimiento,

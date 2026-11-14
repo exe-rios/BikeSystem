@@ -53,6 +53,7 @@ export function useStock() {
 
   // Reiniciar a la primera página cuando cambian los filtros
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaActual(1);
   }, [filtroTipo, filtroEstado, filtroDisponibilidad, busquedaDebounced]);
 
@@ -119,7 +120,7 @@ export function useStock() {
       color: p.color || '',
       rodado: p.rodado || '29',
       talle: p.talle || 'M',
-      genero: (p.genero as any) || '',
+      genero: (p.genero as FormProductoData['genero']) || '',
       activo: p.activo !== false
     });
     setErrorForm(null);

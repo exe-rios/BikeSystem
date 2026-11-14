@@ -29,6 +29,7 @@ export function useClientes() {
   const limite = 10;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaActual(1);
   }, [busquedaDebounced]);
 
@@ -199,17 +200,24 @@ export function useClientes() {
 
   const clientesFiltrados = useMemo(() => {
     const termino = busqueda.toLowerCase().trim();
-    if (!termino) return clientes;
+    if (!termino || termino === busquedaDebounced.toLowerCase().trim()) return clientes;
+    const cleanId = termino.replace(/^#/, '');
     return clientes.filter(c => {
+      const nombreApellido = `${c.nombre || ''} ${c.apellido || ''}`.toLowerCase();
+      const apellidoNombre = `${c.apellido || ''} ${c.nombre || ''}`.toLowerCase();
+      const idStr = String(c.id_cliente || '');
       return (
         (c.nombre && c.nombre.toLowerCase().includes(termino)) ||
         (c.apellido && c.apellido.toLowerCase().includes(termino)) ||
+        nombreApellido.includes(termino) ||
+        apellidoNombre.includes(termino) ||
         (c.dni && c.dni.toLowerCase().includes(termino)) ||
         (c.telefono && c.telefono.toLowerCase().includes(termino)) ||
-        (c.email && c.email.toLowerCase().includes(termino))
+        (c.email && c.email.toLowerCase().includes(termino)) ||
+        idStr.includes(cleanId)
       );
     });
-  }, [clientes, busqueda]);
+  }, [clientes, busqueda, busquedaDebounced]);
 
   return {
     clientes,

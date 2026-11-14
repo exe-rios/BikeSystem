@@ -142,7 +142,7 @@ export function TabTaller({
       {/* Subtotales al pie de la tabla */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tarjeta)', padding: '14px 20px', borderRadius: '10px', border: '1px solid var(--borde-input)', flexWrap: 'wrap', gap: '12px' }}>
         <span style={{ fontSize: '0.9rem', color: 'var(--texto-mutado)' }}>
-          Total: <strong>{reparaciones.length}</strong> órdenes &bull; <strong>{reparacionesResumen.entregadas}</strong> entregadas (cobradas) y <strong>{reparacionesResumen.enProceso}</strong> en curso.
+          Total: <strong>{totalRegistros}</strong> órdenes &bull; <strong>{reparacionesResumen.entregadas}</strong> entregadas (cobradas) y <strong>{reparacionesResumen.enProceso}</strong> en curso.
         </span>
         <div style={{ textAlign: 'right', display: 'flex', gap: '24px', alignItems: 'center' }}>
           <div>

@@ -190,7 +190,7 @@ export function generarPDFVenta(ventaDetalle: VentaDetallada): void {
 
   // 8. Términos de Garantía y Primer Service (si incluye bicicleta)
   const tieneBicicleta = productos_vendidos.some(p => p.tipo_prod?.toLowerCase() === 'bicicleta');
-  let clausulaY = finalY + 24;
+  const clausulaY = finalY + 24;
 
   if (tieneBicicleta) {
     doc.setFillColor(254, 243, 199); // amber-100
@@ -208,8 +208,6 @@ export function generarPDFVenta(ventaDetalle: VentaDetallada): void {
     const textoGarantia = 'Las bicicletas nuevas cuentan con 6 meses de garantia oficial por defectos de fabricacion. Para mantener la garantia vigente, es requisito indispensable realizar el Primer Service Gratuito de Ajuste y Calibracion dentro de los 30 dias posteriores a la fecha de compra en nuestro taller oficial.';
     const splitGarantia = doc.splitTextToSize(textoGarantia, 174);
     doc.text(splitGarantia, 18, clausulaY + 10);
-
-    clausulaY += 24;
   }
 
   // 9. Pie de Página y Validez

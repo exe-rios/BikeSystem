@@ -35,6 +35,8 @@ export class ClienteService {
       query += ` WHERE (
         nombre ILIKE $1 OR 
         apellido ILIKE $1 OR 
+        (nombre || ' ' || apellido) ILIKE $1 OR 
+        (apellido || ' ' || nombre) ILIKE $1 OR 
         dni ILIKE $1 OR 
         telefono ILIKE $1 OR 
         email ILIKE $1 OR 
@@ -119,8 +121,8 @@ export class ClienteService {
       throw new BadRequestError('El DNI no puede superar los 10 caracteres.');
     }
 
-    if (telefono && String(telefono).trim().length > 11) {
-      throw new BadRequestError('El teléfono no puede superar los 11 caracteres.');
+    if (telefono && String(telefono).trim().length > 15) {
+      throw new BadRequestError('El teléfono no puede superar los 15 caracteres.');
     }
 
     const emailLimpio = email ? String(email).trim() : null;
@@ -217,8 +219,8 @@ export class ClienteService {
       throw new BadRequestError('El DNI no puede superar los 10 caracteres.');
     }
 
-    if (telefono !== undefined && typeof telefono === 'string' && telefono.trim().length > 11) {
-      throw new BadRequestError('El teléfono no puede superar los 11 caracteres.');
+    if (telefono !== undefined && typeof telefono === 'string' && telefono.trim().length > 15) {
+      throw new BadRequestError('El teléfono no puede superar los 15 caracteres.');
     }
 
     const emailLimpio = email ? String(email).trim() : null;

@@ -21,6 +21,7 @@ export function useAuditoria() {
 
   // Reiniciar a página 1 al cambiar el filtro de módulo o la búsqueda debounced
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaActual(1);
   }, [moduloFiltro, busquedaDebounced]);
 
@@ -49,6 +50,7 @@ export function useAuditoria() {
   }, [moduloFiltro, busquedaDebounced, paginaActual]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarBitacora();
   }, [cargarBitacora]);
 

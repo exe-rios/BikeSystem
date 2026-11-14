@@ -32,6 +32,7 @@ export function usePagoProveedores() {
   const limite = 10;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaActual(1);
   }, [busquedaDebounced]);
 
@@ -116,15 +117,17 @@ export function usePagoProveedores() {
 
   const pagosFiltrados = useMemo(() => {
     const term = busqueda.toLowerCase().trim();
-    if (!term) return pagos;
+    if (!term || term === busquedaDebounced.toLowerCase().trim()) return pagos;
+    const cleanId = term.replace(/^#/, '');
     return pagos.filter(p => {
       const prov = (p.proveedor_nombre || '').toLowerCase();
       const metodo = (p.metodo_pago_nombre || '').toLowerCase();
       const obs = (p.observaciones || '').toLowerCase();
       const usuario = (p.usuario_nombre || '').toLowerCase();
-      return prov.includes(term) || metodo.includes(term) || obs.includes(term) || usuario.includes(term);
+      const idStr = String(p.id_pago || '');
+      return prov.includes(term) || metodo.includes(term) || obs.includes(term) || usuario.includes(term) || idStr.includes(cleanId);
     });
-  }, [pagos, busqueda]);
+  }, [pagos, busqueda, busquedaDebounced]);
 
   return {
     pagos,

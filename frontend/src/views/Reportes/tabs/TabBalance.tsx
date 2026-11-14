@@ -39,7 +39,7 @@ export function TabBalance({
           <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '600', textTransform: 'uppercase' }}>Egresos Operativos</span>
           <h3 style={{ fontSize: '1.8rem', fontWeight: '800', color: '#dc2626', margin: '8px 0 4px 0' }}>{formatearMoneda(kpis.total_egresos_monto)}</h3>
           <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--texto-mutado)' }}>
-            {pagos.length} comprobantes abonados a proveedores
+            {totalRegistros} comprobantes abonados a proveedores
           </p>
         </div>
 

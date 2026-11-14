@@ -58,6 +58,7 @@ export function useReparaciones() {
   const limiteHistorial = 10;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaHistorial(1);
   }, [busquedaHistorialDebounced]);
 
@@ -94,7 +95,7 @@ export function useReparaciones() {
     setError(null);
     try {
       const [resRepActivas, resRepHistorial, resBicis, resProds] = await Promise.all([
-        api.reparaciones.getAll({ estado: 'activas', limite: 100 }),
+        api.reparaciones.getAll({ estado: 'activas' }),
         api.reparaciones.getAll({
           estado: 'Entregada',
           limite: limiteHistorial,
@@ -330,29 +331,36 @@ export function useReparaciones() {
     return reparacionesActivas.filter(r => {
       const term = busquedaTaller.toLowerCase().trim();
       if (!term) return true;
+      const cleanId = term.replace(/^#/, '');
       const desc = (r.descripcion || '').toLowerCase();
       const marca = (r.marca || '').toLowerCase();
       const modelo = (r.modelo || '').toLowerCase();
       const cliente = `${r.cliente_nombre || ''} ${r.cliente_apellido || ''}`.toLowerCase();
+      const clienteInv = `${r.cliente_apellido || ''}, ${r.cliente_nombre || ''}`.toLowerCase();
+      const dni = (r.cliente_dni || '').toLowerCase();
+      const mecanico = (r.mecanico || '').toLowerCase();
       const idStr = String(r.id_reparacion);
-      return desc.includes(term) || marca.includes(term) || modelo.includes(term) || cliente.includes(term) || idStr.includes(term);
+      return desc.includes(term) || marca.includes(term) || modelo.includes(term) || cliente.includes(term) || clienteInv.includes(term) || dni.includes(term) || mecanico.includes(term) || idStr.includes(cleanId);
     });
   }, [reparacionesActivas, busquedaTaller]);
 
   const reparacionesEntregadasFiltradas = useMemo(() => {
+    const term = busquedaHistorial.toLowerCase().trim();
+    if (!term || term === busquedaHistorialDebounced.toLowerCase().trim()) return reparacionesEntregadas;
+    const cleanId = term.replace(/^#/, '');
     return reparacionesEntregadas.filter(r => {
-      const term = busquedaHistorial.toLowerCase().trim();
-      if (!term) return true;
       const desc = (r.descripcion || '').toLowerCase();
       const marca = (r.marca || '').toLowerCase();
       const modelo = (r.modelo || '').toLowerCase();
       const cliente = `${r.cliente_nombre || ''} ${r.cliente_apellido || ''}`.toLowerCase();
+      const clienteInv = `${r.cliente_apellido || ''}, ${r.cliente_nombre || ''}`.toLowerCase();
+      const dni = (r.cliente_dni || '').toLowerCase();
       const idStr = String(r.id_reparacion);
       const fechaIng = r.fecha_ingreso ? String(r.fecha_ingreso).toLowerCase() : '';
       const fechaEg = r.fecha_egreso ? String(r.fecha_egreso).toLowerCase() : '';
-      return desc.includes(term) || marca.includes(term) || modelo.includes(term) || cliente.includes(term) || idStr.includes(term) || fechaIng.includes(term) || fechaEg.includes(term);
+      return desc.includes(term) || marca.includes(term) || modelo.includes(term) || cliente.includes(term) || clienteInv.includes(term) || dni.includes(term) || idStr.includes(cleanId) || fechaIng.includes(term) || fechaEg.includes(term);
     });
-  }, [reparacionesEntregadas, busquedaHistorial]);
+  }, [reparacionesEntregadas, busquedaHistorial, busquedaHistorialDebounced]);
 
   // Métricas calculadas por el Backend
   const totalMontoHistorico = useMemo(() => {

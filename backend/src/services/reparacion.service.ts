@@ -9,7 +9,7 @@ const REPARACION_SELECT_BASE = `
   SELECT r.id_reparacion, r.fecha_ingreso, r.fecha_egreso, r.estado, r.descripcion, 
          r.costo_mano_obra, r.costo_total,
          b.id_bicicleta, b.marca, b.modelo, 
-         c.id_cliente, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido,
+         c.id_cliente, c.nombre AS cliente_nombre, c.apellido AS cliente_apellido, c.dni AS cliente_dni,
          COUNT(*) OVER()::INT AS total_registros
   FROM Reparacion r
   INNER JOIN Bicicleta b ON r.id_bicicleta = b.id_bicicleta
@@ -48,6 +48,9 @@ export class ReparacionService {
         b.modelo ILIKE $${paramIdx} OR 
         c.nombre ILIKE $${paramIdx} OR 
         c.apellido ILIKE $${paramIdx} OR 
+        (c.nombre || ' ' || c.apellido) ILIKE $${paramIdx} OR 
+        (c.apellido || ' ' || c.nombre) ILIKE $${paramIdx} OR 
+        c.dni ILIKE $${paramIdx} OR 
         CAST(r.id_reparacion AS TEXT) ILIKE $${paramIdx}
       )`);
       params.push(term);
@@ -60,7 +63,7 @@ export class ReparacionService {
     }
     query += ` ORDER BY r.id_reparacion DESC`;
 
-    const paginacion = normalizarPaginacion({ limite, pagina });
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
     query = aplicarPaginacionSQL(query, params, paginacion);
 
     const queryResumen = `

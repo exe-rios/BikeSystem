@@ -43,14 +43,15 @@ export const obtenerVentasReporte = async (req: Request, res: Response, next: Ne
 /** Endpoint GET /api/reportes/reparaciones: Retorna reporte paginado de reparaciones y mano de obra. */
 export const obtenerReparacionesReporte = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { fechaDesde, fechaHasta, busqueda, limite, pagina } = req.query as { 
+    const { fechaDesde, fechaHasta, estado, busqueda, limite, pagina } = req.query as { 
       fechaDesde?: string; 
       fechaHasta?: string; 
+      estado?: string;
       busqueda?: string;
       limite?: string;
       pagina?: string;
     };
-    const resultado = await ReporteService.obtenerReparacionesReporte({ fechaDesde, fechaHasta, busqueda, limite, pagina });
+    const resultado = await ReporteService.obtenerReparacionesReporte({ fechaDesde, fechaHasta, estado, busqueda, limite, pagina });
     responderOk(res, resultado);
   } catch (error) {
     next(error);

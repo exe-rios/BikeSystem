@@ -225,7 +225,7 @@ export function ModalProductoForm({
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: '600', fontSize: '0.78rem' }}>Género</label>
                   <select
                     value={formData.genero}
-                    onChange={e => onChangeField('genero', e.target.value as any)}
+                    onChange={e => onChangeField('genero', e.target.value as FormProductoData['genero'])}
                     style={{
                       width: '100%',
                       padding: '8px',
