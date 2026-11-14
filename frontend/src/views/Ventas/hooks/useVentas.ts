@@ -231,23 +231,27 @@ export function useVentas() {
 
   // Listado filtrado de Ventas
   const ventasFiltradas = useMemo(() => {
-    if (!busquedaVenta.trim()) return ventas;
     const term = busquedaVenta.toLowerCase().trim();
+    if (!term || term === busquedaVentaDebounced.toLowerCase().trim()) return ventas;
     return ventas.filter(v => {
       const idStr = String(v.id_venta);
       const facStr = 'fac-' + String(v.id_venta).padStart(6, '0');
       const cliente = `${v.cliente_nombre || ''} ${v.cliente_apellido || ''}`.toLowerCase();
+      const clienteInv = `${v.cliente_apellido || ''}, ${v.cliente_nombre || ''}`.toLowerCase();
+      const dni = (v.cliente_dni || '').toLowerCase();
       const vendedor = (v.vendedor || '').toLowerCase();
       const metodo = (v.metodo_pago_nombre || '').toLowerCase();
       const estado = (v.estado || '').toLowerCase();
       return idStr.includes(term) ||
         facStr.includes(term) ||
         cliente.includes(term) ||
+        clienteInv.includes(term) ||
+        dni.includes(term) ||
         vendedor.includes(term) ||
         metodo.includes(term) ||
         estado.includes(term);
     });
-  }, [ventas, busquedaVenta]);
+  }, [ventas, busquedaVenta, busquedaVentaDebounced]);
 
   // Enriquecer visualmente las garantías con la información provista por PostgreSQL
   const todasLasGarantiasConEstado = useMemo<GarantiaConEstado[]>(() => {
@@ -338,11 +342,15 @@ export function useVentas() {
       if (!busquedaGarantia.trim()) return true;
       const term = busquedaGarantia.toLowerCase().trim();
       const idStr = String(g.id_venta);
+      const facStr = 'fac-' + String(g.id_venta).padStart(6, '0');
       const cliente = `${g.cliente_nombre || ''} ${g.cliente_apellido || ''}`.toLowerCase();
+      const clienteInv = `${g.cliente_apellido || ''}, ${g.cliente_nombre || ''}`.toLowerCase();
       const dni = (g.cliente_dni || '').toLowerCase();
       const producto = `${g.marca || ''} ${g.modelo || ''} ${g.producto_nombre || ''}`.toLowerCase();
       return idStr.includes(term) ||
+        facStr.includes(term) ||
         cliente.includes(term) ||
+        clienteInv.includes(term) ||
         dni.includes(term) ||
         producto.includes(term);
     });

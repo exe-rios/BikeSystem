@@ -210,11 +210,15 @@ export class VentaService {
       query += ` WHERE (
         c.nombre ILIKE $1 OR 
         c.apellido ILIKE $1 OR 
+        (c.nombre || ' ' || c.apellido) ILIKE $1 OR 
+        (c.apellido || ' ' || c.nombre) ILIKE $1 OR 
         c.dni ILIKE $1 OR 
         v.cliente_nombre ILIKE $1 OR 
         v.cliente_apellido ILIKE $1 OR 
+        (COALESCE(v.cliente_nombre, '') || ' ' || COALESCE(v.cliente_apellido, '')) ILIKE $1 OR 
         v.cliente_dni ILIKE $1 OR 
         u.nombre_usuario ILIKE $1 OR 
+        mp.nombre ILIKE $1 OR 
         CAST(v.id_venta AS TEXT) ILIKE $1
       )`;
       params.push(term);
@@ -222,7 +226,7 @@ export class VentaService {
 
     query += ` ORDER BY v.id_venta DESC`;
 
-    const pag = normalizarPaginacion(paginacion);
+    const pag = normalizarPaginacion(paginacion, { opcional: true });
     query = aplicarPaginacionSQL(query, params, pag);
 
     const result = await pool.query(query, params);
@@ -393,9 +397,12 @@ export class VentaService {
         pb.genero ILIKE $1 OR 
         c.nombre ILIKE $1 OR 
         c.apellido ILIKE $1 OR 
+        (c.nombre || ' ' || c.apellido) ILIKE $1 OR 
+        (c.apellido || ' ' || c.nombre) ILIKE $1 OR 
         c.dni ILIKE $1 OR 
         v.cliente_nombre ILIKE $1 OR 
         v.cliente_apellido ILIKE $1 OR 
+        (COALESCE(v.cliente_nombre, '') || ' ' || COALESCE(v.cliente_apellido, '')) ILIKE $1 OR 
         v.cliente_dni ILIKE $1 OR 
         CAST(v.id_venta AS TEXT) ILIKE $1
       )`;

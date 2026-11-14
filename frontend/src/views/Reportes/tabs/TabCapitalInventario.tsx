@@ -21,7 +21,7 @@ export function TabCapitalInventario({
   const resumen = data?.resumen;
   const gamas = data?.gamas || [];
   const desgloseTipo = data?.desglose_por_tipo || [];
-  const bicicletas = data?.bicicletas || [];
+  const bicicletas = useMemo(() => data?.bicicletas || [], [data?.bicicletas]);
 
   const bicicletasFiltradas = useMemo<BicicletaCapital[]>(() => {
     return bicicletas.filter(b => {

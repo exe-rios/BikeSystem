@@ -52,6 +52,7 @@ export function StockView() {
     cargandoMovimientos,
     guardandoMovimiento,
     historialMovimientos,
+    productosCatalogo,
     nuevoMovimiento,
     errorMovimiento,
     setNuevoMovimiento,
@@ -161,7 +162,7 @@ export function StockView() {
 
       <ModalAjusteStock
         visible={mostrarModalMovimiento}
-        productos={productos}
+        productos={productosCatalogo.length > 0 ? productosCatalogo : productos}
         nuevoMovimiento={nuevoMovimiento}
         guardando={guardandoMovimiento}
         error={errorMovimiento}

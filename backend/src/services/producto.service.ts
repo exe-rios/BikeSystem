@@ -319,7 +319,7 @@ export class ProductoService {
       query += ` ORDER BY p.id_producto DESC`;
     }
 
-    const paginacion = normalizarPaginacion({ limite, pagina });
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
     query = aplicarPaginacionSQL(query, params, paginacion);
 
     // Ejecución paralela de resumen y listado paginado

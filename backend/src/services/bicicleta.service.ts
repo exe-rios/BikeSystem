@@ -41,6 +41,8 @@ export class BicicletaService {
         b.modelo ILIKE $${paramIdx} OR 
         c.nombre ILIKE $${paramIdx} OR 
         c.apellido ILIKE $${paramIdx} OR 
+        (c.nombre || ' ' || c.apellido) ILIKE $${paramIdx} OR 
+        (c.apellido || ' ' || c.nombre) ILIKE $${paramIdx} OR 
         c.dni ILIKE $${paramIdx} OR 
         CAST(b.id_bicicleta AS TEXT) ILIKE $${paramIdx}
       )`);

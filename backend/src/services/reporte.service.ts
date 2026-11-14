@@ -261,10 +261,15 @@ export class ReporteService {
       condiciones.push(`(
         c.nombre ILIKE $${idx} OR 
         c.apellido ILIKE $${idx} OR 
+        (c.nombre || ' ' || c.apellido) ILIKE $${idx} OR 
+        (c.apellido || ' ' || c.nombre) ILIKE $${idx} OR 
+        c.dni ILIKE $${idx} OR 
         v.cliente_nombre ILIKE $${idx} OR 
         v.cliente_apellido ILIKE $${idx} OR 
+        (COALESCE(v.cliente_nombre, '') || ' ' || COALESCE(v.cliente_apellido, '')) ILIKE $${idx} OR 
         v.cliente_dni ILIKE $${idx} OR 
         u.nombre_usuario ILIKE $${idx} OR 
+        mp.nombre ILIKE $${idx} OR 
         CAST(v.id_venta AS TEXT) ILIKE $${idx}
       )`);
       params.push(term);
@@ -299,7 +304,7 @@ export class ReporteService {
       ORDER BY v.id_venta DESC
     `;
 
-    const paginacion = normalizarPaginacion({ limite, pagina });
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
     const queryPaginada = aplicarPaginacionSQL(query, params, paginacion);
 
     const result = await pool.query(queryPaginada, params);
@@ -332,11 +337,12 @@ export class ReporteService {
   static async obtenerReparacionesReporte(filtros: { 
     fechaDesde?: string | undefined; 
     fechaHasta?: string | undefined; 
+    estado?: string | undefined;
     busqueda?: string | undefined;
     limite?: number | string | undefined;
     pagina?: number | string | undefined;
   }) {
-    const { fechaDesde, fechaHasta, busqueda, limite, pagina } = filtros;
+    const { fechaDesde, fechaHasta, estado, busqueda, limite, pagina } = filtros;
     const condiciones: string[] = [];
     const params: any[] = [];
     let idx = 1;
@@ -349,11 +355,18 @@ export class ReporteService {
       condiciones.push(`COALESCE(r.fecha_egreso, r.fecha_ingreso) < ($${idx++}::date + INTERVAL '1 day')`);
       params.push(fechaHasta.trim());
     }
+    if (estado && typeof estado === 'string' && estado.trim() && estado.trim().toUpperCase() !== 'TODOS') {
+      condiciones.push(`r.estado = $${idx++}`);
+      params.push(estado.trim());
+    }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
       const term = `%${busqueda.trim()}%`;
       condiciones.push(`(
         c.nombre ILIKE $${idx} OR 
         c.apellido ILIKE $${idx} OR 
+        (c.nombre || ' ' || c.apellido) ILIKE $${idx} OR 
+        (c.apellido || ' ' || c.nombre) ILIKE $${idx} OR 
+        c.dni ILIKE $${idx} OR 
         b.marca ILIKE $${idx} OR 
         b.modelo ILIKE $${idx} OR 
         r.descripcion ILIKE $${idx} OR 
@@ -393,7 +406,7 @@ export class ReporteService {
       ORDER BY r.id_reparacion DESC
     `;
 
-    const paginacion = normalizarPaginacion({ limite, pagina });
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
     const queryPaginada = aplicarPaginacionSQL(query, params, paginacion);
 
     const result = await pool.query(queryPaginada, params);
@@ -486,7 +499,7 @@ export class ReporteService {
       ORDER BY p.id_pago DESC
     `;
 
-    const paginacion = normalizarPaginacion({ limite, pagina });
+    const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });
     const queryPaginada = aplicarPaginacionSQL(query, params, paginacion);
 
     const result = await pool.query(queryPaginada, params);

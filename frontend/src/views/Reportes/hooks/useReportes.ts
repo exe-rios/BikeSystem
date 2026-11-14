@@ -56,6 +56,7 @@ export function useReportes() {
   const limitePaginacion = 10;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaVentas(1);
     setPaginaReparaciones(1);
     setPaginaPagos(1);
@@ -253,27 +254,61 @@ export function useReportes() {
     ? Math.max(...topProductosList.map(p => Number(p.total_vendido || 0)), 1)
     : 1;
 
-  const handleExportar = () => {
+  const obtenerDatosCompletosParaExportar = async () => {
+    let ventasExportar = ventas;
+    let reparacionesExportar = reparaciones;
+    let pagosExportar = pagos;
+
+    if (activeTab === 'ventas' && totalVentasRegistros > ventas.length) {
+      const res = await api.reportes.getVentas({
+        fechaDesde: fechaDesde || undefined,
+        fechaHasta: fechaHasta || undefined,
+        busqueda: searchTermDebounced || undefined
+      }).catch(() => null);
+      if (res?.ventas) ventasExportar = res.ventas;
+    } else if (activeTab === 'reparaciones' && totalReparacionesRegistros > reparaciones.length) {
+      const res = await api.reportes.getReparaciones({
+        fechaDesde: fechaDesde || undefined,
+        fechaHasta: fechaHasta || undefined,
+        estado: estadoTallerFiltro !== 'TODOS' ? estadoTallerFiltro : undefined,
+        busqueda: searchTermDebounced || undefined
+      }).catch(() => null);
+      if (res?.reparaciones) reparacionesExportar = res.reparaciones;
+    } else if (activeTab === 'balance' && totalPagosRegistros > pagos.length) {
+      const res = await api.reportes.getEgresos({
+        fechaDesde: fechaDesde || undefined,
+        fechaHasta: fechaHasta || undefined,
+        busqueda: searchTermDebounced || undefined
+      }).catch(() => null);
+      if (res?.pagos) pagosExportar = res.pagos;
+    }
+
+    return { ventasExportar, reparacionesExportar, pagosExportar };
+  };
+
+  const handleExportar = async () => {
+    const { ventasExportar, reparacionesExportar, pagosExportar } = await obtenerDatosCompletosParaExportar();
     exportarCSV({
       activeTab,
       kpis,
-      ventas,
-      reparaciones,
-      pagos,
+      ventas: ventasExportar,
+      reparaciones: reparacionesExportar,
+      pagos: pagosExportar,
       topProductos: topProductosList,
       capitalStock: capitalStockData
     });
   };
 
-  const handleExportarPDF = () => {
+  const handleExportarPDF = async () => {
+    const { ventasExportar, reparacionesExportar, pagosExportar } = await obtenerDatosCompletosParaExportar();
     exportarPDFReporte({
       activeTab,
       fechaDesde,
       fechaHasta,
       kpis,
-      ventas,
-      reparaciones,
-      pagos,
+      ventas: ventasExportar,
+      reparaciones: reparacionesExportar,
+      pagos: pagosExportar,
       topProductos: topProductosList,
       capitalStock: capitalStockData
     });

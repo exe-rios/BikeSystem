@@ -432,6 +432,32 @@ describe('Módulo de Stock e Inventario (ProductoService)', () => {
         expect(paramsEjecutados).toContain('XL');
         expect(paramsEjecutados).toContain('%Trek%');
       });
+
+      it('debe devolver todos los productos sin LIMIT cuando no se envían parámetros de paginación (Taller / Ventas)', async () => {
+        (pool.query as any)
+          .mockResolvedValueOnce({ rows: [{ total_articulos: 25, total_unidades: 100, bajo_stock_count: 0, inactivos_count: 0 }] })
+          .mockResolvedValueOnce({ rows: [] });
+
+        await ProductoService.obtenerProductos({});
+        const sqlEjecutada = (pool.query as any).mock.calls[1][0];
+
+        expect(sqlEjecutada).not.toContain('LIMIT');
+        expect(sqlEjecutada).not.toContain('OFFSET');
+      });
+
+      it('debe aplicar LIMIT y OFFSET cuando se especifica paginación explícita (Vista Stock)', async () => {
+        (pool.query as any)
+          .mockResolvedValueOnce({ rows: [{ total_articulos: 25, total_unidades: 100, bajo_stock_count: 0, inactivos_count: 0 }] })
+          .mockResolvedValueOnce({ rows: [] });
+
+        await ProductoService.obtenerProductos({ limite: 10, pagina: 2 });
+        const sqlEjecutada = (pool.query as any).mock.calls[1][0];
+        const paramsEjecutados = (pool.query as any).mock.calls[1][1];
+
+        expect(sqlEjecutada).toContain('LIMIT');
+        expect(sqlEjecutada).toContain('OFFSET');
+        expect(paramsEjecutados).toContain(10);
+      });
     });
   });
 });

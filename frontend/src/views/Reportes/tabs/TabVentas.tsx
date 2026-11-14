@@ -109,7 +109,7 @@ export function TabVentas({
       {/* Subtotales al pie de la tabla */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tarjeta)', padding: '14px 20px', borderRadius: '10px', border: '1px solid var(--borde-input)', flexWrap: 'wrap', gap: '12px' }}>
         <span style={{ fontSize: '0.9rem', color: 'var(--texto-mutado)' }}>
-          Mostrando <strong>{ventas.length}</strong> ventas ({ventasResumen.cobradas} cobradas{ventasResumen.anuladas > 0 ? `, ${ventasResumen.anuladas} anuladas` : ''}) en el período seleccionado.
+          Total: <strong>{totalRegistros}</strong> ventas ({ventasResumen.cobradas} cobradas{ventasResumen.anuladas > 0 ? `, ${ventasResumen.anuladas} anuladas` : ''}) en el período seleccionado.
         </span>
         <div style={{ textAlign: 'right' }}>
           <span style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)', marginRight: '12px' }}>Total Facturado (Cobrado):</span>

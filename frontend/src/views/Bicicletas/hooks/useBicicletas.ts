@@ -32,6 +32,7 @@ export function useBicicletas() {
   const limite = 10;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPaginaActual(1);
   }, [busquedaDebounced]);
 
@@ -184,16 +185,23 @@ export function useBicicletas() {
 
   const bicicletasFiltradas = useMemo(() => {
     const termino = busqueda.toLowerCase().trim();
-    if (!termino) return bicicletas;
+    if (!termino || termino === busquedaDebounced.toLowerCase().trim()) return bicicletas;
+    const cleanId = termino.replace(/^#/, '');
     return bicicletas.filter(b => {
       const nombreDueno = `${b.nombre || ''} ${b.apellido || ''}`.toLowerCase();
+      const apellidoNombre = `${b.apellido || ''} ${b.nombre || ''}`.toLowerCase();
+      const dni = (b.dni || '').toLowerCase();
+      const idStr = String(b.id_bicicleta || '');
       return (
         b.marca.toLowerCase().includes(termino) ||
         (b.modelo || '').toLowerCase().includes(termino) ||
-        nombreDueno.includes(termino)
+        nombreDueno.includes(termino) ||
+        apellidoNombre.includes(termino) ||
+        dni.includes(termino) ||
+        idStr.includes(cleanId)
       );
     });
-  }, [bicicletas, busqueda]);
+  }, [bicicletas, busqueda, busquedaDebounced]);
 
   return {
     bicicletas,
