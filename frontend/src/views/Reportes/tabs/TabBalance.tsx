@@ -5,6 +5,7 @@ import { formatearMoneda, formatearFecha } from '../../../utils/formatters';
 interface TabBalanceProps {
   kpis: ReporteKPIs;
   pagos: PagoProveedor[];
+  egresosResumen?: { totalEgresos: number };
   paginaActual: number;
   totalPaginas: number;
   totalRegistros: number;
@@ -16,12 +17,14 @@ interface TabBalanceProps {
 export function TabBalance({
   kpis,
   pagos,
+  egresosResumen,
   paginaActual,
   totalPaginas,
   totalRegistros,
   limite,
   onCambiarPagina
 }: TabBalanceProps) {
+  const totalEgresosFiltrado = egresosResumen?.totalEgresos ?? kpis.total_egresos_monto;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       
@@ -66,14 +69,13 @@ export function TabBalance({
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Fecha</th>
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Proveedor</th>
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Método de Pago</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Registrado Por</th>
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase', textAlign: 'right' }}>Monto Abonado</th>
             </tr>
           </thead>
           <tbody>
             {pagos.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+                <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                   No se registraron egresos a proveedores para el período seleccionado.
                 </td>
               </tr>
@@ -92,9 +94,6 @@ export function TabBalance({
                   <td style={{ padding: '12px 16px', fontSize: '0.85rem' }}>
                     {p.metodo_pago_nombre || 'Efectivo'}
                   </td>
-                  <td style={{ padding: '12px 16px', fontSize: '0.85rem', color: 'var(--texto-mutado)' }}>
-                    {p.usuario_nombre || 'Administrador'}
-                  </td>
                   <td style={{ padding: '12px 16px', fontSize: '0.95rem', fontWeight: '700', textAlign: 'right', color: '#dc2626' }}>
                     {formatearMoneda(p.monto_total)}
                   </td>
@@ -112,6 +111,16 @@ export function TabBalance({
         limite={limite}
         alCambiarPagina={onCambiarPagina}
       />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-tarjeta)', padding: '14px 20px', borderRadius: '10px', border: '1px solid var(--borde-input)', flexWrap: 'wrap', gap: '12px' }}>
+        <span style={{ fontSize: '0.9rem', color: 'var(--texto-mutado)' }}>
+          Total: <strong>{totalRegistros}</strong> comprobante{totalRegistros === 1 ? '' : 's'} de pago a proveedores para los filtros aplicados.
+        </span>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--texto-mutado)', marginRight: '12px' }}>Total Egresos Filtrados:</span>
+          <strong style={{ fontSize: '1.2rem', color: '#dc2626' }}>{formatearMoneda(totalEgresosFiltrado)}</strong>
+        </div>
+      </div>
     </div>
   );
 }

@@ -5,6 +5,7 @@ export interface NuevoPagoData {
   nombre_proveedor: string;
   id_metodo_pago: number;
   monto_total: number | string;
+  moneda: 'ARS' | 'USD';
   observaciones: string;
 }
 

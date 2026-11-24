@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { PagoProveedor, Proveedor, MetodoPago, NuevoPagoData } from '../types';
+import type { PagoProveedorPendiente } from '../../../types';
 import { api } from '../../../services/api';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useDebounce } from '../../../hooks/useDebounce';
@@ -8,6 +9,7 @@ const INITIAL_NUEVO_PAGO: NuevoPagoData = {
   nombre_proveedor: '',
   id_metodo_pago: 0,
   monto_total: '',
+  moneda: 'ARS',
   observaciones: ''
 };
 
@@ -16,6 +18,8 @@ export function usePagoProveedores() {
   const { user } = useAuth();
 
   const [pagos, setPagos] = useState<PagoProveedor[]>([]);
+  const [pendientes, setPendientes] = useState<PagoProveedorPendiente[]>([]);
+  const [cotizacionDolar, setCotizacionDolar] = useState<number>(1);
   const [totalMontoBackend, setTotalMontoBackend] = useState<number>(0);
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [metodosPago, setMetodosPago] = useState<MetodoPago[]>([]);
@@ -43,14 +47,16 @@ export function usePagoProveedores() {
     setCargando(true);
     setError(null);
     try {
-      const [resPagos, resProv, resMetodos] = await Promise.all([
+      const [resPagos, resProv, resMetodos, resPendientes, resDolar] = await Promise.all([
         api.pagosProveedores.getAll({
           busqueda: busquedaDebounced,
           limite,
           pagina: paginaActual
         }),
         api.proveedores.getAll(),
-        api.pagosProveedores.getMetodosPago()
+        api.pagosProveedores.getMetodosPago(),
+        api.pagosProveedores.getPendientes().catch(() => ({ total: 0, pendientes: [] as PagoProveedorPendiente[] })),
+        api.configuracion.getDolar().catch(() => ({ cotizacion_dolar: 1 }))
       ]);
 
       setPagos(resPagos.pagos || []);
@@ -61,6 +67,8 @@ export function usePagoProveedores() {
       }
       setProveedores(resProv.proveedores || []);
       setMetodosPago(resMetodos || []);
+      setPendientes(Array.isArray(resPendientes?.pendientes) ? resPendientes.pendientes : []);
+      setCotizacionDolar(Number(resDolar?.cotizacion_dolar) || 1);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -86,11 +94,22 @@ export function usePagoProveedores() {
       return;
     }
 
-    const montoNum = Number(nuevoPago.monto_total);
+    const montoNum = Math.round(Number(nuevoPago.monto_total) * 100) / 100;
     if (!nuevoPago.id_metodo_pago || isNaN(montoNum) || montoNum <= 0) {
       alert('Por favor selecciona un método de pago y un monto mayor a cero.');
       return;
     }
+
+    const monedaPago = nuevoPago.moneda === 'USD' ? 'USD' : 'ARS';
+    const provMatch = proveedores.find(
+      p => p.nombre_empresa.trim().toLowerCase() === nuevoPago.nombre_proveedor.trim().toLowerCase()
+    );
+    const cotEfectiva = provMatch?.cotizacion_dolar && Number(provMatch.cotizacion_dolar) > 0
+      ? Number(provMatch.cotizacion_dolar)
+      : cotizacionDolar;
+    const montoArsFinal = monedaPago === 'USD'
+      ? Math.round(montoNum * cotEfectiva * 100) / 100
+      : montoNum;
 
     setGuardando(true);
     try {
@@ -98,7 +117,10 @@ export function usePagoProveedores() {
         nombre_proveedor: nuevoPago.nombre_proveedor.trim(),
         id_usuario: user?.id_usuario || 1,
         id_metodo_pago: nuevoPago.id_metodo_pago,
-        monto_total: montoNum,
+        monto_total: montoArsFinal,
+        moneda: monedaPago,
+        monto_usd: monedaPago === 'USD' ? montoNum : undefined,
+        cotizacion_dolar: monedaPago === 'USD' ? cotEfectiva : undefined,
         observaciones: nuevoPago.observaciones
       });
 
@@ -113,7 +135,7 @@ export function usePagoProveedores() {
     } finally {
       setGuardando(false);
     }
-  }, [nuevoPago, user, cargarDatos]);
+  }, [nuevoPago, user, cargarDatos, proveedores, cotizacionDolar]);
 
   const pagosFiltrados = useMemo(() => {
     const term = busqueda.toLowerCase().trim();
@@ -132,6 +154,8 @@ export function usePagoProveedores() {
   return {
     pagos,
     pagosFiltrados,
+    pendientes,
+    cotizacionDolar,
     totalPagos: totalRegistros,
     paginaActual,
     setPaginaActual,

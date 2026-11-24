@@ -32,23 +32,40 @@ export function ReportesHeader({
 
   return (
     <>
-      {/* MEMBRETE EXCLUSIVO PARA IMPRESIÓN */}
+      {/* MEMBRETE EXCLUSIVO PARA IMPRESIÓN (A4 limpio estilo DN BIKES) */}
       <div className="imprimir-membrete">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0f172a', paddingBottom: '12px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: '800', letterSpacing: '-0.5px' }}>BIKESYSTEM</h1>
-            <p style={{ margin: '3px 0 0 0', fontSize: '0.9rem', color: '#475569' }}>
-              Informe Ejecutivo &bull; {getTituloPestana()}
+            <h1 style={{ margin: 0, fontSize: '1.85rem', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.5px' }}>
+              DN BIKES
+            </h1>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.84rem', color: '#475569' }}>
+              Venta de Bicicletas, Repuestos y Taller Especializado
+            </p>
+            <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+              Esperanza, Santa Fe, Argentina | Tel: 3496-412345
             </p>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700' }}>INFORME ANALÍTICO</h3>
-            <p style={{ margin: '2px 0 0 0', fontSize: '0.85rem', color: '#64748b' }}>
-              Período: {formatearFecha(fechaDesde, 'Inicio')} &rarr; {formatearFecha(fechaHasta, 'Hoy')}
-            </p>
-            <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+          <div style={{
+            backgroundColor: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            borderRadius: '8px',
+            padding: '10px 16px',
+            textAlign: 'right',
+            minWidth: '250px'
+          }}>
+            <div style={{ fontSize: '0.72rem', fontWeight: '700', color: '#64748b', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+              INFORME ANALÍTICO
+            </div>
+            <div style={{ fontSize: '1rem', fontWeight: '800', color: '#0f172a', marginTop: '3px' }}>
+              {getTituloPestana()}
+            </div>
+            <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '3px' }}>
+              Período: {formatearFecha(fechaDesde, 'Inicio')} al {formatearFecha(fechaHasta, 'Hoy')}
+            </div>
+            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: '2px' }}>
               Emisión: {formatearFechaHora(new Date(), '', { dateStyle: 'short', timeStyle: 'short' })}
-            </p>
+            </div>
           </div>
         </div>
       </div>
@@ -91,7 +108,7 @@ export function ReportesHeader({
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              backgroundColor: '#2563eb',
+              backgroundColor: 'var(--azul-oscuro)',
               color: '#ffffff',
               border: 'none',
               padding: '10px 16px',
@@ -99,7 +116,7 @@ export function ReportesHeader({
               fontWeight: '600',
               fontSize: '0.88rem',
               cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(37,99,235,0.2)',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
               transition: 'all 0.15s ease'
             }}
           >

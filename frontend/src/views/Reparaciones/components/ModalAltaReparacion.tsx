@@ -1,4 +1,8 @@
+import { useState, useMemo } from 'react';
 import type { Bicicleta, Reparacion, NuevaReparacionData } from '../types';
+import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
+
+type FiltroBusquedaBici = 'todos' | 'bicicleta' | 'cliente';
 
 interface ModalAltaReparacionProps {
   mostrar: boolean;
@@ -20,14 +24,45 @@ export function ModalAltaReparacion({
   guardando,
   onSubmit
 }: ModalAltaReparacionProps) {
+  const [filtroPor, setFiltroPor] = useState<FiltroBusquedaBici>('todos');
+
+  const opcionesBicicletas: SearchableOption[] = useMemo(() => {
+    return bicicletas.map(b => {
+      const idStr = String(b.id_bicicleta || '');
+      const textoBici = `#${idStr} ${idStr} ${b.marca || ''} ${b.modelo || ''}`;
+      const textoCliente = `${b.nombre || ''} ${b.apellido || ''} ${b.apellido || ''} ${b.nombre || ''} ${b.dni || ''}`;
+      const searchText =
+        filtroPor === 'bicicleta'
+          ? textoBici
+          : filtroPor === 'cliente'
+          ? textoCliente
+          : `${textoBici} ${textoCliente}`;
+
+      return {
+        value: b.id_bicicleta || 0,
+        label: `#${idStr} — ${b.marca} ${b.modelo || ''}`.trim(),
+        sublabel: b.nombre ? `Cliente: ${b.apellido}, ${b.nombre}${b.dni ? ` • DNI ${b.dni}` : ''}` : undefined,
+        searchText
+      };
+    });
+  }, [bicicletas, filtroPor]);
+
   if (!mostrar) return null;
 
   const handleClose = () => {
     if (nuevaReparacion.id_bicicleta !== 0 || nuevaReparacion.descripcion.trim() || nuevaReparacion.costo_mano_obra) {
       if (!window.confirm('Hay datos de la orden sin guardar. ¿Deseas salir?')) return;
     }
+    setFiltroPor('todos');
     onCerrar();
   };
+
+  const placeholderBusqueda =
+    filtroPor === 'bicicleta'
+      ? 'Escribí marca, modelo o #ID de bicicleta...'
+      : filtroPor === 'cliente'
+      ? 'Escribí nombre, apellido o DNI del cliente...'
+      : 'Buscar y seleccionar bicicleta o cliente...';
 
   return (
     <div
@@ -39,31 +74,56 @@ export function ModalAltaReparacion({
       }}
     >
       <div style={{
-        backgroundColor: 'var(--bg-tarjeta)', width: '500px', padding: '30px',
+        backgroundColor: 'var(--bg-tarjeta)', width: 'min(540px, 94vw)', padding: '28px',
         borderRadius: '16px', border: '1px solid var(--borde-input)',
-        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', color: 'var(--texto-principal)'
+        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', color: 'var(--texto-principal)',
+        maxHeight: '92vh', overflowY: 'auto', boxSizing: 'border-box'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0 }}>Registrar Orden de Taller</h3>
-          <button onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
+          <button type="button" onClick={handleClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}>✕</button>
         </div>
 
         <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>Bicicleta a Reparar *</label>
-            <select
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600' }}>Bicicleta a Reparar *</label>
+
+              {/* Filtros de búsqueda: Todos / Bicicleta / Cliente */}
+              <div style={{ display: 'flex', gap: '4px' }}>
+                {([
+                  { id: 'todos', label: 'Todos' },
+                  { id: 'bicicleta', label: 'Bicicleta' },
+                  { id: 'cliente', label: 'Cliente' }
+                ] as const).map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFiltroPor(f.id)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      border: filtroPor === f.id ? 'none' : '1px solid var(--borde-input)',
+                      backgroundColor: filtroPor === f.id ? 'var(--azul-oscuro)' : 'var(--bg-principal)',
+                      color: filtroPor === f.id ? '#ffffff' : 'var(--texto-mutado)'
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <SearchableSelect
+              options={opcionesBicicletas}
               value={nuevaReparacion.id_bicicleta}
-              onChange={e => setNuevaReparacion({ ...nuevaReparacion, id_bicicleta: Number(e.target.value) })}
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)' }}
-              required
-            >
-              <option value={0}>-- Seleccione la bicicleta del cliente --</option>
-              {bicicletas.map(b => (
-                <option key={b.id_bicicleta} value={b.id_bicicleta}>
-                  #{b.id_bicicleta} — {b.marca} {b.modelo} {b.nombre ? `(${b.apellido}, ${b.nombre})` : ''}
-                </option>
-              ))}
-            </select>
+              onChange={val => setNuevaReparacion({ ...nuevaReparacion, id_bicicleta: Number(val) || 0 })}
+              placeholder={placeholderBusqueda}
+              emptyMessage="No se encontraron bicicletas con ese criterio."
+            />
           </div>
 
           <div>

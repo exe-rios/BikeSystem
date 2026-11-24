@@ -30,23 +30,44 @@ CREATE TABLE Proveedor (
     telefono VARCHAR(20),
     email VARCHAR(100),
     direccion VARCHAR(200),
+    cotizacion_dolar DECIMAL(10, 2) NULL CONSTRAINT chk_prov_cotizacion CHECK (cotizacion_dolar IS NULL OR cotizacion_dolar > 0),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE Productos (
     id_producto INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_proveedor INT NULL,
+    codigo VARCHAR(50) NULL,
     nombre VARCHAR(100) NOT NULL CONSTRAINT chk_prod_nombre_min CHECK (length(trim(nombre)) >= 2),
     marca VARCHAR(50),
     modelo VARCHAR(50) NULL,
     tipo_prod VARCHAR(50) NOT NULL CONSTRAINT chk_prod_tipo_valido CHECK (LOWER(tipo_prod) IN ('bicicleta', 'repuesto', 'accesorio')),
     cantidad INT DEFAULT 0 CONSTRAINT chk_productos_cantidad CHECK (cantidad >= 0),
     precio DECIMAL(10, 2) DEFAULT 0 CONSTRAINT chk_productos_precio CHECK (precio >= 0),
+    moneda VARCHAR(3) NOT NULL DEFAULT 'ARS' CONSTRAINT chk_prod_moneda CHECK (moneda IN ('ARS', 'USD')),
+    precio_usd DECIMAL(10, 2) NULL CONSTRAINT chk_prod_precio_usd CHECK (precio_usd IS NULL OR precio_usd >= 0),
+    costo_usd DECIMAL(10, 2) NULL CONSTRAINT chk_prod_costo_usd CHECK (costo_usd IS NULL OR costo_usd >= 0),
+    porcentaje_ganancia DECIMAL(8, 4) NULL CONSTRAINT chk_prod_ganancia CHECK (porcentaje_ganancia IS NULL OR porcentaje_ganancia >= 0),
+    porcentaje_reventa DECIMAL(8, 4) NULL CONSTRAINT chk_prod_porc_reventa CHECK (porcentaje_reventa IS NULL OR porcentaje_reventa >= 0),
+    precio_reventa DECIMAL(10, 2) NULL CONSTRAINT chk_prod_precio_reventa CHECK (precio_reventa IS NULL OR precio_reventa >= 0),
+    precio_reventa_usd DECIMAL(10, 2) NULL CONSTRAINT chk_prod_precio_reventa_usd CHECK (precio_reventa_usd IS NULL OR precio_reventa_usd >= 0),
     stock_minimo INT DEFAULT 0 CONSTRAINT chk_productos_stock_minimo CHECK (stock_minimo >= 0),
     activo BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_prod_proveedor FOREIGN KEY (id_proveedor) REFERENCES Proveedor(id_proveedor) ON DELETE SET NULL
 );
+
+CREATE TABLE Configuracion_Sistema (
+    clave VARCHAR(50) PRIMARY KEY,
+    valor VARCHAR(100) NOT NULL,
+    updated_by INT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_config_usuario FOREIGN KEY (updated_by) REFERENCES Usuario(id_usuario) ON DELETE SET NULL
+);
+
+INSERT INTO Configuracion_Sistema (clave, valor) VALUES ('cotizacion_dolar', '1.00') ON CONFLICT (clave) DO NOTHING;
 
 CREATE TABLE Producto_BiciNueva (
     id_producto INT PRIMARY KEY,
@@ -54,7 +75,7 @@ CREATE TABLE Producto_BiciNueva (
     color VARCHAR(30) NULL,
     rodado VARCHAR(20) NULL,
     talle VARCHAR(20) NULL,
-    genero VARCHAR(20) NOT NULL CONSTRAINT chk_bicinueva_genero CHECK (LOWER(genero) IN ('hombre', 'mujer', 'unisex')),
+    genero VARCHAR(20) NOT NULL CONSTRAINT chk_bicinueva_genero CHECK (LOWER(genero) IN ('hombre', 'mujer', 'unisex', 'niño/a')),
     CONSTRAINT fk_bicinueva_prod FOREIGN KEY (id_producto) REFERENCES Productos(id_producto) ON DELETE CASCADE
 );
 
@@ -76,11 +97,13 @@ INSERT INTO Metodo_Pago (nombre) VALUES
 CREATE TABLE Bicicleta (
     id_bicicleta INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     id_cliente INT NOT NULL,
+    id_venta_origen INT NULL,
     marca VARCHAR(50) NOT NULL CONSTRAINT chk_bici_marca_min CHECK (length(trim(marca)) >= 1),
     modelo VARCHAR(50),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_bici_cliente FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente) ON DELETE RESTRICT
+    CONSTRAINT fk_bici_cliente FOREIGN KEY (id_cliente) REFERENCES Cliente(id_cliente) ON DELETE RESTRICT,
+    CONSTRAINT fk_bici_venta FOREIGN KEY (id_venta_origen) REFERENCES Venta(id_venta) ON DELETE SET NULL
 );
 
 -- 3. TABLAS TRANSACCIONALES (Cabeceras)
@@ -128,12 +151,36 @@ CREATE TABLE Pago_Proveedor (
     id_metodo_pago INT NOT NULL, 
     fecha DATE NOT NULL DEFAULT CURRENT_DATE,
     monto_total DECIMAL(10, 2) NOT NULL CONSTRAINT chk_pago_monto_total CHECK (monto_total > 0),
+    moneda VARCHAR(3) NOT NULL DEFAULT 'ARS' CONSTRAINT chk_pago_moneda CHECK (moneda IN ('ARS', 'USD')),
+    monto_usd DECIMAL(10, 2) NULL CONSTRAINT chk_pago_monto_usd CHECK (monto_usd IS NULL OR monto_usd >= 0),
+    cotizacion_dolar DECIMAL(10, 2) NULL CONSTRAINT chk_pago_cotizacion CHECK (cotizacion_dolar IS NULL OR cotizacion_dolar > 0),
     observaciones TEXT,	
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_pago_prov FOREIGN KEY (id_proveedor) REFERENCES Proveedor(id_proveedor) ON DELETE RESTRICT,
     CONSTRAINT fk_pago_usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE RESTRICT,
     CONSTRAINT fk_pago_metodo FOREIGN KEY (id_metodo_pago) REFERENCES Metodo_Pago(id_metodo_pago) ON DELETE RESTRICT
+);
+
+CREATE TABLE Pago_Proveedor_Pendiente (
+    id_pendiente INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_proveedor INT NOT NULL,
+    id_usuario INT NOT NULL,
+    id_pago_inicial INT NULL,
+    numero_factura VARCHAR(60) NULL,
+    fecha_factura VARCHAR(30) NULL,
+    monto_factura_total DECIMAL(12, 2) NOT NULL CONSTRAINT chk_pend_total CHECK (monto_factura_total > 0),
+    monto_pagado DECIMAL(12, 2) NOT NULL DEFAULT 0 CONSTRAINT chk_pend_pagado CHECK (monto_pagado >= 0),
+    saldo_pendiente DECIMAL(12, 2) NOT NULL CONSTRAINT chk_pend_saldo CHECK (saldo_pendiente >= 0),
+    moneda VARCHAR(3) NOT NULL DEFAULT 'ARS' CONSTRAINT chk_pend_moneda CHECK (moneda IN ('ARS', 'USD')),
+    fecha_proximo_pago DATE NOT NULL,
+    estado VARCHAR(20) NOT NULL DEFAULT 'PENDIENTE' CONSTRAINT chk_pend_estado CHECK (estado IN ('PENDIENTE', 'PAGADO', 'CANCELADO')),
+    observaciones TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_pend_prov FOREIGN KEY (id_proveedor) REFERENCES Proveedor(id_proveedor) ON DELETE RESTRICT,
+    CONSTRAINT fk_pend_usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE RESTRICT,
+    CONSTRAINT fk_pend_pago_inicial FOREIGN KEY (id_pago_inicial) REFERENCES Pago_Proveedor(id_pago) ON DELETE SET NULL
 );
 
 -- 4. TABLAS TRANSACCIONALES (Detalles)
@@ -190,6 +237,17 @@ CREATE TABLE Bitacora_Actividad (
     CONSTRAINT fk_bitacora_usuario FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE SET NULL
 );
 
+CREATE TABLE Log_Sistema (
+    id_log INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nivel VARCHAR(10) NOT NULL CONSTRAINT chk_log_sistema_nivel CHECK (nivel IN ('INFO', 'WARN', 'ERROR')),
+    origen VARCHAR(40) NOT NULL,
+    equipo VARCHAR(100) NOT NULL,
+    usuario VARCHAR(60) NULL,
+    mensaje TEXT NOT NULL,
+    detalle TEXT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 5. FUNCIÓN TRIGGER DE AUDITORÍA 
 
 CREATE OR REPLACE FUNCTION actualizar_timestamp_modificacion()
@@ -227,6 +285,8 @@ CREATE INDEX idx_reparacion_id_usuario ON Reparacion(id_usuario);
 CREATE INDEX idx_pago_prov_id_proveedor ON Pago_Proveedor(id_proveedor);
 CREATE INDEX idx_pago_prov_id_usuario ON Pago_Proveedor(id_usuario);
 CREATE INDEX idx_pago_prov_id_metodo ON Pago_Proveedor(id_metodo_pago);
+CREATE INDEX idx_productos_id_proveedor ON Productos(id_proveedor);
+CREATE INDEX idx_productos_codigo ON Productos(LOWER(codigo));
 CREATE INDEX idx_venta_id_metodo ON Venta(id_metodo_pago);
 CREATE INDEX idx_bitacora_id_usuario ON Bitacora_Actividad(id_usuario);
 
@@ -238,6 +298,8 @@ CREATE INDEX idx_pago_prov_fecha ON Pago_Proveedor(fecha DESC);
 CREATE INDEX idx_mov_producto ON Movimiento_Stock(id_producto);
 CREATE INDEX idx_bitacora_fecha ON Bitacora_Actividad(created_at DESC);
 CREATE INDEX idx_bitacora_modulo ON Bitacora_Actividad(modulo);
+CREATE INDEX idx_log_sistema_created_at ON Log_Sistema(created_at DESC);
+CREATE INDEX idx_log_sistema_nivel ON Log_Sistema(nivel);
 CREATE INDEX idx_reparacion_estado ON Reparacion(estado);
 CREATE INDEX idx_reparacion_fechas ON Reparacion(fecha_ingreso, fecha_egreso);
 CREATE INDEX idx_reparacion_entregadas_fecha ON Reparacion(fecha_egreso DESC) WHERE estado = 'Entregada';

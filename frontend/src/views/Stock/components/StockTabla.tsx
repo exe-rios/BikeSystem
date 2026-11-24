@@ -58,8 +58,8 @@ export function StockTabla({
       <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
         <thead>
           <tr style={{ backgroundColor: 'var(--bg-principal)', borderBottom: '1px solid var(--borde-input)' }}>
-            <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase', width: '70px' }}>
-              ID
+            <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase', width: '130px' }}>
+              Código / ID
             </th>
             <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>
               Artículo / Especificaciones
@@ -69,6 +69,9 @@ export function StockTabla({
             </th>
             <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>
               Precio Venta
+            </th>
+            <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase' }}>
+              Precio Revendedor
             </th>
             <th style={{ padding: '12px 16px', fontSize: '0.8rem', fontWeight: '700', color: 'var(--texto-mutado)', textTransform: 'uppercase', textAlign: 'center' }}>
               Stock / Mínimo
@@ -86,20 +89,20 @@ export function StockTabla({
         <tbody>
           {cargando ? (
             <tr>
-              <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+              <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                 Cargando inventario...
               </td>
             </tr>
           ) : productos.length === 0 ? (
             <tr>
-              <td colSpan={7} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+              <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                 {busqueda && busqueda.trim() ? (
                   <div>
                     <div style={{ fontWeight: '600', color: 'var(--texto-principal)', marginBottom: '4px', fontSize: '0.95rem' }}>
                       No se encontraron artículos ni bicicletas para &quot;{busqueda}&quot;.
                     </div>
                     <div style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)' }}>
-                      Verificá el ID, nombre, marca o talle (ej: &quot;8&quot;, &quot;scott&quot; o &quot;talle m&quot;).
+                      Verificá el código, ID, nombre, marca o talle (ej: &quot;0016930&quot;, &quot;8&quot;, &quot;scott&quot; o &quot;talle m&quot;).
                     </div>
                   </div>
                 ) : (
@@ -123,9 +126,22 @@ export function StockTabla({
                     opacity: !esActivo ? 0.75 : 1
                   }}
                 >
-                  {/* ID */}
-                  <td style={{ padding: '12px 16px', color: 'var(--texto-mutado)', fontFamily: 'monospace', fontWeight: '700', fontSize: '0.88rem', whiteSpace: 'nowrap' }}>
-                    #{p.id_producto}
+                  {/* Código / ID */}
+                  <td style={{ padding: '12px 16px', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                    {p.codigo ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontWeight: '700', fontSize: '0.84rem', color: 'var(--texto-principal)' }} title={`Código: ${p.codigo}`}>
+                          {p.codigo}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--texto-mutado)' }}>
+                          #{p.id_producto}
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--texto-mutado)', fontWeight: '700', fontSize: '0.88rem' }}>
+                        #{p.id_producto}
+                      </span>
+                    )}
                   </td>
 
                   {/* Artículo */}
@@ -141,9 +157,21 @@ export function StockTabla({
                       )}
                     </div>
 
-                    {(p.marca || p.modelo) && (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--texto-mutado)', marginTop: '2px' }}>
-                        {p.marca} {p.modelo}
+                    {(p.marca || p.modelo || p.proveedor_nombre) && (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--texto-mutado)', marginTop: '2px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {(p.marca || p.modelo) && <span>{p.marca} {p.modelo}</span>}
+                        {p.proveedor_nombre && (
+                          <span style={{
+                            fontSize: '0.72rem',
+                            backgroundColor: 'rgba(13, 148, 136, 0.1)',
+                            color: '#0f766e',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            fontWeight: '600'
+                          }}>
+                            Prov: {p.proveedor_nombre}
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -210,9 +238,59 @@ export function StockTabla({
                     </span>
                   </td>
 
-                  {/* Precio */}
+                  {/* Precio Venta (Público) */}
                   <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--texto-principal)', fontSize: '0.92rem' }}>
-                    {formatearMoneda(p.precio)}
+                    <div>{formatearMoneda(p.precio)}</div>
+                    {p.costo_usd !== null && p.costo_usd !== undefined && Number(p.costo_usd) > 0 && (
+                      <div style={{ fontSize: '0.73rem', color: 'var(--texto-mutado)', fontWeight: '600', marginTop: '2px' }}>
+                        Costo: {p.moneda === 'USD' ? 'USD ' : '$'}
+                        {Number(p.costo_usd).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {p.porcentaje_ganancia !== null && p.porcentaje_ganancia !== undefined && (
+                          <> (+{Number(p.porcentaje_ganancia) <= 10 ? Math.round(Number(p.porcentaje_ganancia) * 10000) / 100 : Math.round(Number(p.porcentaje_ganancia) * 100) / 100}%)</>
+                        )}
+                      </div>
+                    )}
+                    {p.moneda === 'USD' && p.precio_usd !== null && p.precio_usd !== undefined && (
+                      <div style={{ fontSize: '0.73rem', color: 'var(--texto-principal)', fontWeight: '600', marginTop: '1px' }}>
+                        Venta USD {Number(p.precio_usd).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {p.proveedor_cotizacion_dolar ? ` • Dólar $${Number(p.proveedor_cotizacion_dolar).toLocaleString('es-AR')}` : ''}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Precio Revendedor (Mayorista) */}
+                  <td style={{ padding: '12px 16px', fontSize: '0.92rem', whiteSpace: 'nowrap' }}>
+                    {p.precio_reventa !== null && p.precio_reventa !== undefined && Number(p.precio_reventa) > 0 ? (
+                      <div>
+                        <div style={{ fontWeight: '700', color: 'var(--texto-principal)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span>{formatearMoneda(p.precio_reventa)}</span>
+                          {p.porcentaje_reventa !== null && p.porcentaje_reventa !== undefined && (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              backgroundColor: 'var(--bg-principal)',
+                              color: 'var(--texto-mutado)',
+                              border: '1px solid var(--borde-input)',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              fontWeight: '700'
+                            }}>
+                              +{Number(p.porcentaje_reventa) <= 10 ? Math.round(Number(p.porcentaje_reventa) * 10000) / 100 : Math.round(Number(p.porcentaje_reventa) * 100) / 100}%
+                            </span>
+                          )}
+                        </div>
+                        {p.moneda === 'USD' && p.precio_reventa_usd !== null && p.precio_reventa_usd !== undefined && (
+                          <div style={{ fontSize: '0.73rem', color: 'var(--texto-mutado)', fontWeight: '600', marginTop: '2px' }}>
+                            USD {Number(p.precio_reventa_usd).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                        )}
+                      </div>
+                    ) : p.tipo_prod === 'bicicleta' ? (
+                      <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)' }}>—</span>
+                    ) : (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--texto-mutado)' }}>
+                        Sin definir
+                      </span>
+                    )}
                   </td>
 
                   {/* Stock Actual / Mínimo */}

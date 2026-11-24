@@ -7,13 +7,21 @@ import {
     eliminarProducto,
     reactivarProducto,
     registrarMovimientoStock,
-    obtenerMovimientosStock
+    obtenerMovimientosStock,
+    previsualizarCargaMasiva,
+    ejecutarCargaMasiva,
+    aumentoMasivoPorProveedor
 } from '../controllers/producto.controller.js';
 import { verificarToken } from '../middlewares/auth.middleware.js';
 import { autorizarRoles } from '../middlewares/roles.middleware.js';
 
 /** Rutas de inventario, catálogo de productos y auditoría Kardex. */
 const router: ReturnType<typeof Router> = Router();
+
+// Operaciones masivas y ajustes globales por proveedor (Exclusivo Administradores)
+router.post('/carga-masiva/preview', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), previsualizarCargaMasiva);
+router.post('/carga-masiva', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), ejecutarCargaMasiva);
+router.post('/aumento-masivo', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), aumentoMasivoPorProveedor);
 
 // Consultas y Movimientos / Ajustes (Empleados y Administradores)
 router.get('/', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerProductos);

@@ -3,20 +3,76 @@ import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/erro
 import { validarId } from '../utils/validation.js';
 import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
+interface FechaCalendario {
+  y: number;
+  m: number;
+  d: number;
+  iso: string;
+}
+
+const formatearFechaCalendarioIso = (y: number, m: number, d: number): string =>
+  `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+const parsearFechaCalendarioIso = (valor: string): FechaCalendario => {
+  const limpio = String(valor || '').trim();
+  const match = limpio.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new BadRequestError('La fecha del primer service debe tener formato AAAA-MM-DD.');
+  }
+  const y = Number(match[1]);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() + 1 !== m || dt.getUTCDate() !== d) {
+    throw new BadRequestError('La fecha del primer service no es una fecha de calendario válida.');
+  }
+  return { y, m, d, iso: limpio };
+};
+
+const extraerFechaCalendarioDeDb = (val: unknown): FechaCalendario => {
+  if (val instanceof Date) {
+    const y = val.getFullYear();
+    const m = val.getMonth() + 1;
+    const d = val.getDate();
+    return { y, m, d, iso: formatearFechaCalendarioIso(y, m, d) };
+  }
+  const str = String(val || '').trim();
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const y = Number(match[1]);
+    const m = Number(match[2]);
+    const d = Number(match[3]);
+    return { y, m, d, iso: formatearFechaCalendarioIso(y, m, d) };
+  }
+  const dt = new Date(str);
+  const y = dt.getFullYear();
+  const m = dt.getMonth() + 1;
+  const d = dt.getDate();
+  return { y, m, d, iso: formatearFechaCalendarioIso(y, m, d) };
+};
+
+const diffDiasCalendario = (desde: FechaCalendario, hasta: FechaCalendario): number => {
+  const msDesde = Date.UTC(desde.y, desde.m - 1, desde.d);
+  const msHasta = Date.UTC(hasta.y, hasta.m - 1, hasta.d);
+  return Math.floor((msHasta - msDesde) / (1000 * 60 * 60 * 24));
+};
+
 /** Servicio para la facturación comercial, control transaccional de stock y garantías. */
 export class VentaService {
   /** Procesa una venta completa en una transacción ACID: descuenta stock, calcula subtotales y audita. */
   static async crearVenta(datos: {
     id_cliente: number | string;
     id_metodo_pago?: number | string | undefined;
+    tipo_precio?: 'publico' | 'reventa' | string | undefined;
     cliente_nombre?: string | undefined;
     cliente_apellido?: string | undefined;
     cliente_dni?: string | undefined;
-    detalles: Array<{ id_producto: number | string; cantidad: number | string; precio_unitario?: number | string | undefined }>;
+    detalles: Array<{ id_producto: number | string; cantidad: number | string; precio_unitario?: number | string | undefined; tipo_precio?: 'publico' | 'reventa' | string | undefined }>;
     idUsuarioOperador?: number | undefined;
     nombreUsuarioOperador?: string | undefined;
   }) {
-    const { id_cliente, id_metodo_pago, cliente_nombre, cliente_apellido, cliente_dni, detalles, idUsuarioOperador, nombreUsuarioOperador } = datos;
+    const { id_cliente, id_metodo_pago, tipo_precio, cliente_nombre, cliente_apellido, cliente_dni, detalles, idUsuarioOperador, nombreUsuarioOperador } = datos;
+    const usarReventaGlobal = String(tipo_precio || '').trim().toLowerCase() === 'reventa';
     const idUsuarioNum = Number(idUsuarioOperador);
     const idMetodoPagoNum = Number(id_metodo_pago) || 1;
 
@@ -80,7 +136,7 @@ export class VentaService {
         }
 
         const queryProducto = `
-          SELECT id_producto, nombre, marca, modelo, tipo_prod, cantidad, precio, activo 
+          SELECT id_producto, nombre, marca, modelo, tipo_prod, cantidad, precio, precio_reventa, activo 
           FROM Productos 
           WHERE id_producto = $1
           FOR UPDATE;
@@ -101,7 +157,15 @@ export class VentaService {
         }
 
         // Blindaje de precio: El precio oficial de la base de datos es la única fuente de la verdad
-        const precioOficial = Number(producto.precio) || 0;
+        const usaReventaItem = item.tipo_precio
+          ? String(item.tipo_precio).trim().toLowerCase() === 'reventa'
+          : usarReventaGlobal;
+        const precioReventaDb = producto.precio_reventa !== null && producto.precio_reventa !== undefined
+          ? Number(producto.precio_reventa)
+          : null;
+        const precioOficial = (usaReventaItem && precioReventaDb !== null && precioReventaDb > 0)
+          ? precioReventaDb
+          : (Number(producto.precio) || 0);
         const subtotal = Math.round(cantNum * precioOficial * 100) / 100;
         costoTotalCalculado = Math.round((costoTotalCalculado + subtotal) * 100) / 100;
 
@@ -129,15 +193,18 @@ export class VentaService {
 
         // Si es bicicleta, registrar cada unidad individualmente al cliente
         if (producto.tipo_prod === 'bicicleta') {
+          const marcaBici = String(producto.marca || producto.nombre || 'Bicicleta').trim().slice(0, 50);
+          const modeloBici = String(producto.modelo || 'Bicicleta nueva').trim().slice(0, 50);
           const queryBiciCliente = `
-            INSERT INTO Bicicleta (id_cliente, marca, modelo)
-            VALUES ($1, $2, $3);
+            INSERT INTO Bicicleta (id_cliente, marca, modelo, id_venta_origen)
+            VALUES ($1, $2, $3, $4);
           `;
           for (let i = 0; i < cantNum; i++) {
             await client.query(queryBiciCliente, [
               idClienteNum,
-              producto.marca || producto.nombre,
-              producto.modelo || 'Bicicleta nueva'
+              marcaBici,
+              modeloBici,
+              id_venta
             ]);
           }
         }
@@ -151,19 +218,15 @@ export class VentaService {
       `;
       const resultTotal = await client.query(queryActualizarTotal, [costoTotalCalculado, id_venta]);
 
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Ventas', 'Registro de Venta', $3);`,
-          [
-            idUsuarioNum,
-            nombreUsuarioOperador || 'Vendedor',
-            `Venta #${id_venta} registrada por $${costoTotalCalculado}. Cliente #${idClienteNum}, ${detallesGuardados.length} artículo(s).`
-          ]
-        );
-      } catch {
-        // Ignorar fallo secundario en bitácora
-      }
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Ventas', 'Registro de Venta', $3);`,
+        [
+          idUsuarioNum,
+          String(nombreUsuarioOperador || 'Vendedor').trim().slice(0, 50),
+          `Venta #${id_venta} registrada por $${costoTotalCalculado}. Cliente #${idClienteNum}, ${detallesGuardados.length} artículo(s).`
+        ]
+      );
 
       await client.query('COMMIT');
 
@@ -188,6 +251,8 @@ export class VentaService {
         v.costo_total,
         v.id_cliente,
         COALESCE(v.estado, 'COMPLETADA') AS estado,
+        v.fecha_anulacion,
+        v.motivo_anulacion,
         v.id_metodo_pago,
         COALESCE(mp.nombre, 'Efectivo') AS metodo_pago_nombre,
         COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre,
@@ -252,6 +317,8 @@ export class VentaService {
         v.costo_total,
         v.id_cliente,
         COALESCE(v.estado, 'COMPLETADA') AS estado,
+        v.fecha_anulacion,
+        v.motivo_anulacion,
         v.id_metodo_pago,
         COALESCE(mp.nombre, 'Efectivo') AS metodo_pago_nombre,
         COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre,
@@ -324,19 +391,20 @@ export class VentaService {
   /** Consulta el estado de cobertura de garantías de bicicletas: 30 días para 1° service y extensión a 6 meses. */
   static async obtenerGarantiasBicicletas(busqueda?: string | undefined, paginacion?: { limite?: number | undefined; pagina?: number | undefined }) {
     let query = `
-      SELECT 
-        dv.id_detalle_venta,
-        v.id_venta,
-        v.fecha AS fecha_venta,
-        v.costo_total,
-        c.id_cliente,
-        COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre,
-        COALESCE(NULLIF(TRIM(v.cliente_apellido), ''), c.apellido) AS cliente_apellido,
-        COALESCE(NULLIF(TRIM(v.cliente_dni), ''), c.dni) AS cliente_dni,
-        c.telefono AS cliente_telefono,
-        c.email AS cliente_email,
-        ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%') AS es_consumidor_final,
-        u.nombre_usuario AS vendedor,
+      WITH garantias_filtradas AS (
+        SELECT 
+          dv.id_detalle_venta,
+          v.id_venta,
+          v.fecha AS fecha_venta,
+          v.costo_total,
+          c.id_cliente,
+          COALESCE(NULLIF(TRIM(v.cliente_nombre), ''), c.nombre) AS cliente_nombre,
+          COALESCE(NULLIF(TRIM(v.cliente_apellido), ''), c.apellido) AS cliente_apellido,
+          COALESCE(NULLIF(TRIM(v.cliente_dni), ''), c.dni) AS cliente_dni,
+          c.telefono AS cliente_telefono,
+          c.email AS cliente_email,
+          ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%') AS es_consumidor_final,
+          u.nombre_usuario AS vendedor,
         p.id_producto,
         p.nombre AS producto_nombre,
         COALESCE(pb.marca, p.marca) AS marca,
@@ -409,7 +477,17 @@ export class VentaService {
       params.push(term);
     }
 
-    query += ` ORDER BY v.id_venta DESC`;
+    query += `
+      )
+      SELECT
+        *,
+        COUNT(*) OVER()::INT AS total_registros,
+        COUNT(*) FILTER (WHERE estado_garantia IN ('vigente', 'por_vencer')) OVER()::INT AS res_vigentes,
+        COUNT(*) FILTER (WHERE estado_garantia IN ('service_pendiente', 'service_por_vencer')) OVER()::INT AS res_service_pendiente,
+        COUNT(*) FILTER (WHERE estado_garantia IN ('por_vencer', 'service_por_vencer')) OVER()::INT AS res_por_vencer,
+        COUNT(*) FILTER (WHERE estado_garantia IN ('caducada_sin_service', 'concluida')) OVER()::INT AS res_concluidas
+      FROM garantias_filtradas
+      ORDER BY id_venta DESC`;
 
     if (paginacion?.limite && paginacion.limite > 0) {
       const lim = Math.min(paginacion.limite, 200);
@@ -425,39 +503,59 @@ export class VentaService {
     query += `;`;
 
     const result = await pool.query(query, params);
+    const primera = result.rows[0];
+    const tieneContadoresGlobales =
+      primera &&
+      primera.total_registros !== undefined &&
+      primera.res_vigentes !== undefined;
 
     let vigentes = 0;
     let service_pendiente = 0;
     let por_vencer = 0;
     let concluidas = 0;
 
-    result.rows.forEach(g => {
-      const st = g.estado_garantia;
-      if (st === 'vigente') {
-        vigentes++;
-      } else if (st === 'service_pendiente') {
-        service_pendiente++;
-      } else if (st === 'service_por_vencer') {
-        service_pendiente++;
-        por_vencer++;
-      } else if (st === 'por_vencer') {
-        vigentes++;
-        por_vencer++;
-      } else if (st === 'caducada_sin_service' || st === 'concluida') {
-        concluidas++;
-      }
-    });
+    if (tieneContadoresGlobales) {
+      vigentes = Number(primera.res_vigentes) || 0;
+      service_pendiente = Number(primera.res_service_pendiente) || 0;
+      por_vencer = Number(primera.res_por_vencer) || 0;
+      concluidas = Number(primera.res_concluidas) || 0;
+    } else {
+      result.rows.forEach(g => {
+        const st = g.estado_garantia;
+        if (st === 'vigente') {
+          vigentes++;
+        } else if (st === 'service_pendiente') {
+          service_pendiente++;
+        } else if (st === 'service_por_vencer') {
+          service_pendiente++;
+          por_vencer++;
+        } else if (st === 'por_vencer') {
+          vigentes++;
+          por_vencer++;
+        } else if (st === 'caducada_sin_service' || st === 'concluida') {
+          concluidas++;
+        }
+      });
+    }
+
+    const totalGlobal = primera?.total_registros !== undefined
+      ? Number(primera.total_registros)
+      : (result.rowCount || 0);
+
+    const garantias = result.rows.map(
+      ({ total_registros: _tr, res_vigentes: _rv, res_service_pendiente: _rs, res_por_vencer: _rp, res_concluidas: _rc, ...fila }) => fila
+    );
 
     return {
-      total: result.rowCount || 0,
+      total: totalGlobal,
       resumen: {
-        total: result.rowCount || 0,
+        total: totalGlobal,
         service_pendiente,
         vigentes,
         por_vencer,
         concluidas
       },
-      garantias: result.rows
+      garantias
     };
   }
 
@@ -475,93 +573,120 @@ export class VentaService {
     const idDetNum = validarId(idDetalleVenta, 'El identificador del detalle de venta no es válido.');
     const { fecha_service, observaciones, idUsuarioOperador, rolUsuarioOperador, nombreUsuarioOperador } = datos;
 
-    const queryDetalle = `
-      SELECT 
-        dv.id_detalle_venta,
-        dv.id_venta,
-        dv.id_producto,
-        dv.primer_service_realizado,
-        v.fecha AS fecha_venta,
-        v.estado AS estado_venta,
-        p.tipo_prod,
-        p.nombre AS producto_nombre
-      FROM Detalle_Venta dv
-      INNER JOIN Venta v ON dv.id_venta = v.id_venta
-      INNER JOIN Productos p ON dv.id_producto = p.id_producto
-      WHERE dv.id_detalle_venta = $1;
-    `;
-    const res = await pool.query(queryDetalle, [idDetNum]);
-    if (res.rowCount === 0) {
-      throw new NotFoundError('El registro de venta de la bicicleta no existe.');
+    const ahora = new Date();
+    const hoy: FechaCalendario = {
+      y: ahora.getFullYear(),
+      m: ahora.getMonth() + 1,
+      d: ahora.getDate(),
+      iso: formatearFechaCalendarioIso(ahora.getFullYear(), ahora.getMonth() + 1, ahora.getDate())
+    };
+    const fechaSrv = fecha_service ? parsearFechaCalendarioIso(fecha_service) : hoy;
+
+    if (diffDiasCalendario(hoy, fechaSrv) > 0) {
+      throw new BadRequestError('La fecha del primer service no puede ser futura.');
     }
 
-    const reg = res.rows[0];
-    if (reg.tipo_prod !== 'bicicleta') {
-      throw new BadRequestError('El artículo seleccionado no corresponde a una bicicleta.');
-    }
-    if (reg.estado_venta === 'ANULADA') {
-      throw new BadRequestError('La venta correspondiente fue anulada.');
-    }
-    if (reg.primer_service_realizado) {
-      throw new BadRequestError('El primer service de esta bicicleta ya se encuentra registrado.');
-    }
-
-    // Cálculo de días transcurridos desde la fecha de venta
-    const fechaVenta = new Date(reg.fecha_venta);
-    const fechaSrv = fecha_service ? new Date(fecha_service) : new Date();
-    const diffMs = fechaSrv.getTime() - fechaVenta.getTime();
-    const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-    let esExcepcion = false;
-    if (diffDias > 30) {
-      const rol = (rolUsuarioOperador || '').toUpperCase();
-      if (rol !== 'ADMIN' && rol !== 'SUPERADMIN') {
-        throw new BadRequestError(
-          `Han transcurrido ${diffDias} días desde la venta (el plazo regular es de 30 días). Esta acción requiere autorización de un Administrador.`
-        );
-      }
-      esExcepcion = true;
-    }
-
-    const obsLimpia = (observaciones || '').trim();
-
-    const queryUpdate = `
-      UPDATE Detalle_Venta
-      SET 
-        primer_service_realizado = true,
-        fecha_primer_service = $1,
-        observaciones_service = $2,
-        id_usuario_service = $3,
-        service_excepcion = $4
-      WHERE id_detalle_venta = $5
-      RETURNING *;
-    `;
-
-    const resUpdate = await pool.query(queryUpdate, [
-      fechaSrv,
-      obsLimpia || null,
-      idUsuarioOperador || null,
-      esExcepcion,
-      idDetNum
-    ]);
-
-    // Bitácora de auditoría
+    const client = await pool.connect();
     try {
-      await pool.query(
+      await client.query('BEGIN');
+
+      const queryDetalle = `
+        SELECT 
+          dv.id_detalle_venta,
+          dv.id_venta,
+          dv.id_producto,
+          dv.primer_service_realizado,
+          v.fecha AS fecha_venta,
+          v.estado AS estado_venta,
+          p.tipo_prod,
+          p.nombre AS producto_nombre
+        FROM Detalle_Venta dv
+        INNER JOIN Venta v ON dv.id_venta = v.id_venta
+        INNER JOIN Productos p ON dv.id_producto = p.id_producto
+        WHERE dv.id_detalle_venta = $1
+        FOR UPDATE OF dv;
+      `;
+      const res = await client.query(queryDetalle, [idDetNum]);
+      if (res.rowCount === 0) {
+        throw new NotFoundError('El registro de venta de la bicicleta no existe.');
+      }
+
+      const reg = res.rows[0];
+      if (reg.tipo_prod !== 'bicicleta') {
+        throw new BadRequestError('El artículo seleccionado no corresponde a una bicicleta.');
+      }
+      if (reg.estado_venta === 'ANULADA') {
+        throw new BadRequestError('La venta correspondiente fue anulada.');
+      }
+      if (reg.primer_service_realizado) {
+        throw new BadRequestError('El primer service de esta bicicleta ya se encuentra registrado.');
+      }
+
+      const fechaVenta = extraerFechaCalendarioDeDb(reg.fecha_venta);
+      const diasFechaSrv = diffDiasCalendario(fechaVenta, fechaSrv);
+      if (diasFechaSrv < 0) {
+        throw new BadRequestError('La fecha del primer service no puede ser anterior a la fecha de venta.');
+      }
+
+      const diasDesdeVentaHoy = diffDiasCalendario(fechaVenta, hoy);
+      const diasReferencia = Math.max(diasDesdeVentaHoy, diasFechaSrv);
+
+      let esExcepcion = false;
+      if (diasReferencia > 30) {
+        const rol = (rolUsuarioOperador || '').toUpperCase();
+        if (rol !== 'ADMIN' && rol !== 'SUPERADMIN') {
+          throw new BadRequestError(
+            `Han transcurrido ${diasReferencia} días desde la venta (el plazo regular es de 30 días). Esta acción requiere autorización de un Administrador.`
+          );
+        }
+        esExcepcion = true;
+      }
+
+      const obsLimpia = (observaciones || '').trim();
+
+      const queryUpdate = `
+        UPDATE Detalle_Venta
+        SET 
+          primer_service_realizado = true,
+          fecha_primer_service = $1,
+          observaciones_service = $2,
+          id_usuario_service = $3,
+          service_excepcion = $4
+        WHERE id_detalle_venta = $5 AND primer_service_realizado = false
+        RETURNING *;
+      `;
+
+      const resUpdate = await client.query(queryUpdate, [
+        fechaSrv.iso,
+        obsLimpia || null,
+        idUsuarioOperador || null,
+        esExcepcion,
+        idDetNum
+      ]);
+
+      if (resUpdate.rowCount === 0) {
+        throw new BadRequestError('El primer service de esta bicicleta ya se encuentra registrado.');
+      }
+
+      await client.query(
         `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
          VALUES ($1, $2, 'Ventas', $3, $4);`,
         [
           idUsuarioOperador || null,
-          nombreUsuarioOperador || 'Sistema',
+          String(nombreUsuarioOperador || 'Sistema').trim().slice(0, 50),
           esExcepcion ? '1° Service Excepción' : '1° Service Registrado',
           `Registro de 1° Service para bicicleta "${reg.producto_nombre}" (Venta #${reg.id_venta}, ítem #${idDetNum}). Garantía extendida a 6 meses desde fecha de compra. Excepción administrativa: ${esExcepcion ? 'Sí' : 'No'}. Observaciones: ${obsLimpia || 'Sin notas adicionales'}`
         ]
       );
-    } catch (bitErr) {
-      console.warn('No se pudo registrar la bitácora del service:', bitErr);
-    }
 
-    return resUpdate.rows[0];
+      await client.query('COMMIT');
+      return resUpdate.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   /** Incorpora un artículo adicional a una venta abierta y actualiza el importe total. */
@@ -626,15 +751,18 @@ export class VentaService {
 
       // Si es bicicleta, registrar al cliente
       if (prod.tipo_prod === 'bicicleta') {
+        const marcaBici = String(prod.marca || prod.nombre || 'Bicicleta').trim().slice(0, 50);
+        const modeloBici = String(prod.modelo || 'Bicicleta nueva').trim().slice(0, 50);
         const queryBiciCliente = `
-          INSERT INTO Bicicleta (id_cliente, marca, modelo)
-          VALUES ($1, $2, $3);
+          INSERT INTO Bicicleta (id_cliente, marca, modelo, id_venta_origen)
+          VALUES ($1, $2, $3, $4);
         `;
         for (let i = 0; i < cantNum; i++) {
           await client.query(queryBiciCliente, [
             venta.id_cliente,
-            prod.marca || prod.nombre,
-            prod.modelo || 'Bicicleta nueva'
+            marcaBici,
+            modeloBici,
+            idVenta
           ]);
         }
       }
@@ -695,7 +823,8 @@ export class VentaService {
         SELECT dv.id_producto, dv.cantidad, p.tipo_prod, p.marca, p.modelo, p.nombre
         FROM Detalle_Venta dv
         INNER JOIN Productos p ON dv.id_producto = p.id_producto
-        WHERE dv.id_venta = $1;
+        WHERE dv.id_venta = $1
+        ORDER BY dv.id_producto ASC;
       `, [id]);
 
       for (const d of resDetalles.rows) {
@@ -703,32 +832,39 @@ export class VentaService {
         await client.query('UPDATE Productos SET cantidad = cantidad + $1 WHERE id_producto = $2;', [d.cantidad, d.id_producto]);
 
         // Registrar movimiento de stock con el operador verificado
-        try {
-          await client.query(
-            `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
-             VALUES ($1, $2, 'INGRESO', $3, 'Anulación de Venta', $4);`,
-            [d.id_producto, idOperadorNum, d.cantidad, `Reintegro por venta #${id} anulada: ${motivoLimpio}`]
-          );
-        } catch {
-          // Ignorar fallo secundario en tabla opcional de movimientos
-        }
+        await client.query(
+          `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
+           VALUES ($1, $2, 'INGRESO', $3, 'Anulación de Venta', $4);`,
+          [d.id_producto, idOperadorNum, d.cantidad, `Reintegro por venta #${id} anulada: ${motivoLimpio}`]
+        );
 
-        // Si se vendieron bicicletas, remover del cliente las bicicletas creadas si no tienen reparaciones asociadas
+        // Si se vendieron bicicletas, remover solo las creadas por esta venta (evitando borrar bicicletas de otros compradores)
         if (d.tipo_prod === 'bicicleta') {
-          const marcaBici = d.marca || d.nombre;
+          const marcaBici = String(d.marca || d.nombre || 'Bicicleta').trim().slice(0, 50);
+          const modeloBici = String(d.modelo || 'Bicicleta nueva').trim().slice(0, 50);
           await client.query(`
             DELETE FROM Bicicleta
             WHERE id_bicicleta IN (
               SELECT b.id_bicicleta
               FROM Bicicleta b
+              INNER JOIN Cliente c ON b.id_cliente = c.id_cliente
               LEFT JOIN Reparacion r ON b.id_bicicleta = r.id_bicicleta
-              WHERE b.id_cliente = $1
-                AND b.marca = $2
-                AND r.id_reparacion IS NULL
+              WHERE r.id_reparacion IS NULL
+                AND (
+                  (b.id_venta_origen = $1 AND b.marca = $2)
+                  OR (
+                    b.id_venta_origen IS NULL
+                    AND b.id_cliente = $3
+                    AND NOT ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%')
+                    AND b.marca = $2
+                    AND COALESCE(b.modelo, '') = $4
+                    AND ABS(EXTRACT(EPOCH FROM (b.created_at - COALESCE($5::timestamptz, CURRENT_TIMESTAMP)))) <= 120
+                  )
+                )
               ORDER BY b.id_bicicleta DESC
-              LIMIT $3
+              LIMIT $6
             );
-          `, [venta.id_cliente, marcaBici, d.cantidad]);
+          `, [id, marcaBici, venta.id_cliente, modeloBici, venta.created_at || null, d.cantidad]);
         }
       }
 
@@ -741,19 +877,15 @@ export class VentaService {
         [id, motivoLimpio]
       );
 
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Ventas', 'Anulación de Venta', $3);`,
-          [
-            idOperadorNum,
-            nombreUsuarioOperador || 'Usuario',
-            `Venta #${id} anulada por ${nombreUsuarioOperador || 'Usuario'}. Motivo: "${motivoLimpio}". Total devuelto: $${venta.costo_total}.`
-          ]
-        );
-      } catch {
-        // Ignorar fallo secundario en bitácora
-      }
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Ventas', 'Anulación de Venta', $3);`,
+        [
+          idOperadorNum,
+          String(nombreUsuarioOperador || 'Usuario').trim().slice(0, 50),
+          `Venta #${id} anulada por ${nombreUsuarioOperador || 'Usuario'}. Motivo: "${motivoLimpio}". Total devuelto: $${venta.costo_total}.`
+        ]
+      );
 
       await client.query('COMMIT');
 

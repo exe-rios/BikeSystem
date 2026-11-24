@@ -1,11 +1,12 @@
 import type { Request, Response, NextFunction } from 'express';
+import type { PeticionConUsuario } from '../middlewares/auth.middleware.js';
 import { ReporteService } from '../services/reporte.service.js';
 import { responderOk } from '../utils/response.js';
 
 /** Endpoint GET /api/reportes/dashboard: Retorna métricas en tiempo real para el panel de inicio. */
-export const obtenerDashboard = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const obtenerDashboard = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const resultado = await ReporteService.obtenerDashboard();
+    const resultado = await ReporteService.obtenerDashboard({ rolUsuario: req.usuarioToken?.rol });
     responderOk(res, resultado);
   } catch (error) {
     next(error);

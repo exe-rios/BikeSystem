@@ -48,8 +48,8 @@ export function normalizarPaginacion(
   if (tienePaginacion) {
     const limNum = Number(limiteRaw);
     const pagNum = Number(paginaRaw);
-    lim = (!isNaN(limNum) && limNum > 0) ? Math.min(limNum, maxLimite) : limitePorDefecto;
-    pag = (!isNaN(pagNum) && pagNum > 0) ? pagNum : 1;
+    lim = (Number.isFinite(limNum) && Math.trunc(limNum) > 0) ? Math.min(Math.trunc(limNum), maxLimite) : limitePorDefecto;
+    pag = (Number.isFinite(pagNum) && Math.trunc(pagNum) > 0) ? Math.trunc(pagNum) : 1;
   }
 
   const offset = (pag - 1) * lim;

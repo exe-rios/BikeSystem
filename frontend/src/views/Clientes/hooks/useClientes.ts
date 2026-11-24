@@ -114,26 +114,26 @@ export function useClientes() {
     const nombreLimpio = formData.nombre.trim();
     if (!nombreLimpio || nombreLimpio.length < 2) {
       nuevosErrores.nombre = 'El nombre es obligatorio (mínimo 2 caracteres).';
-    } else if (nombreLimpio.length > 15) {
-      nuevosErrores.nombre = 'El nombre no puede superar los 15 caracteres.';
+    } else if (nombreLimpio.length > 50) {
+      nuevosErrores.nombre = 'El nombre no puede superar los 50 caracteres.';
     }
 
     const apellidoLimpio = formData.apellido.trim();
     if (!apellidoLimpio || apellidoLimpio.length < 2) {
       nuevosErrores.apellido = 'El apellido es obligatorio (mínimo 2 caracteres).';
-    } else if (apellidoLimpio.length > 15) {
-      nuevosErrores.apellido = 'El apellido no puede superar los 15 caracteres.';
+    } else if (apellidoLimpio.length > 50) {
+      nuevosErrores.apellido = 'El apellido no puede superar los 50 caracteres.';
     }
 
     const dniLimpio = formData.dni.trim();
     if (!/^\d{7,10}$/.test(dniLimpio)) {
-      nuevosErrores.dni = 'El DNI debe tener 7 u 10 dígitos sin puntos.';
+      nuevosErrores.dni = 'El DNI debe tener entre 7 y 10 dígitos sin puntos.';
     }
 
     if (formData.email && formData.email.trim()) {
       const emailLimpio = formData.email.trim();
-      if (emailLimpio.length > 30) {
-        nuevosErrores.email = 'El correo no puede superar los 30 caracteres.';
+      if (emailLimpio.length > 100) {
+        nuevosErrores.email = 'El correo no puede superar los 100 caracteres.';
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLimpio)) {
         nuevosErrores.email = 'El formato de correo no es válido.';
       }
@@ -141,13 +141,14 @@ export function useClientes() {
 
     if (formData.telefono && formData.telefono.trim()) {
       const telLimpio = formData.telefono.trim();
-      if (telLimpio.length > 15 || !/^\+?\d{7,15}$/.test(telLimpio)) {
-        nuevosErrores.telefono = 'Ingrese un número válido (7 a 15 dígitos).';
+      const digitos = telLimpio.replace(/\D/g, '');
+      if (telLimpio.length > 20 || !/^[+\d\s()-]+$/.test(telLimpio) || digitos.length < 7) {
+        nuevosErrores.telefono = 'Ingrese un número válido (7 a 20 caracteres).';
       }
     }
 
-    if (formData.direccion && formData.direccion.trim().length > 40) {
-      nuevosErrores.direccion = 'La dirección no puede superar los 40 caracteres.';
+    if (formData.direccion && formData.direccion.trim().length > 150) {
+      nuevosErrores.direccion = 'La dirección no puede superar los 150 caracteres.';
     }
 
     if (Object.keys(nuevosErrores).length > 0) {

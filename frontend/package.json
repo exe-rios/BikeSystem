@@ -19,8 +19,10 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.55.0",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -43,6 +45,7 @@
   "build": {
     "appId": "com.bikesystem.app",
     "productName": "BikeSystem",
+    "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "release"
     },
@@ -56,8 +59,8 @@
         "to": "backend/server.cjs"
       },
       {
-        "from": "../backend/.env",
-        "to": "backend/.env"
+        "from": "../backend/.env.example",
+        "to": "backend/.env.example"
       }
     ],
     "win": {

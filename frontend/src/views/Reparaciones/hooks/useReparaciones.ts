@@ -43,6 +43,7 @@ export function useReparaciones() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [cargando, setCargando] = useState<boolean>(true);
   const [guardando, setGuardando] = useState<boolean>(false);
+  const [actualizandoEstadoId, setActualizandoEstadoId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Navegación de pestañas: 'activo' (Kanban) o 'historial' (Tabla de entregadas)
@@ -200,7 +201,21 @@ export function useReparaciones() {
     const prod = productos.find(p => p.id_producto === repuestoSeleccionadoId);
     if (!prod) return;
 
-    const cantRep = Number(cantidadRepuesto) || 1;
+    const cantStr = String(cantidadRepuesto).trim();
+    if (!cantStr) {
+      setMensajeRepuesto({ texto: 'Ingresá la cantidad de repuestos a asignar.', tipo: 'error' });
+      return;
+    }
+
+    const cantRep = Number(cantStr);
+    if (!Number.isInteger(cantRep) || cantRep < 1) {
+      setMensajeRepuesto({ texto: 'La cantidad debe ser un número entero mayor o igual a 1.', tipo: 'error' });
+      return;
+    }
+    if (cantRep > Number(prod.cantidad || 0)) {
+      setMensajeRepuesto({ texto: `Stock insuficiente para "${prod.nombre}". Disponible: ${prod.cantidad}.`, tipo: 'error' });
+      return;
+    }
 
     setGuardandoRepuesto(true);
     setMensajeRepuesto(null);
@@ -289,20 +304,28 @@ export function useReparaciones() {
   }, [ordenEditando, cargarDatos]);
 
   const handleCambiarEstado = useCallback(async (id: number, nuevoEstado: Reparacion['estado']) => {
+    if (actualizandoEstadoId === id) return;
     const reparacionActual = reparaciones.find(r => r.id_reparacion === id);
     if (!reparacionActual || reparacionActual.estado === nuevoEstado) return;
 
     const estadoPrevio = reparacionActual.estado;
+    setActualizandoEstadoId(id);
     setReparaciones(prev => prev.map(r => r.id_reparacion === id ? { ...r, estado: nuevoEstado } : r));
 
+    let actualizadoEnServidor = false;
     try {
       await api.reparaciones.updateEstado(id, { estado: nuevoEstado });
-      await cargarDatos();
+      actualizadoEnServidor = true;
     } catch {
       setReparaciones(prev => prev.map(r => r.id_reparacion === id ? { ...r, estado: estadoPrevio } : r));
       alert('No se pudo actualizar el estado de la orden en el servidor');
     }
-  }, [reparaciones, cargarDatos]);
+
+    if (actualizadoEnServidor) {
+      await cargarDatos().catch(() => {});
+    }
+    setActualizandoEstadoId(null);
+  }, [actualizandoEstadoId, reparaciones, cargarDatos]);
 
   const handleEntregarOrden = useCallback(async (id: number) => {
     const orden = reparaciones.find(r => r.id_reparacion === id);
@@ -389,6 +412,7 @@ export function useReparaciones() {
     productos,
     cargando,
     guardando,
+    actualizandoEstadoId,
     error,
     vistaTab,
     busquedaTaller,

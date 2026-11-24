@@ -29,13 +29,14 @@ export const obtenerProveedorPorId = async (req: Request, res: Response, next: N
 /** Endpoint POST /api/proveedores: Da de alta un nuevo proveedor comercial. */
 export const crearProveedor = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { nombre_empresa, cuit, telefono, email, direccion } = req.body;
+    const { nombre_empresa, cuit, telefono, email, direccion, cotizacion_dolar } = req.body;
     const nuevoProveedor = await ProveedorService.crearProveedor({
       nombre_empresa,
       cuit,
       telefono,
       email,
       direccion,
+      cotizacion_dolar,
       idUsuarioOperador: req.usuarioToken?.id,
       nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
     });
@@ -76,6 +77,22 @@ export const eliminarProveedor = async (req: PeticionConUsuario, res: Response, 
   try {
     const id = validarId(req.params.id, 'No se encontró ese proveedor.');
     const resultado = await ProveedorService.eliminarProveedor(id, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
+
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Endpoint PUT /api/proveedores/:id/dolar: Actualiza la cotización de dólar propia de un proveedor y recalcula sus productos en USD. */
+export const actualizarCotizacionProveedor = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const id = validarId(req.params.id, 'No se encontró ese proveedor.');
+    const { cotizacion_dolar } = req.body;
+    const resultado = await ProveedorService.actualizarCotizacionProveedor(id, cotizacion_dolar, {
       idUsuarioOperador: req.usuarioToken?.id,
       nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
     });

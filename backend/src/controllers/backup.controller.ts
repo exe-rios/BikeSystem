@@ -14,7 +14,8 @@ export const descargarRespaldoSQL = async (
     const usuario = req.usuarioToken
       ? {
           id_usuario: req.usuarioToken.id,
-          nombre_usuario: req.usuarioToken.nombre_usuario || 'admin'
+          nombre_usuario: req.usuarioToken.nombre_usuario || 'admin',
+          rol: req.usuarioToken.rol
         }
       : undefined;
 

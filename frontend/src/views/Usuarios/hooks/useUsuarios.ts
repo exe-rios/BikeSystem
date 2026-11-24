@@ -68,8 +68,8 @@ export function useUsuarios() {
       return;
     }
 
-    if (nuevoUsuario.contrasena.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres por seguridad.');
+    if (nuevoUsuario.contrasena.trim().length < 6) {
+      alert('La contraseña debe tener al menos 6 caracteres válidos por seguridad.');
       return;
     }
 
@@ -104,8 +104,8 @@ export function useUsuarios() {
     e.preventDefault();
     if (!usuarioEditando || !usuarioEditando.id_usuario) return;
 
-    if (formEditar.contrasena && formEditar.contrasena.length < 6) {
-      alert('La nueva contraseña debe tener al menos 6 caracteres por seguridad.');
+    if (formEditar.contrasena && formEditar.contrasena.trim().length < 6) {
+      alert('La nueva contraseña debe tener al menos 6 caracteres válidos por seguridad.');
       return;
     }
 

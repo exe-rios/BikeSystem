@@ -90,7 +90,7 @@ export class DetalleReparacionService {
 
       const queryCosto = `
         UPDATE Reparacion 
-        SET costo_total = costo_mano_obra + (SELECT COALESCE(SUM(costo_total), 0) FROM Detalle_Reparacion WHERE id_reparacion = $1)
+        SET costo_total = COALESCE(costo_mano_obra, 0) + (SELECT COALESCE(SUM(costo_total), 0) FROM Detalle_Reparacion WHERE id_reparacion = $1)
         WHERE id_reparacion = $1
         RETURNING *;
       `;
@@ -108,19 +108,15 @@ export class DetalleReparacionService {
         ]
       );
 
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Taller', 'Asignación de Repuesto', $3);`,
-          [
-            idUsuarioOperador || null,
-            nombreUsuarioOperador || 'Usuario',
-            `${cantNum} un. de "${producto.nombre}" asignado(s) a Orden #${idRepNum}. Subtotal: $${costo_total_detalle}.`
-          ]
-        );
-      } catch {
-        // Ignorar
-      }
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Taller', 'Asignación de Repuesto', $3);`,
+        [
+          idUsuarioOperador || null,
+          String(nombreUsuarioOperador || 'Usuario').trim().slice(0, 50),
+          `${cantNum} un. de "${producto.nombre}" asignado(s) a Orden #${idRepNum}. Subtotal: $${costo_total_detalle}.`
+        ]
+      );
 
       await client.query('COMMIT');
 
@@ -178,7 +174,7 @@ export class DetalleReparacionService {
         FROM Detalle_Reparacion dr
         INNER JOIN Productos p ON dr.id_producto = p.id_producto
         WHERE dr.id_detalle_rep = $1
-        FOR UPDATE;
+        FOR UPDATE OF dr;
       `;
       const resultBuscar = await client.query(queryBuscar, [idDetalleRep]);
 
@@ -208,7 +204,7 @@ export class DetalleReparacionService {
 
       const queryCosto = `
         UPDATE Reparacion 
-        SET costo_total = costo_mano_obra + (SELECT COALESCE(SUM(costo_total), 0) FROM Detalle_Reparacion WHERE id_reparacion = $1)
+        SET costo_total = COALESCE(costo_mano_obra, 0) + (SELECT COALESCE(SUM(costo_total), 0) FROM Detalle_Reparacion WHERE id_reparacion = $1)
         WHERE id_reparacion = $1
         RETURNING *;
       `;
@@ -226,19 +222,15 @@ export class DetalleReparacionService {
         ]
       );
 
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Taller', 'Devolución de Repuesto', $3);`,
-          [
-            idUsuarioOperador || null,
-            nombreUsuarioOperador || 'Usuario',
-            `${cantidadDevolver} un. de "${detalle.producto_nombre}" devueltas al inventario desde Orden #${idReparacion}.`
-          ]
-        );
-      } catch {
-        // Ignorar
-      }
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Taller', 'Devolución de Repuesto', $3);`,
+        [
+          idUsuarioOperador || null,
+          String(nombreUsuarioOperador || 'Usuario').trim().slice(0, 50),
+          `${cantidadDevolver} un. de "${detalle.producto_nombre}" devueltas al inventario desde Orden #${idReparacion}.`
+        ]
+      );
 
       await client.query('COMMIT');
 

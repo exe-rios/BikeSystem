@@ -16,9 +16,10 @@ export const loginLimiter = rateLimit({
 /** Límite general de peticiones por IP para salvaguardar el servidor. */
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 100,
+  max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/health',
   message: {
     error: 'Estás enviando demasiadas solicitudes. Esperá un momento.'
   }

@@ -88,11 +88,7 @@ export function ModalAjusteStock({
   if (!visible) return null;
 
   const handleClose = () => {
-    if (
-      nuevoMovimiento.id_producto !== 0 ||
-      nuevoMovimiento.observaciones?.trim() ||
-      (nuevoMovimiento.cantidad && Number(nuevoMovimiento.cantidad) > 0)
-    ) {
+    if (nuevoMovimiento.id_producto !== 0 || Boolean(nuevoMovimiento.observaciones?.trim())) {
       if (!window.confirm('Hay cambios sin aplicar en el ajuste de stock. ¿Deseas cerrar la ventana?')) return;
     }
     setBusqueda('');

@@ -9,6 +9,7 @@ interface ReparacionesKanbanProps {
   setBusquedaTaller: (v: string) => void;
   cargando: boolean;
   draggingId: number | null;
+  actualizandoEstadoId?: number | null;
   setDraggingId: (id: number | null) => void;
   handleDropEnColumna: (estado: Reparacion['estado'], idStr: string) => void;
   handleAbrirDetalle: (rep: Reparacion) => void;
@@ -27,6 +28,7 @@ export function ReparacionesKanban({
   setBusquedaTaller,
   cargando,
   draggingId,
+  actualizandoEstadoId,
   setDraggingId,
   handleDropEnColumna,
   handleAbrirDetalle,
@@ -134,12 +136,17 @@ export function ReparacionesKanban({
                 ) : (
                   reparacionesEnColumna.map(rep => {
                     const montoTotal = Number(rep.costo_total || rep.costo_mano_obra || 0);
+                    const estaActualizando = actualizandoEstadoId === rep.id_reparacion;
 
                     return (
                       <div
                         key={rep.id_reparacion}
-                        draggable
+                        draggable={!estaActualizando}
                         onDragStart={e => {
+                          if (estaActualizando) {
+                            e.preventDefault();
+                            return;
+                          }
                           if (rep.id_reparacion != null) setDraggingId(rep.id_reparacion);
                           e.dataTransfer.setData('text/plain', String(rep.id_reparacion));
                           e.dataTransfer.effectAllowed = 'move';
@@ -154,7 +161,8 @@ export function ReparacionesKanban({
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '8px',
-                          cursor: 'grab',
+                          cursor: estaActualizando ? 'wait' : 'grab',
+                          opacity: estaActualizando ? 0.65 : 1,
                           transition: 'box-shadow 0.2s, transform 0.1s'
                         }}
                       >
@@ -223,8 +231,9 @@ export function ReparacionesKanban({
                           {colIdx > 0 ? (
                             <button
                               type="button"
+                              disabled={estaActualizando}
                               onClick={() => rep.id_reparacion && handleCambiarEstado(rep.id_reparacion, columnas[colIdx - 1].estado)}
-                              style={{ background: 'none', border: '1px solid var(--borde-input)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', cursor: 'pointer', color: 'var(--texto-mutado)' }}
+                              style={{ background: 'none', border: '1px solid var(--borde-input)', borderRadius: '6px', padding: '4px 8px', fontSize: '0.75rem', cursor: estaActualizando ? 'not-allowed' : 'pointer', color: 'var(--texto-mutado)' }}
                             >
                               ◀ {columnas[colIdx - 1].titulo}
                             </button>
@@ -233,6 +242,7 @@ export function ReparacionesKanban({
                           {col.estado === 'Lista' ? (
                             <button
                               type="button"
+                              disabled={estaActualizando}
                               onClick={() => rep.id_reparacion && handleEntregarOrden(rep.id_reparacion)}
                               style={{
                                 backgroundColor: '#10b981',
@@ -242,7 +252,7 @@ export function ReparacionesKanban({
                                 padding: '5px 12px',
                                 fontSize: '0.8rem',
                                 fontWeight: '700',
-                                cursor: 'pointer',
+                                cursor: estaActualizando ? 'not-allowed' : 'pointer',
                                 boxShadow: '0 2px 4px rgba(16,185,129,0.2)'
                               }}
                             >
@@ -252,8 +262,9 @@ export function ReparacionesKanban({
                             colIdx < columnas.length - 1 && (
                               <button
                                 type="button"
+                                disabled={estaActualizando}
                                 onClick={() => rep.id_reparacion && handleCambiarEstado(rep.id_reparacion, columnas[colIdx + 1].estado)}
-                                style={{ backgroundColor: columnas[colIdx + 1].colorBg, color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '0.75rem', fontWeight: '600', cursor: 'pointer' }}
+                                style={{ backgroundColor: columnas[colIdx + 1].colorBg, color: '#fff', border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '0.75rem', fontWeight: '600', cursor: estaActualizando ? 'not-allowed' : 'pointer' }}
                               >
                                 {columnas[colIdx + 1].titulo} ▶
                               </button>

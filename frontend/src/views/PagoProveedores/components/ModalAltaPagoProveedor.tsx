@@ -1,4 +1,5 @@
 import type { Proveedor, MetodoPago, NuevoPagoData } from '../types';
+import { formatearMoneda } from '../../../utils/formatters';
 
 interface ModalAltaPagoProveedorProps {
   mostrar: boolean;
@@ -7,6 +8,7 @@ interface ModalAltaPagoProveedorProps {
   setNuevoPago: React.Dispatch<React.SetStateAction<NuevoPagoData>>;
   proveedores: Proveedor[];
   metodosPago: MetodoPago[];
+  cotizacionDolar: number;
   guardando: boolean;
   onSubmit: (e: React.FormEvent) => void;
 }
@@ -19,10 +21,20 @@ export function ModalAltaPagoProveedor({
   setNuevoPago,
   proveedores,
   metodosPago,
+  cotizacionDolar,
   guardando,
   onSubmit
 }: ModalAltaPagoProveedorProps) {
   if (!mostrar) return null;
+
+  const provMatch = proveedores.find(
+    p => p.nombre_empresa.trim().toLowerCase() === nuevoPago.nombre_proveedor.trim().toLowerCase()
+  );
+  const cotEfectiva = provMatch?.cotizacion_dolar && Number(provMatch.cotizacion_dolar) > 0
+    ? Number(provMatch.cotizacion_dolar)
+    : cotizacionDolar;
+  const montoNum = Number(nuevoPago.monto_total) || 0;
+  const equivalenteArs = nuevoPago.moneda === 'USD' ? Math.round(montoNum * cotEfectiva * 100) / 100 : montoNum;
 
   const handleClose = () => {
     if (nuevoPago.nombre_proveedor.trim() || nuevoPago.monto_total || nuevoPago.observaciones?.trim()) {
@@ -92,20 +104,42 @@ export function ModalAltaPagoProveedor({
             </select>
           </div>
 
-          <div>
-            <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Monto Total ($) *</label>
-            <input
-              type="number"
-              step="any"
-              min="0"
-              max="99999999.99"
-              value={nuevoPago.monto_total}
-              onChange={e => setNuevoPago({ ...nuevoPago, monto_total: e.target.value })}
-              placeholder="0.00"
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
-              required
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '130px 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>Moneda *</label>
+              <select
+                value={nuevoPago.moneda}
+                onChange={e => setNuevoPago({ ...nuevoPago, moneda: e.target.value === 'USD' ? 'USD' : 'ARS' })}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)' }}
+              >
+                <option value="ARS">ARS ($)</option>
+                <option value="USD">USD (u$s)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600', color: 'var(--texto-principal)' }}>
+                {nuevoPago.moneda === 'USD' ? 'Monto en USD (u$s) *' : 'Monto Total ($) *'}
+              </label>
+              <input
+                type="number"
+                step="any"
+                min="0"
+                max="99999999.99"
+                value={nuevoPago.monto_total}
+                onChange={e => setNuevoPago({ ...nuevoPago, monto_total: e.target.value })}
+                placeholder="0.00"
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--borde-input)', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                required
+              />
+            </div>
           </div>
+
+          {nuevoPago.moneda === 'USD' && (
+            <div style={{ fontSize: '0.8rem', color: '#0369a1', backgroundColor: 'rgba(14, 165, 233, 0.08)', border: '1px solid rgba(14, 165, 233, 0.25)', padding: '8px 12px', borderRadius: '8px' }}>
+              Cotización aplicada ({provMatch?.cotizacion_dolar ? 'propia del proveedor' : 'global'}): <strong>{formatearMoneda(cotEfectiva)}</strong> · Equivalente a registrar: <strong>{formatearMoneda(equivalenteArs)}</strong>
+            </div>
+          )}
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>

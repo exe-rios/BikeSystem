@@ -3,7 +3,7 @@ import type { BitacoraActividad, ModuloFiltro, BadgeModuloStyle } from '../types
 import { api } from '../../../services/api';
 import { useDebounce } from '../../../hooks/useDebounce';
 
-export const MODULOS_AUDITORIA: ModuloFiltro[] = ['todos', 'Ventas', 'Stock', 'Taller', 'Usuarios', 'Clientes'];
+export const MODULOS_AUDITORIA: ModuloFiltro[] = ['todos', 'Ventas', 'Stock', 'Taller', 'Proveedores', 'Configuración', 'Usuarios', 'Clientes', 'Bicicletas', 'SEGURIDAD'];
 
 /** Hook para gestionar la carga, filtrado y paginación de la bitácora de auditoría. */
 export function useAuditoria() {
@@ -73,6 +73,18 @@ export function useAuditoria() {
     }
     if (mod.includes('usuario')) {
       return { bg: 'rgba(245, 158, 11, 0.1)', color: '#b45309', border: 'rgba(245, 158, 11, 0.25)' };
+    }
+    if (mod.includes('proveedor')) {
+      return { bg: 'rgba(13, 148, 136, 0.1)', color: '#0f766e', border: 'rgba(13, 148, 136, 0.25)' };
+    }
+    if (mod.includes('config')) {
+      return { bg: 'rgba(234, 88, 12, 0.1)', color: '#c2410c', border: 'rgba(234, 88, 12, 0.25)' };
+    }
+    if (mod.includes('bicicleta')) {
+      return { bg: 'rgba(14, 165, 233, 0.1)', color: '#0284c7', border: 'rgba(14, 165, 233, 0.25)' };
+    }
+    if (mod.includes('seguridad')) {
+      return { bg: 'rgba(220, 38, 38, 0.1)', color: '#dc2626', border: 'rgba(220, 38, 38, 0.25)' };
     }
     return { bg: 'rgba(100, 116, 139, 0.1)', color: '#475569', border: 'rgba(100, 116, 139, 0.25)' };
   }, []);

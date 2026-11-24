@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { pool } from '../config/db.js';
 import { BadRequestError, NotFoundError, ForbiddenError, ConflictError } from '../utils/errors.js';
 import { validarId } from '../utils/validation.js';
+import { revocarTokensUsuario } from '../middlewares/auth.middleware.js';
 
 const ROLES_VALIDOS = ['ADMIN', 'EMPLEADO', 'SUPERADMIN'];
 const ROLES_CREABLES = ['ADMIN', 'EMPLEADO'];
@@ -242,7 +243,7 @@ export class UsuarioService {
         }
 
         const checkAdmins = await pool.query(
-          "SELECT COUNT(*)::int AS admin_count FROM Usuario WHERE rol IN ('ADMIN', 'SUPERADMIN') AND id_usuario != $1;",
+          "SELECT COUNT(*)::int AS admin_count FROM Usuario WHERE rol = 'ADMIN' AND LOWER(nombre_usuario) != 'superadmin' AND id_usuario != $1;",
           [id]
         );
         const adminCount = checkAdmins.rows[0]?.admin_count || 0;
@@ -268,6 +269,10 @@ export class UsuarioService {
     ]);
 
     const usuarioActualizado = resultUpdate.rows[0];
+
+    if ((rolFinal && rolFinal !== usuarioActual.rol) || contrasenaHash) {
+      revocarTokensUsuario(id);
+    }
 
     // Registrar en Bitácora
     try {
@@ -326,7 +331,7 @@ export class UsuarioService {
     // Verificar que no sea el último administrador del sistema
     if (usuarioAEliminar.rol === 'ADMIN') {
       const checkAdmins = await pool.query(
-        "SELECT COUNT(*)::int AS admin_count FROM Usuario WHERE rol IN ('ADMIN', 'SUPERADMIN') AND id_usuario != $1;",
+        "SELECT COUNT(*)::int AS admin_count FROM Usuario WHERE rol = 'ADMIN' AND LOWER(nombre_usuario) != 'superadmin' AND id_usuario != $1;",
         [id]
       );
       const adminCount = checkAdmins.rows[0]?.admin_count || 0;
@@ -341,6 +346,7 @@ export class UsuarioService {
         (SELECT COUNT(*) FROM Venta WHERE id_usuario = $1)::int +
         (SELECT COUNT(*) FROM Reparacion WHERE id_usuario = $1)::int +
         (SELECT COUNT(*) FROM Pago_Proveedor WHERE id_usuario = $1)::int +
+        (SELECT COUNT(*) FROM Pago_Proveedor_Pendiente WHERE id_usuario = $1)::int +
         (SELECT COUNT(*) FROM Movimiento_Stock WHERE id_usuario = $1)::int AS total_movimientos;
     `, [id]);
 
@@ -350,6 +356,7 @@ export class UsuarioService {
     }
 
     await pool.query('DELETE FROM Usuario WHERE id_usuario = $1;', [id]);
+    revocarTokensUsuario(id);
 
     // Registrar en Bitácora
     try {

@@ -2,12 +2,15 @@ import { usePagoProveedores } from './hooks/usePagoProveedores';
 import { PagoProveedoresHeader } from './components/PagoProveedoresHeader';
 import { PagoProveedoresTabla } from './components/PagoProveedoresTabla';
 import { ModalAltaPagoProveedor } from './components/ModalAltaPagoProveedor';
+import { InicioPagosPendientes } from '../Inicio/components/InicioPagosPendientes';
 
 /** Vista principal para la consulta y registro de pagos a proveedores. */
 export function PagoProveedoresView() {
   const {
     pagos,
     pagosFiltrados,
+    pendientes,
+    cotizacionDolar,
     totalPagos,
     paginaActual,
     setPaginaActual,
@@ -25,7 +28,8 @@ export function PagoProveedoresView() {
     setBusqueda,
     setMostrarModal,
     setNuevoPago,
-    handleGuardar
+    handleGuardar,
+    recargar
   } = usePagoProveedores();
 
   return (
@@ -40,6 +44,7 @@ export function PagoProveedoresView() {
             nombre_proveedor: '',
             id_metodo_pago: metodosPago[0]?.id_metodo_pago || 1,
             monto_total: '',
+            moneda: 'ARS',
             observaciones: ''
           });
           setMostrarModal(true);
@@ -52,6 +57,17 @@ export function PagoProveedoresView() {
           {error}
         </div>
       )}
+
+      {/* PAGOS PENDIENTES Y ABONOS PARCIALES */}
+      <InicioPagosPendientes
+        esAdmin={true}
+        cargando={cargando}
+        pendientes={pendientes}
+        metodosPago={metodosPago}
+        onPagoRegistrado={recargar}
+        onNavigate={() => {}}
+        ocultarBotonHistorial={true}
+      />
 
       {/* TABLA DE PAGOS */}
       <PagoProveedoresTabla
@@ -73,6 +89,7 @@ export function PagoProveedoresView() {
         setNuevoPago={setNuevoPago}
         proveedores={proveedores}
         metodosPago={metodosPago}
+        cotizacionDolar={cotizacionDolar}
         guardando={guardando}
         onSubmit={handleGuardar}
       />

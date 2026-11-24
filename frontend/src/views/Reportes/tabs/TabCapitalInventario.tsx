@@ -165,6 +165,7 @@ export function TabCapitalInventario({
           </div>
           <button
             type="button"
+            className="no-imprimir"
             onClick={onExportarCSV}
             style={{
               padding: '8px 16px',
@@ -342,18 +343,15 @@ export function TabCapitalInventario({
 
           {/* Leyenda del gráfico */}
           <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', fontSize: '0.78rem', paddingTop: '4px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '12px', height: '12px', backgroundColor: '#22c55e', borderRadius: '3px' }}></span>
-              <span>Gama Económica (Menor a $1.000.000)</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '12px', height: '12px', backgroundColor: '#0284c7', borderRadius: '3px' }}></span>
-              <span>Gama Intermedia ($1.000.000 a $4.000.000)</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '12px', height: '12px', backgroundColor: '#ea580c', borderRadius: '3px' }}></span>
-              <span>Gama Alta / Premium (Mayor a $4.000.000)</span>
-            </div>
+            {gamas.map(g => {
+              const color = g.clave === 'economica' ? '#22c55e' : g.clave === 'intermedia' ? '#0284c7' : '#ea580c';
+              return (
+                <div key={`leyenda-${g.clave}`} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '12px', height: '12px', backgroundColor: color, borderRadius: '3px' }}></span>
+                  <span>{g.nombre} ({g.rango_texto})</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -410,13 +408,28 @@ export function TabCapitalInventario({
         overflow: 'hidden'
       }}>
         {/* Cabecera y Filtros de la Tabla */}
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--borde-input)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div className="no-imprimir" style={{ padding: '16px 20px', borderBottom: '1px solid var(--borde-input)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {[
               { id: 'todas', label: 'Todas las Gamas' },
-              { id: 'economica', label: 'Económicas (< $1M)' },
-              { id: 'intermedia', label: 'Intermedias ($1M-$4M)' },
-              { id: 'alta', label: 'Alta Gama (> $4M)' }
+              {
+                id: 'economica',
+                label: data?.umbrales
+                  ? `Económicas (< ${formatearMoneda(data.umbrales.gamaBajaMax)})`
+                  : 'Económicas'
+              },
+              {
+                id: 'intermedia',
+                label: data?.umbrales
+                  ? `Intermedias (${formatearMoneda(data.umbrales.gamaBajaMax)} - ${formatearMoneda(data.umbrales.gamaMediaMax)})`
+                  : 'Intermedias'
+              },
+              {
+                id: 'alta',
+                label: data?.umbrales
+                  ? `Alta Gama (> ${formatearMoneda(data.umbrales.gamaMediaMax)})`
+                  : 'Alta Gama'
+              }
             ].map(f => (
               <button
                 key={f.id}

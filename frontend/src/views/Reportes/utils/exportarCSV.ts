@@ -25,15 +25,18 @@ interface ExportarCSVParams {
   capitalStock?: ReporteCapitalStockResponse | null;
 }
 
+const escaparCsv = (val: unknown): string => `"${String(val ?? '').replace(/"/g, '""')}"`;
+
 /** Exportador de reportes contables a formato CSV con cabecera BOM para Excel. */
 export const exportarCSV = (params: ExportarCSVParams): void => {
-  const { activeTab, kpis, ventas, reparaciones, topProductos, capitalStock } = params;
+  const { activeTab, kpis, ventas, reparaciones, pagos, topProductos, capitalStock } = params;
   let csvContent = '';
   const fechaReporte = formatearFecha(new Date()).replace(/\//g, '-');
 
   if (activeTab === 'ventas') {
     csvContent = 'Comprobante;Fecha;Cliente;Vendedor;Estado;Importe Total\n';
     const ventasActivas = ventas.filter(v => v.estado !== 'ANULADA');
+    const totalFiltrado = ventasActivas.reduce((acc, v) => acc + Number(v.costo_total || 0), 0);
     ventas.forEach(v => {
       const comp = 'FAC-' + String(v.id_venta).padStart(6, '0');
       const fecha = formatearFecha(v.fecha, '');
@@ -41,13 +44,16 @@ export const exportarCSV = (params: ExportarCSVParams): void => {
       const vendedor = v.vendedor || 'Sistema';
       const estado = v.estado || 'COMPLETADA';
       const total = Number(v.costo_total || 0).toFixed(2);
-      csvContent += `"${comp}";"${fecha}";"${cliente}";"${vendedor}";"${estado}";${total}\n`;
+      csvContent += `${[escaparCsv(comp), escaparCsv(fecha), escaparCsv(cliente), escaparCsv(vendedor), escaparCsv(estado), total].join(';')}\n`;
     });
-    csvContent += `\n;;;TOTAL FACTURADO (COBRADO);${ventasActivas.length} VENTAS;$${kpis.total_ventas_monto.toFixed(2)}\n`;
+    csvContent += `\n;;;TOTAL FACTURADO (COBRADO);${ventasActivas.length} VENTAS;$${totalFiltrado.toFixed(2)}\n`;
   } else if (activeTab === 'reparaciones') {
     csvContent = 'Orden Taller;Fecha Ingreso;Fecha Egreso;Cliente;Bicicleta;Estado;Mano de Obra;Costo Total;Contabilizado\n';
     const entregadas = reparaciones.filter(r => r.estado === 'Entregada');
     const enProceso = reparaciones.filter(r => r.estado !== 'Entregada');
+    const totalManoObra = entregadas.reduce((acc, r) => acc + Number(r.costo_mano_obra || 0), 0);
+    const totalCobrado = entregadas.reduce((acc, r) => acc + Number(r.costo_total || r.costo_mano_obra || 0), 0);
+    const totalPendiente = enProceso.reduce((acc, r) => acc + Number(r.costo_total || r.costo_mano_obra || 0), 0);
     reparaciones.forEach(r => {
       const idRep = 'REP-' + String(r.id_reparacion).padStart(6, '0');
       const fIngreso = formatearFecha(r.fecha_ingreso, '');
@@ -58,22 +64,33 @@ export const exportarCSV = (params: ExportarCSVParams): void => {
       const manoObra = Number(r.costo_mano_obra || 0).toFixed(2);
       const total = Number(r.costo_total || r.costo_mano_obra || 0).toFixed(2);
       const contabilizado = r.estado === 'Entregada' ? 'SI (COBRADO)' : 'NO (EN PROCESO)';
-      csvContent += `"${idRep}";"${fIngreso}";"${fEgreso}";"${cliente}";"${bici}";"${estado}";${manoObra};${total};"${contabilizado}"\n`;
+      csvContent += `${[escaparCsv(idRep), escaparCsv(fIngreso), escaparCsv(fEgreso), escaparCsv(cliente), escaparCsv(bici), escaparCsv(estado), manoObra, total, escaparCsv(contabilizado)].join(';')}\n`;
     });
-    csvContent += `\n;;;;TOTAL COBRADO (ENTREGADAS);${entregadas.length} ORDENES;$${kpis.total_mano_obra_monto.toFixed(2)};$${kpis.total_reparaciones_monto.toFixed(2)}\n`;
-    csvContent += `;;;;PENDIENTE DE COBRO (EN CURSO);${enProceso.length} ORDENES;;$${kpis.monto_estimado_en_proceso.toFixed(2)}\n`;
+    csvContent += `\n;;;;TOTAL COBRADO (ENTREGADAS);${entregadas.length} ORDENES;$${totalManoObra.toFixed(2)};$${totalCobrado.toFixed(2)}\n`;
+    csvContent += `;;;;PENDIENTE DE COBRO (EN CURSO);${enProceso.length} ORDENES;;$${totalPendiente.toFixed(2)}\n`;
   } else if (activeTab === 'balance') {
+    const totalEgresosFiltrado = pagos.reduce((acc, p) => acc + Number(p.monto_total || 0), 0);
     csvContent = 'CONCEPTO;IMPORTE\n';
-    csvContent += `"Ventas de Mostrador";"$${kpis.total_ventas_monto.toFixed(2)}"\n`;
-    csvContent += `"Ingresos de Taller (Entregadas)";"$${kpis.total_reparaciones_monto.toFixed(2)}"\n`;
-    csvContent += `"TOTAL INGRESOS BRUTOS";"$${kpis.total_ingresos.toFixed(2)}"\n\n`;
-    csvContent += `"Pagos a Proveedores (Egresos)";"$${kpis.total_egresos_monto.toFixed(2)}"\n\n`;
-    csvContent += `"BALANCE NETO REAL (Ingresos - Egresos)";"$${kpis.balance_neto.toFixed(2)}"\n`;
-    csvContent += `"Margen de Rentabilidad Operativa";"${kpis.margen_rentabilidad}%"\n`;
+    csvContent += `${escaparCsv('Ventas de Mostrador')};${escaparCsv('$' + kpis.total_ventas_monto.toFixed(2))}\n`;
+    csvContent += `${escaparCsv('Ingresos de Taller (Entregadas)')};${escaparCsv('$' + kpis.total_reparaciones_monto.toFixed(2))}\n`;
+    csvContent += `${escaparCsv('TOTAL INGRESOS BRUTOS')};${escaparCsv('$' + kpis.total_ingresos.toFixed(2))}\n\n`;
+    csvContent += `${escaparCsv('Pagos a Proveedores (Egresos)')};${escaparCsv('$' + kpis.total_egresos_monto.toFixed(2))}\n\n`;
+    csvContent += `${escaparCsv('BALANCE NETO REAL (Ingresos - Egresos)')};${escaparCsv('$' + kpis.balance_neto.toFixed(2))}\n`;
+    csvContent += `${escaparCsv('Margen de Rentabilidad Operativa')};${escaparCsv(`${kpis.margen_rentabilidad}%`)}\n\n`;
+    csvContent += 'Nro Pago;Fecha;Proveedor;Metodo de Pago;Monto Abonado\n';
+    pagos.forEach(p => {
+      const nro = `PAG-${String(p.id_pago || 0).padStart(6, '0')}`;
+      const fecha = formatearFecha(p.fecha, 'N/A');
+      const proveedor = p.proveedor_nombre || `Proveedor #${p.id_proveedor}`;
+      const metodo = p.metodo_pago_nombre || 'Efectivo';
+      const monto = Number(p.monto_total || 0).toFixed(2);
+      csvContent += `${[escaparCsv(nro), escaparCsv(fecha), escaparCsv(proveedor), escaparCsv(metodo), monto].join(';')}\n`;
+    });
+    csvContent += `;;;TOTAL EGRESOS FILTRADOS ($);$${totalEgresosFiltrado.toFixed(2)}\n`;
   } else if (activeTab === 'top_productos') {
     csvContent = 'Ranking;Producto;Marca;Categoria;Unidades Vendidas;Recaudacion Total\n';
     topProductos.forEach((p, idx) => {
-      csvContent += `"${idx + 1}";"${p.nombre}";"${p.marca || 'Genérico'}";"${p.tipo_prod}";${p.total_vendido};$${Number(p.total_recaudado || 0).toFixed(2)}\n`;
+      csvContent += `${[escaparCsv(idx + 1), escaparCsv(p.nombre), escaparCsv(p.marca || 'Genérico'), escaparCsv(p.tipo_prod), p.total_vendido, `$${Number(p.total_recaudado || 0).toFixed(2)}`].join(';')}\n`;
     });
   } else if (activeTab === 'inventario') {
     csvContent = 'ID;Bicicleta;Marca;Modelo;Color;Rodado;Gama;Stock Fisico;Precio Venta Unitario;Capital Total Inmovilizado;Ventas Ultimos 90d;Rotacion\n';
@@ -91,7 +108,20 @@ export const exportarCSV = (params: ExportarCSVParams): void => {
         const capitalTotal = Number(b.capital_inmovilizado || 0).toFixed(2);
         const ventas90d = b.unidades_vendidas_90d;
         const rotacion = b.estado_rotacion;
-        csvContent += `"${id}";"${nombre}";"${marca}";"${modelo}";"${color}";"${rodado}";"${gama}";${stock};$${precioUnit};$${capitalTotal};${ventas90d};"${rotacion}"\n`;
+        csvContent += `${[
+          escaparCsv(id),
+          escaparCsv(nombre),
+          escaparCsv(marca),
+          escaparCsv(modelo),
+          escaparCsv(color),
+          escaparCsv(rodado),
+          escaparCsv(gama),
+          stock,
+          `$${precioUnit}`,
+          `$${capitalTotal}`,
+          ventas90d,
+          escaparCsv(rotacion)
+        ].join(';')}\n`;
       });
       csvContent += `\n;;;;;;TOTAL INVENTARIO BICICLETAS;${capitalStock.resumen.unidades_total_bicicletas};;$${Number(capitalStock.resumen.capital_total_bicicletas || 0).toFixed(2)};;\n`;
       csvContent += `;;;;;;CAPITAL TOTAL MERCADERIA (TODOS LOS RUBROS);;;$${Number(capitalStock.resumen.capital_total_inventario || 0).toFixed(2)};;\n`;
@@ -101,18 +131,20 @@ export const exportarCSV = (params: ExportarCSVParams): void => {
   } else {
     // Consolidado General
     csvContent = 'METRICA;VALOR\n';
-    csvContent += `"Ingresos Efectivos Cobrados (Periodo)";"$${kpis.total_ingresos.toFixed(2)}"\n`;
-    csvContent += `"Ventas de Mostrador";"$${kpis.total_ventas_monto.toFixed(2)} (${kpis.porcentaje_ventas}%)"\n`;
-    csvContent += `"Ingresos Taller (Solo Ordenes Entregadas)";"$${kpis.total_reparaciones_monto.toFixed(2)} (${kpis.porcentaje_taller}%)"\n`;
-    csvContent += `"Pagos a Proveedores (Egresos)";"$${kpis.total_egresos_monto.toFixed(2)}"\n`;
-    csvContent += `"Balance Neto (Ingresos - Egresos)";"$${kpis.balance_neto.toFixed(2)}"\n`;
-    csvContent += `"Total Operaciones Cobradas";"${kpis.total_operaciones_cobradas}"\n`;
-    csvContent += `"Ticket Promedio Efectivo";"$${kpis.ticket_promedio.toFixed(2)}"\n`;
+    csvContent += `${escaparCsv('Ingresos Efectivos Cobrados (Periodo)')};${escaparCsv('$' + kpis.total_ingresos.toFixed(2))}\n`;
+    csvContent += `${escaparCsv('Ventas de Mostrador')};${escaparCsv(`$${kpis.total_ventas_monto.toFixed(2)} (${kpis.porcentaje_ventas}%)`)}\n`;
+    csvContent += `${escaparCsv('Ingresos Taller (Solo Ordenes Entregadas)')};${escaparCsv(`$${kpis.total_reparaciones_monto.toFixed(2)} (${kpis.porcentaje_taller}%)`)}\n`;
+    csvContent += `${escaparCsv('Pagos a Proveedores (Egresos)')};${escaparCsv('$' + kpis.total_egresos_monto.toFixed(2))}\n`;
+    csvContent += `${escaparCsv('Balance Neto (Ingresos - Egresos)')};${escaparCsv('$' + kpis.balance_neto.toFixed(2))}\n`;
+    csvContent += `${escaparCsv('Total Operaciones Cobradas')};${escaparCsv(kpis.total_operaciones_cobradas)}\n`;
+    csvContent += `${escaparCsv('Ticket Promedio Efectivo')};${escaparCsv('$' + kpis.ticket_promedio.toFixed(2))}\n`;
   }
 
   const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  link.href = URL.createObjectURL(blob);
+  link.href = url;
   link.download = `Reporte_${activeTab.toUpperCase()}_BikeSystem_${fechaReporte}.csv`;
   link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 };

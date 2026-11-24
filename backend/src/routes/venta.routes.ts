@@ -22,8 +22,8 @@ router.get('/metodos-pago', verificarToken, obtenerMetodosPago);
 router.get('/garantias', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerGarantiasBicicletas);
 router.patch('/garantias/:id_detalle_venta/primer-service', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), registrarPrimerService);
 router.get('/:id', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), obtenerVentaPorId);
-router.put('/:id/anular', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), anularVenta);
-router.patch('/:id/anular', verificarToken, autorizarRoles('EMPLEADO', 'ADMIN', 'SUPERADMIN'), anularVenta);
+router.put('/:id/anular', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), anularVenta);
+router.patch('/:id/anular', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), anularVenta);
 
 // Operaciones de modificación estructural posterior (Exclusivas de administradores)
 router.post('/detalle', verificarToken, autorizarRoles('ADMIN', 'SUPERADMIN'), agregarDetalleVenta);

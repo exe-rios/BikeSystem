@@ -15,6 +15,8 @@ interface ElectronAPI {
     cancelId?: number;
   }) => number;
   refocus: () => void;
+  printWithPreview?: (options?: { title?: string; landscape?: boolean }) => Promise<boolean>;
+  openLogsFolder?: () => Promise<boolean>;
 }
 
 declare global {
@@ -48,8 +50,58 @@ if (typeof window !== 'undefined' && window.electronAPI?.showMessageBoxSync) {
     });
   };
 
-  window.addEventListener('focus', () => {
-    api.refocus();
+  if (api.printWithPreview) {
+    window.print = (): void => {
+      void api.printWithPreview?.();
+    };
+  }
+}
+
+// Reporte silencioso de errores no controlados de interfaz hacia Log_Sistema (con throttle y tope por sesión)
+if (typeof window !== 'undefined') {
+  const API_BASE_LOGS = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+  let ultimoEnvioLogMs = 0;
+  let totalLogsEnviados = 0;
+
+  const enviarErrorUiSilencioso = (mensaje: string, detalle?: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const ahora = Date.now();
+      if (totalLogsEnviados >= 10 || ahora - ultimoEnvioLogMs < 5000) return;
+
+      ultimoEnvioLogMs = ahora;
+      totalLogsEnviados++;
+
+      void fetch(`${API_BASE_LOGS}/api/logs/cliente`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          nivel: 'ERROR',
+          mensaje: mensaje.slice(0, 500),
+          detalle: detalle ? detalle.slice(0, 2500) : undefined
+        }),
+        keepalive: true
+      }).catch(() => {});
+    } catch {
+      // Nunca interrumpir al usuario por fallos al reportar errores UI
+    }
+  };
+
+  window.addEventListener('error', (event) => {
+    const origen = event.filename ? `${event.filename}:${event.lineno || 0}` : '';
+    const stack = event.error instanceof Error ? event.error.stack : origen;
+    enviarErrorUiSilencioso(event.message || 'Error de ejecución en interfaz', stack);
+  });
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    const mensaje = reason instanceof Error ? reason.message : String(reason || 'Promesa rechazada sin capturar');
+    const detalle = reason instanceof Error ? reason.stack : undefined;
+    enviarErrorUiSilencioso(mensaje, detalle);
   });
 }
 

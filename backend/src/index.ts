@@ -17,18 +17,25 @@ import pagoProveedorRoutes from './routes/pagoProveedor.routes.js';
 import reporteRoutes from './routes/reporte.routes.js';
 import bitacoraRoutes from './routes/bitacora.routes.js';
 import backupRoutes from './routes/backup.routes.js';
+import configuracionRoutes from './routes/configuracion.routes.js';
+import logsRoutes from './routes/logs.routes.js';
 
 import { manejarErrores } from './middlewares/error.middleware.js';
+import { apiLimiter } from './middlewares/rateLimit.middleware.js';
+import { escribirLog, registrarPersistenciaLogRemoto } from './utils/logger.js';
+import { LogSistemaService } from './services/logSistema.service.js';
 
 import compression from 'compression';
 import { cerrarPool } from './config/db.js';
 import { asegurarConsumidorFinal } from './crear_consumidor_final.js';
+import { asegurarEsquemaProveedoresYMoneda } from './utils/ensureSchema.js';
 
 // Validación de variables de entorno obligatorias (fail-fast)
 const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET'];
 for (const key of REQUIRED_ENV) {
   if (!process.env[key]) {
     console.error(`[FATAL] Variable de entorno "${key}" no definida. Abortando.`);
+    escribirLog('ERROR', 'FATAL', `Variable de entorno "${key}" no definida. Abortando.`);
     process.exit(1);
   }
 }
@@ -64,8 +71,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Middleware para entender JSON (limitado a 1MB para prevenir payloads excesivos)
-app.use(express.json({ limit: '1mb' }));
+// Middleware para entender JSON (ampliado a 5MB para soportar lotes de carga masiva)
+app.use(express.json({ limit: '5mb' }));
+
+// Límite de tasa general para proteger la API
+app.use('/api', apiLimiter);
 
 // ENLAZAMOS LAS RUTAS DEL SISTEMA
 app.use('/api', authRoutes);
@@ -81,26 +91,58 @@ app.use('/api/pagos-proveedores', pagoProveedorRoutes);
 app.use('/api/reportes', reporteRoutes);
 app.use('/api/bitacora', bitacoraRoutes);
 app.use('/api/backup', backupRoutes);
+app.use('/api/configuracion', configuracionRoutes);
+app.use('/api/logs', logsRoutes);
 
 // Middleware de captura global de errores
 app.use(manejarErrores);
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`[Server]: Backend de BikeSystem corriendo en http://${HOST}:${PORT}`);
-  asegurarConsumidorFinal().catch(err => {
-    console.error('[Consumidor Final]: Error al asegurar registro en BD:', err?.message || err);
+let server: ReturnType<typeof app.listen> | null = null;
+
+async function iniciarServidor() {
+  try {
+    await asegurarEsquemaProveedoresYMoneda();
+    registrarPersistenciaLogRemoto((entrada) => LogSistemaService.guardarLogRemoto(entrada));
+    await asegurarConsumidorFinal();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[Startup DB]: Error al inicializar esquema/consumidor final:', msg);
+    escribirLog('ERROR', 'STARTUP_DB', 'Error al inicializar esquema/consumidor final', err);
+  }
+
+  server = app.listen(PORT, HOST, () => {
+    console.log(`[Server]: Backend de BikeSystem corriendo en http://${HOST}:${PORT}`);
+    escribirLog('INFO', 'SERVER', `Backend iniciado en http://${HOST}:${PORT}`);
   });
-});
+}
+
+void iniciarServidor();
 
 // Cierre ordenado (Graceful Shutdown)
-const gracefulShutdown = (signal: string) => {
+const gracefulShutdown = async (signal: string) => {
   console.log(`\n[Server]: Recibida señal ${signal}. Cerrando servidor HTTP y conexiones a PostgreSQL...`);
-  server.close(async () => {
-    console.log('[Server]: Servidor HTTP cerrado.');
+  escribirLog('INFO', 'SERVER', `Recibida señal ${signal}. Cerrando servidor.`);
+  if (server) {
+    server.close(async () => {
+      console.log('[Server]: Servidor HTTP cerrado.');
+      await cerrarPool();
+      process.exit(0);
+    });
+  } else {
     await cerrarPool();
     process.exit(0);
-  });
+  }
 };
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('uncaughtException', (err) => {
+  console.error('[PROCESS uncaughtException]:', err);
+  escribirLog('ERROR', 'PROCESS', 'Excepción no capturada en proceso Node', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[PROCESS unhandledRejection]:', reason);
+  escribirLog('ERROR', 'PROCESS', 'Promesa rechazada no manejada', reason);
+});
+
+process.on('SIGINT', () => { void gracefulShutdown('SIGINT'); });
+process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });

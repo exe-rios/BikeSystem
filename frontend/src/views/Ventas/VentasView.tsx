@@ -60,6 +60,8 @@ export function VentasView() {
     setClienteSeleccionadoId,
     metodoPagoSeleccionadoId,
     setMetodoPagoSeleccionadoId,
+    tipoPrecio,
+    cambiarTipoPrecio,
     nombreConsumidorFinal,
     setNombreConsumidorFinal,
     apellidoConsumidorFinal,
@@ -139,7 +141,7 @@ export function VentasView() {
       cliente_dni: dniConsumidorFinal.trim() || undefined
     } : undefined;
 
-    const exito = await finalizarVenta(clienteIdFinal, metodoPagoSeleccionadoId, itemsPayload, datosCF);
+    const exito = await finalizarVenta(clienteIdFinal, metodoPagoSeleccionadoId, itemsPayload, datosCF, tipoPrecio);
     if (exito) {
       limpiarCarrito(metodosPago[0]?.id_metodo_pago || 1, clienteConsumidorFinal?.id_cliente || 0);
     }
@@ -212,6 +214,8 @@ export function VentasView() {
           metodosPago={metodosPago}
           clienteSeleccionadoId={clienteSeleccionadoId}
           metodoPagoSeleccionadoId={metodoPagoSeleccionadoId}
+          tipoPrecio={tipoPrecio}
+          onCambiarTipoPrecio={modo => cambiarTipoPrecio(modo, productos)}
           productoBuscadoId={productoBuscadoId}
           cantidadAnadir={cantidadAnadir}
           filtroTipo={filtroTipo}

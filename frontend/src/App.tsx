@@ -13,7 +13,7 @@ import iconAuditoria from './assets/Fotinhos/icono-auditoria.png';
 
 import { InicioView } from './views/Inicio/InicioView';
 import { LoginView } from './views/Login/LoginView';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth, type AuthUser } from './contexts/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { getUserRoleTheme } from './utils/userColors';
 
@@ -39,14 +39,20 @@ type VistaTipo =
   | 'usuarios'
   | 'auditoria';
 
-/** Contenedor maestro de la interfaz: renderiza la barra de navegación lateral y las vistas activas. */
+/** Contenedor maestro de la interfaz: muestra el Login o el panel autenticado reiniciado por sesión. */
 function AppContent() {
   const { user, isAuthenticated, login, logout } = useAuth();
-  const [vistaActual, setVistaActual] = useState<VistaTipo>('inicio');
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <LoginView onLoginSuccess={(token, usuario) => login(token, usuario)} />;
   }
+
+  return <AuthenticatedLayout key={user.id_usuario} user={user} logout={logout} />;
+}
+
+/** Layout principal autenticado con barra lateral de navegación y vistas activas. */
+function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => void }) {
+  const [vistaActual, setVistaActual] = useState<VistaTipo>('inicio');
 
   const userName = user?.nombre_usuario || 'Usuario';
   const userRole = (user?.rol || 'EMPLEADO').toUpperCase();

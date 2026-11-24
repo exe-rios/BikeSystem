@@ -2,7 +2,9 @@ import { Router } from 'express';
 import { 
     crearPago, 
     obtenerPagos, 
-    obtenerMetodosPago 
+    obtenerMetodosPago,
+    obtenerPagosPendientes,
+    registrarAbonoPendiente
 } from '../controllers/pagoProveedor.controller.js';
 import { verificarToken } from '../middlewares/auth.middleware.js';
 import { autorizarRoles } from '../middlewares/roles.middleware.js';
@@ -15,6 +17,8 @@ router.use(verificarToken);
 router.use(autorizarRoles('ADMIN', 'SUPERADMIN'));
 
 router.get('/metodos-pago', obtenerMetodosPago);
+router.get('/pendientes', obtenerPagosPendientes);
+router.post('/pendientes/:id/pagar', registrarAbonoPendiente);
 router.post('/', crearPago);
 router.get('/', obtenerPagos);
 

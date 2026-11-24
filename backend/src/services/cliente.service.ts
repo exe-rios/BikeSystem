@@ -3,6 +3,30 @@ import { BadRequestError, NotFoundError, ConflictError } from '../utils/errors.j
 import { EMAIL_REGEX, DNI_REGEX, validarId } from '../utils/validation.js';
 import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
+const esConsumidorFinal = (c: { nombre?: string | null; apellido?: string | null; dni?: string | null }): boolean => {
+  const nom = (c.nombre || '').trim().toLowerCase();
+  const ape = (c.apellido || '').trim().toLowerCase();
+  return (
+    c.dni?.trim() === '00000000' ||
+    (nom === 'consumidor' && ape === 'final') ||
+    (nom === 'final' && ape === 'consumidor')
+  );
+};
+
+const validarTelefonoOpcional = (telefono: unknown): string | null => {
+  if (telefono === undefined || telefono === null) return null;
+  const telLimpio = String(telefono).trim();
+  if (!telLimpio) return null;
+  if (telLimpio.length > 20) {
+    throw new BadRequestError('El teléfono no puede superar los 20 caracteres.');
+  }
+  const digitos = telLimpio.replace(/\D/g, '');
+  if (!/^[+\d\s()-]+$/.test(telLimpio) || digitos.length < 7) {
+    throw new BadRequestError('El teléfono debe tener entre 7 y 20 caracteres válidos (números, espacios, +, - o paréntesis).');
+  }
+  return telLimpio;
+};
+
 /** Servicio para la administración y validación de clientes del sistema. */
 export class ClienteService {
   /** Obtiene clientes paginados con soporte para búsqueda libre por nombre, DNI o datos de contacto. */
@@ -101,15 +125,15 @@ export class ClienteService {
     if (!nombre || typeof nombre !== 'string' || nombre.trim().length < 2) {
       throw new BadRequestError('Escribí el nombre del cliente (al menos 2 letras).');
     }
-    if (nombre.trim().length > 15) {
-      throw new BadRequestError('El nombre no puede superar los 15 caracteres.');
+    if (nombre.trim().length > 50) {
+      throw new BadRequestError('El nombre no puede superar los 50 caracteres.');
     }
 
     if (!apellido || typeof apellido !== 'string' || apellido.trim().length < 2) {
       throw new BadRequestError('Escribí el apellido del cliente (al menos 2 letras).');
     }
-    if (apellido.trim().length > 15) {
-      throw new BadRequestError('El apellido no puede superar los 15 caracteres.');
+    if (apellido.trim().length > 50) {
+      throw new BadRequestError('El apellido no puede superar los 50 caracteres.');
     }
 
     if (!dni || typeof dni !== 'string' || !DNI_REGEX.test(dni.trim())) {
@@ -121,20 +145,19 @@ export class ClienteService {
       throw new BadRequestError('El DNI no puede superar los 10 caracteres.');
     }
 
-    if (telefono && String(telefono).trim().length > 15) {
-      throw new BadRequestError('El teléfono no puede superar los 15 caracteres.');
-    }
+    const telefonoLimpio = validarTelefonoOpcional(telefono);
 
     const emailLimpio = email ? String(email).trim() : null;
-    if (emailLimpio && emailLimpio.length > 30) {
-      throw new BadRequestError('El email no puede superar los 30 caracteres.');
+    if (emailLimpio && emailLimpio.length > 100) {
+      throw new BadRequestError('El email no puede superar los 100 caracteres.');
     }
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
       throw new BadRequestError('El email no es válido. Ejemplo: nombre@correo.com');
     }
 
-    if (direccion && String(direccion).trim().length > 40) {
-      throw new BadRequestError('La dirección no puede superar los 40 caracteres.');
+    const direccionLimpia = direccion && String(direccion).trim() ? String(direccion).trim() : null;
+    if (direccionLimpia && direccionLimpia.length > 150) {
+      throw new BadRequestError('La dirección no puede superar los 150 caracteres.');
     }
 
     // Verificar si ya existe un cliente con ese DNI
@@ -152,9 +175,9 @@ export class ClienteService {
       nombre.trim(),
       apellido.trim(),
       dniLimpio,
-      telefono ? String(telefono).trim() : null,
+      telefonoLimpio,
       emailLimpio,
-      direccion ? String(direccion).trim() : null
+      direccionLimpia
     ];
 
     const result = await pool.query(query, values);
@@ -197,19 +220,29 @@ export class ClienteService {
     if (checkCliente.rowCount === 0) {
       throw new NotFoundError('Ese cliente no existe.');
     }
+    const clienteActual = checkCliente.rows[0];
+
+    if (esConsumidorFinal(clienteActual)) {
+      const cambiaNombre = nombre !== undefined && String(nombre).trim().toLowerCase() !== String(clienteActual.nombre || '').trim().toLowerCase();
+      const cambiaApellido = apellido !== undefined && String(apellido).trim().toLowerCase() !== String(clienteActual.apellido || '').trim().toLowerCase();
+      const cambiaDni = dni !== undefined && String(dni).trim() !== String(clienteActual.dni || '').trim();
+      if (cambiaNombre || cambiaApellido || cambiaDni) {
+        throw new ConflictError('No se puede modificar el nombre, apellido ni DNI de Consumidor Final.');
+      }
+    }
 
     if (nombre !== undefined && (typeof nombre !== 'string' || nombre.trim().length < 2)) {
       throw new BadRequestError('El nombre debe tener al menos 2 letras.');
     }
-    if (nombre !== undefined && typeof nombre === 'string' && nombre.trim().length > 15) {
-      throw new BadRequestError('El nombre no puede superar los 15 caracteres.');
+    if (nombre !== undefined && typeof nombre === 'string' && nombre.trim().length > 50) {
+      throw new BadRequestError('El nombre no puede superar los 50 caracteres.');
     }
 
     if (apellido !== undefined && (typeof apellido !== 'string' || apellido.trim().length < 2)) {
       throw new BadRequestError('El apellido debe tener al menos 2 letras.');
     }
-    if (apellido !== undefined && typeof apellido === 'string' && apellido.trim().length > 15) {
-      throw new BadRequestError('El apellido no puede superar los 15 caracteres.');
+    if (apellido !== undefined && typeof apellido === 'string' && apellido.trim().length > 50) {
+      throw new BadRequestError('El apellido no puede superar los 50 caracteres.');
     }
 
     if (dni !== undefined && (typeof dni !== 'string' || !DNI_REGEX.test(dni.trim()))) {
@@ -219,20 +252,22 @@ export class ClienteService {
       throw new BadRequestError('El DNI no puede superar los 10 caracteres.');
     }
 
-    if (telefono !== undefined && typeof telefono === 'string' && telefono.trim().length > 15) {
-      throw new BadRequestError('El teléfono no puede superar los 15 caracteres.');
-    }
+    const tieneTelefono = 'telefono' in datos;
+    const telefonoLimpio = tieneTelefono ? validarTelefonoOpcional(telefono) : null;
 
-    const emailLimpio = email ? String(email).trim() : null;
-    if (emailLimpio && emailLimpio.length >30) {
-      throw new BadRequestError('El email no puede superar los 30 caracteres.');
+    const tieneEmail = 'email' in datos;
+    const emailLimpio = tieneEmail && email ? String(email).trim() : null;
+    if (emailLimpio && emailLimpio.length > 100) {
+      throw new BadRequestError('El email no puede superar los 100 caracteres.');
     }
     if (emailLimpio && !EMAIL_REGEX.test(emailLimpio)) {
       throw new BadRequestError('El email no es válido. Ejemplo: nombre@correo.com');
     }
 
-    if (direccion !== undefined && typeof direccion === 'string' && direccion.trim().length > 40) {
-      throw new BadRequestError('La dirección no puede superar los 40 caracteres.');
+    const tieneDireccion = 'direccion' in datos;
+    const direccionLimpia = tieneDireccion && direccion && String(direccion).trim() ? String(direccion).trim() : null;
+    if (direccionLimpia && direccionLimpia.length > 150) {
+      throw new BadRequestError('La dirección no puede superar los 150 caracteres.');
     }
 
     // Verificar si el nuevo DNI ya le pertenece a otro cliente
@@ -248,20 +283,23 @@ export class ClienteService {
       SET nombre = COALESCE($1, nombre),
           apellido = COALESCE($2, apellido),
           dni = COALESCE($3, dni),
-          telefono = COALESCE($4, telefono),
-          email = COALESCE($5, email),
-          direccion = COALESCE($6, direccion),
+          telefono = CASE WHEN $4::boolean THEN $5 ELSE telefono END,
+          email = CASE WHEN $6::boolean THEN $7 ELSE email END,
+          direccion = CASE WHEN $8::boolean THEN $9 ELSE direccion END,
           updated_at = CURRENT_TIMESTAMP
-      WHERE id_cliente = $7
+      WHERE id_cliente = $10
       RETURNING *;
     `;
     const values = [
       nombre ? nombre.trim() : null,
       apellido ? apellido.trim() : null,
       dni ? dni.trim() : null,
-      telefono !== undefined ? (telefono ? String(telefono).trim() : null) : null,
-      email !== undefined ? emailLimpio : null,
-      direccion !== undefined ? (direccion ? String(direccion).trim() : null) : null,
+      tieneTelefono,
+      telefonoLimpio,
+      tieneEmail,
+      emailLimpio,
+      tieneDireccion,
+      direccionLimpia,
       id
     ];
 
@@ -300,6 +338,10 @@ export class ClienteService {
       throw new NotFoundError('Ese cliente no existe.');
     }
     const datosCliente = resCli.rows[0];
+
+    if (esConsumidorFinal(datosCliente)) {
+      throw new ConflictError('No se puede eliminar al cliente Consumidor Final del sistema.');
+    }
 
     // Verificar si posee historial para evitar fallo de FK en PostgreSQL
     const checkHistorial = await pool.query(`
