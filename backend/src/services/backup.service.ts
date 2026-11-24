@@ -1,6 +1,9 @@
 import { pool } from '../config/db.js';
 import { BitacoraService } from './bitacora.service.js';
 
+const PG_DATE_OID = 1082;
+const REDACTED_SUPERADMIN_HASH = '$2b$10$REDACTED_SUPERADMIN_RESTORE_REQUIRED_0000000000000000000';
+
 /**
  * Servicio de Respaldo y Recuperación de Base de Datos (RNF3).
  * Implementación 100% nativa en TypeScript sin dependencias de Docker ni comandos del sistema operativo.
@@ -8,9 +11,9 @@ import { BitacoraService } from './bitacora.service.js';
 export class BackupService {
   /**
    * Genera un volcado SQL completo y estructurado de todas las tablas de BikeSystem.
-   * Incluye datos maestros, catálogos, operaciones comerciales, taller y auditoría.
+   * Incluye datos maestros, catálogos, operaciones comerciales, taller, pagos pendientes y auditoría.
    */
-  static async generarRespaldoSQL(usuario?: { id_usuario?: number; nombre_usuario?: string }): Promise<{
+  static async generarRespaldoSQL(usuario?: { id_usuario?: number; nombre_usuario?: string; rol?: string }): Promise<{
     contenidoSQL: string;
     nombreArchivo: string;
     estadisticas: Record<string, number>;
@@ -27,11 +30,13 @@ export class BackupService {
 
     const { fechaStr, timestampStr } = formatoFecha(ahora);
     const nombreArchivo = `Backup_BikeSystem_${timestampStr}.sql`;
+    const esSuperadmin = (usuario?.rol || '').toUpperCase() === 'SUPERADMIN';
 
     // Orden topológico estricto para evitar violaciones de integridad referencial
     const tablasOrdenadas: Array<{ nombre: string; colPk?: string; tieneIdentidad: boolean }> = [
       { nombre: 'metodo_pago', colPk: 'id_metodo_pago', tieneIdentidad: true },
       { nombre: 'usuario', colPk: 'id_usuario', tieneIdentidad: true },
+      { nombre: 'configuracion_sistema', colPk: 'clave', tieneIdentidad: false },
       { nombre: 'proveedor', colPk: 'id_proveedor', tieneIdentidad: true },
       { nombre: 'cliente', colPk: 'id_cliente', tieneIdentidad: true },
       { nombre: 'productos', colPk: 'id_producto', tieneIdentidad: true },
@@ -43,6 +48,7 @@ export class BackupService {
       { nombre: 'reparacion', colPk: 'id_reparacion', tieneIdentidad: true },
       { nombre: 'detalle_reparacion', colPk: 'id_detalle_rep', tieneIdentidad: true },
       { nombre: 'pago_proveedor', colPk: 'id_pago', tieneIdentidad: true },
+      { nombre: 'pago_proveedor_pendiente', colPk: 'id_pendiente', tieneIdentidad: true },
       { nombre: 'bitacora_actividad', colPk: 'id_bitacora', tieneIdentidad: true }
     ];
 
@@ -57,14 +63,104 @@ export class BackupService {
     bloquesSQL.push(`-- Motor: PostgreSQL (Supabase / Nativo)`);
     bloquesSQL.push(`-- ====================================================================\n`);
     bloquesSQL.push(`BEGIN;`);
-    bloquesSQL.push(`-- Deshabilitar disparadores y restricciones temporalmente durante la carga`);
-    bloquesSQL.push(`SET session_replication_role = 'replica';\n`);
+    bloquesSQL.push(`-- Limpieza previa segura en orden inverso para restauración sin colisiones ni comandos privilegiados`);
+    bloquesSQL.push(
+      `TRUNCATE TABLE ${[...tablasOrdenadas].reverse().map(t => t.nombre).join(', ')} RESTART IDENTITY CASCADE;\n`
+    );
 
-    // 2. Extraer datos tabla por tabla
-    for (const { nombre, colPk, tieneIdentidad } of tablasOrdenadas) {
-      try {
-        const resultado = await pool.query(`SELECT * FROM ${nombre}`);
-        const filas = resultado.rows;
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
+
+      // Detectar cuentas SUPERADMIN para mantener aislamiento respecto a respaldos generados por ADMIN
+      const superadminIds = new Set<number>();
+      const referencedSuperadminIds = new Set<number>();
+
+      if (!esSuperadmin) {
+        const resSuper = await client.query(
+          `SELECT id_usuario FROM usuario WHERE rol = 'SUPERADMIN' OR LOWER(nombre_usuario) = 'superadmin'`
+        );
+        for (const row of resSuper.rows || []) {
+          const id = Number(row.id_usuario);
+          if (Number.isInteger(id)) {
+            superadminIds.add(id);
+          }
+        }
+
+        if (superadminIds.size > 0) {
+          const idsArray = Array.from(superadminIds);
+          const resRefs = await client.query(
+            `SELECT DISTINCT id_u FROM (
+              SELECT id_usuario AS id_u FROM venta WHERE id_usuario = ANY($1::int[])
+              UNION ALL
+              SELECT id_usuario AS id_u FROM reparacion WHERE id_usuario = ANY($1::int[])
+              UNION ALL
+              SELECT id_usuario AS id_u FROM movimiento_stock WHERE id_usuario = ANY($1::int[])
+              UNION ALL
+              SELECT id_usuario AS id_u FROM pago_proveedor WHERE id_usuario = ANY($1::int[])
+              UNION ALL
+              SELECT id_usuario AS id_u FROM pago_proveedor_pendiente WHERE id_usuario = ANY($1::int[])
+            ) refs`,
+            [idsArray]
+          );
+          for (const row of resRefs.rows || []) {
+            const id = Number(row.id_u);
+            if (Number.isInteger(id)) {
+              referencedSuperadminIds.add(id);
+            }
+          }
+        }
+      }
+
+      // 2. Extraer datos tabla por tabla dentro del snapshot consistente
+      for (const { nombre, colPk, tieneIdentidad } of tablasOrdenadas) {
+        const resultado = await client.query(`SELECT * FROM ${nombre}`);
+        const dateColumns = new Set<string>(
+          (resultado.fields || [])
+            .filter((f) => f.dataTypeID === PG_DATE_OID)
+            .map((f) => f.name)
+        );
+
+        let filas = (resultado.rows || []) as Array<Record<string, unknown>>;
+
+        if (!esSuperadmin) {
+          if (nombre === 'usuario' && superadminIds.size > 0) {
+            filas = filas
+              .filter((f) => {
+                const id = Number(f.id_usuario);
+                return !superadminIds.has(id) || referencedSuperadminIds.has(id);
+              })
+              .map((f) => {
+                const id = Number(f.id_usuario);
+                if (superadminIds.has(id)) {
+                  return { ...f, contrasena: REDACTED_SUPERADMIN_HASH };
+                }
+                return f;
+              });
+          } else if (nombre === 'bitacora_actividad') {
+            filas = filas.filter((f) => {
+              const id = Number(f.id_usuario);
+              const nombreUser = String(f.nombre_usuario || '').trim().toLowerCase();
+              return !superadminIds.has(id) && nombreUser !== 'superadmin';
+            });
+          } else if (nombre === 'configuracion_sistema' && superadminIds.size > 0) {
+            filas = filas.map((f) => {
+              const updatedBy = Number(f.updated_by);
+              return f.updated_by != null && superadminIds.has(updatedBy)
+                ? { ...f, updated_by: null }
+                : f;
+            });
+          } else if (nombre === 'detalle_venta' && superadminIds.size > 0) {
+            filas = filas.map((f) => {
+              const idServ = Number(f.id_usuario_service);
+              return f.id_usuario_service != null && superadminIds.has(idServ)
+                ? { ...f, id_usuario_service: null }
+                : f;
+            });
+          }
+        }
+
         estadisticas[nombre] = filas.length;
 
         bloquesSQL.push(`-- --------------------------------------------------------------------`);
@@ -77,7 +173,7 @@ export class BackupService {
         }
 
         // Obtener nombres de columnas a partir de la primera fila
-        const columnas = Object.keys(filas[0]);
+        const columnas = Object.keys(filas[0]!);
         const columnasStr = columnas.map(c => `"${c}"`).join(', ');
 
         // Agrupar inserciones en bloques de hasta 100 filas
@@ -97,6 +193,12 @@ export class BackupService {
                 return Number.isFinite(val) ? String(val) : 'NULL';
               }
               if (val instanceof Date) {
+                if (dateColumns.has(col)) {
+                  const y = val.getFullYear();
+                  const m = String(val.getMonth() + 1).padStart(2, '0');
+                  const d = String(val.getDate()).padStart(2, '0');
+                  return `'${y}-${m}-${d}'`;
+                }
                 return `'${val.toISOString()}'`;
               }
               if (typeof val === 'object') {
@@ -117,20 +219,23 @@ export class BackupService {
 
         // Actualizar secuencia de identidad para que los futuros INSERT no colisionen
         if (tieneIdentidad && colPk) {
-          bloquesSQL.push(`SELECT setval(pg_get_serial_sequence('${nombre}', '${colPk}'), COALESCE((SELECT MAX("${colPk}") FROM ${nombre}), 1));\n`);
+          bloquesSQL.push(
+            `SELECT setval(pg_get_serial_sequence('${nombre}', '${colPk}'), COALESCE((SELECT MAX("${colPk}") FROM ${nombre}), 1), (SELECT COUNT(*) > 0 FROM ${nombre}));\n`
+          );
         } else {
           bloquesSQL.push('');
         }
-      } catch (err: unknown) {
-        // Si una tabla opcional no existe o no tiene datos, registrar advertencia
-        const mensaje = err instanceof Error ? err.message : String(err);
-        bloquesSQL.push(`-- Advertencia: No se pudo exportar la tabla ${nombre}: ${mensaje}\n`);
       }
+
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
     }
 
-    // 3. Cierre y reanudación de roles de replicación
-    bloquesSQL.push(`-- Reanudar comportamiento normal de restricciones y triggers`);
-    bloquesSQL.push(`SET session_replication_role = 'origin';`);
+    // 3. Cierre de transacción del script generado
     bloquesSQL.push(`COMMIT;`);
     bloquesSQL.push(`-- ====================================================================`);
     bloquesSQL.push(`-- FIN DEL RESPALDO BIKESYSTEM`);
@@ -142,7 +247,7 @@ export class BackupService {
     if (usuario?.id_usuario) {
       await BitacoraService.registrar({
         id_usuario: usuario.id_usuario,
-        nombre_usuario: usuario.nombre_usuario || 'superadmin',
+        nombre_usuario: usuario.nombre_usuario || 'admin',
         accion: 'GENERAR_RESPALDO',
         modulo: 'SEGURIDAD',
         descripcion: `Se genero y descargo exitosamente el archivo de respaldo: ${nombreArchivo} (${contenidoSQL.length} bytes)`

@@ -105,6 +105,7 @@ export function useReportes() {
   });
 
   const [pagos, setPagos] = useState<PagoProveedor[]>([]);
+  const [egresosResumen, setEgresosResumen] = useState({ totalEgresos: 0 });
   const [capitalStockData, setCapitalStockData] = useState<ReporteCapitalStockResponse | null>(null);
 
   const [cargando, setCargando] = useState(true);
@@ -231,6 +232,7 @@ export function useReportes() {
       });
 
       setPagos(resPagos.pagos || []);
+      setEgresosResumen({ totalEgresos: resPagos.total_egresos || 0 });
       setTotalPagosRegistros(resPagos.total || 0);
       setTotalPaginasPagos(resPagos.totalPaginas || 1);
     } catch (err: unknown) {
@@ -310,12 +312,50 @@ export function useReportes() {
       reparaciones: reparacionesExportar,
       pagos: pagosExportar,
       topProductos: topProductosList,
-      capitalStock: capitalStockData
+      capitalStock: capitalStockData,
+      estadisticasTaller,
+      alertasStock: dashboard?.alertas_stock || []
     });
   };
 
-  const handleImprimir = () => {
-    window.print();
+  const handleImprimir = async () => {
+    const ejecutarImpresion = async () => {
+      if (window.electronAPI?.printWithPreview) {
+        await window.electronAPI.printWithPreview({
+          landscape: activeTab === 'inventario' || activeTab === 'reparaciones' || activeTab === 'ventas'
+        });
+      } else {
+        window.print();
+      }
+    };
+
+    const requiereCargarTodo =
+      (activeTab === 'ventas' && totalVentasRegistros > ventas.length) ||
+      (activeTab === 'reparaciones' && totalReparacionesRegistros > reparaciones.length) ||
+      (activeTab === 'balance' && totalPagosRegistros > pagos.length);
+
+    if (!requiereCargarTodo) {
+      await ejecutarImpresion();
+      return;
+    }
+
+    const prevVentas = ventas;
+    const prevReparaciones = reparaciones;
+    const prevPagos = pagos;
+
+    try {
+      const { ventasExportar, reparacionesExportar, pagosExportar } = await obtenerDatosCompletosParaExportar();
+      if (activeTab === 'ventas') setVentas(ventasExportar);
+      if (activeTab === 'reparaciones') setReparaciones(reparacionesExportar);
+      if (activeTab === 'balance') setPagos(pagosExportar);
+
+      await new Promise(resolve => setTimeout(resolve, 150));
+      await ejecutarImpresion();
+    } finally {
+      if (activeTab === 'ventas') setVentas(prevVentas);
+      if (activeTab === 'reparaciones') setReparaciones(prevReparaciones);
+      if (activeTab === 'balance') setPagos(prevPagos);
+    }
   };
 
   return {
@@ -348,6 +388,7 @@ export function useReportes() {
     totalPaginasReparaciones,
     totalReparacionesRegistros,
     pagos,
+    egresosResumen,
     paginaPagos,
     setPaginaPagos,
     totalPaginasPagos,

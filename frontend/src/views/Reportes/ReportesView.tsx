@@ -24,6 +24,7 @@ export function ReportesView() {
     setFechaHasta,
     setSearchTerm,
     setEstadoTallerFiltro,
+    setRangoRapido,
     aplicarRangoRapido,
     dashboard,
     kpis,
@@ -41,6 +42,7 @@ export function ReportesView() {
     totalPaginasReparaciones,
     totalReparacionesRegistros,
     pagos,
+    egresosResumen,
     paginaPagos,
     setPaginaPagos,
     totalPaginasPagos,
@@ -95,14 +97,22 @@ export function ReportesView() {
         searchTerm={searchTerm}
         estadoTallerFiltro={estadoTallerFiltro}
         onCambiarRango={aplicarRangoRapido}
-        onCambiarFechaDesde={setFechaDesde}
-        onCambiarFechaHasta={setFechaHasta}
+        onCambiarFechaDesde={(f) => {
+          setRangoRapido('personalizado');
+          setFechaDesde(f);
+        }}
+        onCambiarFechaHasta={(f) => {
+          setRangoRapido('personalizado');
+          setFechaHasta(f);
+        }}
         onCambiarBusqueda={setSearchTerm}
         onCambiarEstadoTaller={setEstadoTallerFiltro}
       />
 
-      {/* 4. Indicadores KPI Financieros */}
-      <ReportesKPIs kpis={kpis} />
+      {/* 4. Indicadores KPI Financieros (ocultos al imprimir rankings o inventario) */}
+      <div className={activeTab === 'top_productos' || activeTab === 'inventario' ? 'no-imprimir' : ''}>
+        <ReportesKPIs kpis={kpis} />
+      </div>
 
       {/* 5. Contenido Modular por Pestaña */}
       {activeTab === 'general' && (
@@ -118,6 +128,7 @@ export function ReportesView() {
         <TabBalance
           kpis={kpis}
           pagos={pagos}
+          egresosResumen={egresosResumen}
           paginaActual={paginaPagos}
           totalPaginas={totalPaginasPagos}
           totalRegistros={totalPagosRegistros}
@@ -137,7 +148,7 @@ export function ReportesView() {
         <TabVentas
           ventas={ventas}
           cargando={cargando}
-          totalVentasMonto={kpis.total_ventas_monto}
+          totalVentasMonto={ventasResumen.totalFacturado}
           ventasResumen={ventasResumen}
           paginaActual={paginaVentas}
           totalPaginas={totalPaginasVentas}
@@ -151,8 +162,8 @@ export function ReportesView() {
         <TabTaller
           reparaciones={reparaciones}
           cargando={cargando}
-          totalManoObraMonto={kpis.total_mano_obra_monto}
-          totalReparacionesMonto={kpis.total_reparaciones_monto}
+          totalManoObraMonto={reparacionesResumen.totalManoObra}
+          totalReparacionesMonto={reparacionesResumen.totalRecaudado}
           reparacionesResumen={reparacionesResumen}
           paginaActual={paginaReparaciones}
           totalPaginas={totalPaginasReparaciones}
@@ -169,6 +180,16 @@ export function ReportesView() {
           onExportarCSV={handleExportar}
         />
       )}
+
+      {/* PIE DE PÁGINA IMPRESIÓN */}
+      <div className="imprimir-flex" style={{ marginTop: '12px', paddingTop: '10px', fontSize: '0.78rem', borderTop: '1px solid #cbd5e1' }}>
+        <div>
+          <strong style={{ color: '#0f172a' }}>INFORME DE GESTIÓN COMERCIAL INTERNA</strong><br />
+          <span style={{ color: '#64748b' }}>
+            Generado por <strong>DN BIKES</strong> &bull; Esperanza, Santa Fe.
+          </span>
+        </div>
+      </div>
 
     </div>
   );

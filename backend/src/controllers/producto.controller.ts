@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PeticionConUsuario } from '../middlewares/auth.middleware.js';
 import { ProductoService, PRODUCTO_SELECT } from '../services/producto.service.js';
+import { ProductoMasivoService } from '../services/productoMasivo.service.js';
 import { validarId } from '../utils/validation.js';
 import { responderOk, responderCreado } from '../utils/response.js';
 
@@ -9,13 +10,15 @@ export { PRODUCTO_SELECT };
 /** Endpoint GET /api/productos: Consulta paginada del inventario con filtros y métricas globales. */
 export const obtenerProductos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina, talle, rodado, marca } = req.query as {
+    const { tipo_prod, tipo, busqueda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina, talle, rodado, marca, id_proveedor, moneda } = req.query as {
       tipo_prod?: string;
       tipo?: string;
       busqueda?: string;
       talle?: string;
       rodado?: string;
       marca?: string;
+      id_proveedor?: string;
+      moneda?: string;
       estado_stock?: string;
       disponibilidad?: string;
       estado?: string;
@@ -30,6 +33,8 @@ export const obtenerProductos = async (req: Request, res: Response, next: NextFu
       talle,
       rodado,
       marca,
+      id_proveedor,
+      moneda,
       estado_stock,
       disponibilidad,
       estado,
@@ -74,7 +79,8 @@ export const actualizarProducto = async (req: PeticionConUsuario, res: Response,
     const id = validarId(req.params.id, 'No se encontró ese producto.');
     const productoActualizado = await ProductoService.actualizarProducto(id, req.body, {
       idUsuarioOperador: req.usuarioToken?.id,
-      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario,
+      rolUsuarioOperador: req.usuarioToken?.rol
     });
 
     responderOk(res, {
@@ -171,6 +177,42 @@ export const obtenerKardex = async (req: Request, res: Response, next: NextFunct
   try {
     const id = validarId(req.params.id, 'No se encontró ese producto.');
     const resultado = await ProductoService.obtenerKardex(id);
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Endpoint POST /api/productos/carga-masiva/preview: Analiza un lote sin persistirlo en la BD. */
+export const previsualizarCargaMasiva = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const resultado = await ProductoMasivoService.previsualizarCargaMasiva(req.body);
+    responderOk(res, resultado);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Endpoint POST /api/productos/carga-masiva: Ejecuta la carga masiva y opcionalmente declara pago al proveedor. */
+export const ejecutarCargaMasiva = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const resultado = await ProductoMasivoService.ejecutarCargaMasiva(req.body, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
+    responderCreado(res, resultado.message, resultado);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/** Endpoint POST /api/productos/aumento-masivo: Aplica (o previsualiza) un ajuste masivo por proveedor. */
+export const aumentoMasivoPorProveedor = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const resultado = await ProductoMasivoService.aumentoMasivoPorProveedor(req.body, {
+      idUsuarioOperador: req.usuarioToken?.id,
+      nombreUsuarioOperador: req.usuarioToken?.nombre_usuario
+    });
     responderOk(res, resultado);
   } catch (error) {
     next(error);

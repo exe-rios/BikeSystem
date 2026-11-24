@@ -1,6 +1,14 @@
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import type { Venta, Reparacion, PagoProveedor, DashboardTopProducto, ReporteCapitalStockResponse } from '../../../types';
+import autoTable, { type UserOptions } from 'jspdf-autotable';
+import type {
+  Venta,
+  Reparacion,
+  PagoProveedor,
+  DashboardTopProducto,
+  ReporteCapitalStockResponse,
+  ReporteEstadisticasTaller,
+  DashboardAlertaStock
+} from '../../../types';
 import type { TabTipo } from '../types';
 import { formatearFecha, formatearFechaHora, formatearMoneda } from '../../../utils/formatters';
 
@@ -27,6 +35,56 @@ export interface ExportarPDFReporteParams {
   pagos: PagoProveedor[];
   topProductos: DashboardTopProducto[];
   capitalStock?: ReporteCapitalStockResponse | null;
+  estadisticasTaller?: ReporteEstadisticasTaller;
+  alertasStock?: DashboardAlertaStock[];
+}
+
+function getLastTableY(doc: jsPDF, fallbackY: number): number {
+  const docWithTable = doc as unknown as { lastAutoTable?: { finalY: number } };
+  return docWithTable.lastAutoTable ? docWithTable.lastAutoTable.finalY : fallbackY;
+}
+
+function dibujarTituloSeccion(doc: jsPDF, tituloSeccion: string, y: number): number {
+  let targetY = y;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  if (targetY + 24 > pageHeight - 16) {
+    doc.addPage();
+    targetY = 18;
+  }
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  doc.text(tituloSeccion, 14, targetY);
+  return targetY + 3;
+}
+
+function crearOpcionesTablaLimpia(doc: jsPDF, headFontSize = 8.5, bodyFontSize = 8): Partial<UserOptions> {
+  return {
+    theme: 'plain',
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: [255, 255, 255],
+      fontSize: headFontSize,
+      fontStyle: 'bold'
+    },
+    bodyStyles: {
+      fontSize: bodyFontSize,
+      textColor: [51, 65, 85]
+    },
+    styles: {
+      lineWidth: 0
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252]
+    },
+    didDrawCell: (data) => {
+      if (data.section === 'body') {
+        doc.setDrawColor(226, 232, 240);
+        doc.setLineWidth(0.2);
+        doc.line(data.cell.x, data.cell.y + data.cell.height, data.cell.x + data.cell.width, data.cell.y + data.cell.height);
+      }
+    }
+  };
 }
 
 /** Obtiene el título formal del informe según la pestaña activa. */
@@ -52,7 +110,19 @@ function obtenerTituloReporte(tab: TabTipo): string {
  * Cumple con los requerimientos RF25 y CU22 del pliego de especificaciones.
  */
 export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
-  const { activeTab, fechaDesde, fechaHasta, kpis, ventas, reparaciones, topProductos, capitalStock } = params;
+  const {
+    activeTab,
+    fechaDesde,
+    fechaHasta,
+    kpis,
+    ventas,
+    reparaciones,
+    pagos,
+    topProductos,
+    capitalStock,
+    estadisticasTaller,
+    alertasStock = []
+  } = params;
 
   const esHorizontal = activeTab === 'inventario' || activeTab === 'reparaciones' || activeTab === 'ventas';
   const doc = new jsPDF({
@@ -75,12 +145,12 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(15, 23, 42);
-  doc.text('BIKESYSTEM', 14, 20);
+  doc.text('DN BIKES', 14, 20);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(100, 116, 139);
-  doc.text('DN BIKES - Gestion Integral de Bicicleteria y Taller Especializado', 14, 25);
+  doc.text('Venta de Bicicletas, Repuestos y Taller Especializado', 14, 25);
   doc.text('Esperanza, Santa Fe, Argentina | Tel: 3496-412345', 14, 29);
 
   // Titulo del Reporte
@@ -131,24 +201,11 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
     ];
 
     autoTable(doc, {
+      ...crearOpcionesTablaLimpia(doc, 9, 8.5),
       startY,
       margin: { left: 14, right: 14 },
       head: [['Metrica / Concepto Financiero', 'Importe / Cantidad', 'Observaciones']],
       body: kpisData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [30, 41, 59],
-        textColor: [255, 255, 255],
-        fontSize: 9,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 8.5,
-        textColor: [51, 65, 85]
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
-      },
       columnStyles: {
         0: { cellWidth: 95 },
         1: { cellWidth: 42, halign: 'right', fontStyle: 'bold' },
@@ -156,47 +213,114 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
       }
     });
 
+    if (estadisticasTaller) {
+      const tallerY = dibujarTituloSeccion(
+        doc,
+        'Rendimiento del Taller por Estado',
+        getLastTableY(doc, startY + 60) + 9
+      );
+      autoTable(doc, {
+        ...crearOpcionesTablaLimpia(doc, 8.5, 8),
+        startY: tallerY,
+        margin: { left: 14, right: 14 },
+        head: [['Estado de Orden en Taller', 'Cantidad de Ordenes', 'Detalle / Monto']],
+        body: [
+          ['Entregadas (Cobrado Efectivo)', String(estadisticasTaller.entregadas), formatearMoneda(kpis.total_reparaciones_monto)],
+          ['Listas para Retiro', String(estadisticasTaller.listas), 'Pendiente de retiro'],
+          ['En Reparacion', String(estadisticasTaller.en_reparacion), 'En trabajo tecnico'],
+          ['Recibidas', String(estadisticasTaller.recibidas), 'En espera de diagnostico']
+        ],
+        columnStyles: {
+          0: { cellWidth: 75, fontStyle: 'bold' },
+          1: { cellWidth: 38, halign: 'center', fontStyle: 'bold' },
+          2: { cellWidth: 'auto', halign: 'right' }
+        }
+      });
+    }
+
+    if (topProductos.length > 0) {
+      const topY = dibujarTituloSeccion(
+        doc,
+        'Top 5 Productos Mas Vendidos',
+        getLastTableY(doc, startY + 110) + 9
+      );
+      autoTable(doc, {
+        ...crearOpcionesTablaLimpia(doc, 8.5, 8),
+        startY: topY,
+        margin: { left: 14, right: 14 },
+        head: [['#', 'Descripcion', 'Marca', 'Unidades', 'Total Recaudado']],
+        body: topProductos.slice(0, 5).map((p, idx) => [
+          `#${idx + 1}`,
+          p.nombre,
+          p.marca || 'Generico',
+          String(p.total_vendido),
+          formatearMoneda(Number(p.total_recaudado || 0))
+        ]),
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 'auto', fontStyle: 'bold' },
+          2: { cellWidth: 36 },
+          3: { cellWidth: 24, halign: 'center' },
+          4: { cellWidth: 34, halign: 'right', fontStyle: 'bold' }
+        }
+      });
+    }
+
+    if (alertasStock.length > 0) {
+      const alertasY = dibujarTituloSeccion(
+        doc,
+        'Alertas de Stock Critico',
+        getLastTableY(doc, startY + 160) + 9
+      );
+      autoTable(doc, {
+        ...crearOpcionesTablaLimpia(doc, 8.5, 8),
+        startY: alertasY,
+        margin: { left: 14, right: 14 },
+        head: [['ID', 'Descripcion', 'Marca', 'Stock Actual', 'Stock Minimo']],
+        body: alertasStock.map(a => [
+          `#${a.id_producto}`,
+          a.nombre,
+          a.marca || 'Sin marca',
+          String(a.cantidad),
+          String(a.stock_minimo)
+        ]),
+        columnStyles: {
+          0: { cellWidth: 18, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 'auto', fontStyle: 'bold' },
+          2: { cellWidth: 36 },
+          3: { cellWidth: 26, halign: 'center', fontStyle: 'bold' },
+          4: { cellWidth: 26, halign: 'center' }
+        }
+      });
+    }
+
   } else if (activeTab === 'ventas') {
     const ventasFiltradas = ventas.filter(v => v.estado !== 'ANULADA');
+    const totalVentasFiltrado = ventasFiltradas.reduce((acc, v) => acc + Number(v.costo_total || 0), 0);
     const filasVentas = ventas.map(v => {
       const comp = `FAC-${String(v.id_venta).padStart(6, '0')}`;
       const fStr = formatearFecha(v.fecha, '');
       const cliente = v.cliente_nombre ? `${v.cliente_apellido} ${v.cliente_nombre}` : `Cliente #${v.id_cliente}`;
-      const vendedor = v.vendedor || 'Sistema';
       const estado = v.estado || 'COMPLETADA';
       const total = formatearMoneda(v.costo_total || 0);
-      return [comp, fStr, cliente, vendedor, estado, total];
+      return [comp, fStr, cliente, estado, total];
     });
 
     autoTable(doc, {
+      ...crearOpcionesTablaLimpia(doc, 8.5, 8),
       startY,
       margin: { left: 14, right: 14 },
-      head: [['Comprobante', 'Fecha', 'Cliente', 'Vendedor', 'Estado', 'Total']],
-      body: filasVentas.length > 0 ? filasVentas : [['Sin registros', '-', '-', '-', '-', '-']],
-      theme: 'grid',
-      headStyles: {
-        fillColor: [37, 99, 235],
-        textColor: [255, 255, 255],
-        fontSize: 8.5,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 8,
-        textColor: [51, 65, 85]
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
-      },
+      head: [['Comprobante', 'Fecha', 'Cliente', 'Estado', 'Total']],
+      body: filasVentas.length > 0 ? filasVentas : [['Sin registros', '-', '-', '-', '-']],
       columnStyles: {
-        0: { cellWidth: 32, fontStyle: 'bold' },
-        1: { cellWidth: 26 },
+        0: { cellWidth: 34, fontStyle: 'bold' },
+        1: { cellWidth: 28 },
         2: { cellWidth: 'auto' },
-        3: { cellWidth: 40 },
-        4: { cellWidth: 32 },
-        5: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }
+        3: { cellWidth: 34, halign: 'center' },
+        4: { cellWidth: 38, halign: 'right', fontStyle: 'bold' }
       },
       foot: [
-        ['TOTAL FACTURADO (COBRADO)', '', '', '', `${ventasFiltradas.length} Ventas`, formatearMoneda(kpis.total_ventas_monto)]
+        ['TOTAL FACTURADO (COBRADO)', '', '', `${ventasFiltradas.length} Ventas`, formatearMoneda(totalVentasFiltrado)]
       ],
       footStyles: {
         fillColor: [241, 245, 249],
@@ -208,6 +332,8 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
 
   } else if (activeTab === 'reparaciones') {
     const entregadas = reparaciones.filter(r => r.estado === 'Entregada');
+    const totalManoObraFiltrado = entregadas.reduce((acc, r) => acc + Number(r.costo_mano_obra || 0), 0);
+    const totalReparacionesFiltrado = entregadas.reduce((acc, r) => acc + Number(r.costo_total || r.costo_mano_obra || 0), 0);
     const filasRep = reparaciones.map(r => {
       const idRep = `REP-${String(r.id_reparacion).padStart(6, '0')}`;
       const fIng = formatearFecha(r.fecha_ingreso, '');
@@ -221,24 +347,11 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
     });
 
     autoTable(doc, {
+      ...crearOpcionesTablaLimpia(doc, 8.5, 8),
       startY,
       margin: { left: 14, right: 14 },
       head: [['Orden', 'F. Ingreso', 'F. Egreso', 'Cliente', 'Bicicleta', 'Estado', 'Mano Obra', 'Total']],
       body: filasRep.length > 0 ? filasRep : [['Sin registros', '-', '-', '-', '-', '-', '-', '-']],
-      theme: 'grid',
-      headStyles: {
-        fillColor: [14, 116, 144],
-        textColor: [255, 255, 255],
-        fontSize: 8.5,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 8,
-        textColor: [51, 65, 85]
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
-      },
       columnStyles: {
         0: { cellWidth: 26, fontStyle: 'bold' },
         1: { cellWidth: 24 },
@@ -250,7 +363,7 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
         7: { cellWidth: 32, halign: 'right', fontStyle: 'bold' }
       },
       foot: [
-        ['TOTAL COBRADO (ENTREGADAS)', '', '', '', '', `${entregadas.length} Ordenes`, formatearMoneda(kpis.total_mano_obra_monto), formatearMoneda(kpis.total_reparaciones_monto)]
+        ['TOTAL COBRADO (ENTREGADAS)', '', '', '', '', `${entregadas.length} Ordenes`, formatearMoneda(totalManoObraFiltrado), formatearMoneda(totalReparacionesFiltrado)]
       ],
       footStyles: {
         fillColor: [241, 245, 249],
@@ -272,28 +385,55 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
     ];
 
     autoTable(doc, {
+      ...crearOpcionesTablaLimpia(doc, 9, 8.5),
       startY,
       margin: { left: 14, right: 14 },
       head: [['Concepto Financiero', 'Tipo de Movimiento', 'Importe']],
       body: filasBalance,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [15, 23, 42],
-        textColor: [255, 255, 255],
-        fontSize: 9,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 8.5,
-        textColor: [51, 65, 85]
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
-      },
       columnStyles: {
         0: { cellWidth: 95 },
         1: { cellWidth: 50 },
         2: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
+      }
+    });
+
+    const pagosY = dibujarTituloSeccion(
+      doc,
+      `Detalle de Egresos a Proveedores (${pagos.length} comprobantes)`,
+      getLastTableY(doc, startY + 60) + 10
+    );
+
+    const totalEgresosFiltrado = pagos.reduce((acc, p) => acc + Number(p.monto_total || 0), 0);
+
+    const filasPagos = pagos.map(p => [
+      `PAG-${String(p.id_pago || 0).padStart(6, '0')}`,
+      formatearFecha(p.fecha, 'N/A'),
+      p.proveedor_nombre || `Proveedor #${p.id_proveedor}`,
+      p.metodo_pago_nombre || 'Efectivo',
+      formatearMoneda(p.monto_total)
+    ]);
+
+    autoTable(doc, {
+      ...crearOpcionesTablaLimpia(doc, 8.5, 8),
+      startY: pagosY,
+      margin: { left: 14, right: 14 },
+      head: [['N° Pago', 'Fecha', 'Proveedor', 'Metodo de Pago', 'Monto Abonado']],
+      body: filasPagos.length > 0 ? filasPagos : [['Sin egresos registrados en el periodo', '-', '-', '-', formatearMoneda(0)]],
+      columnStyles: {
+        0: { cellWidth: 26, fontStyle: 'bold' },
+        1: { cellWidth: 24 },
+        2: { cellWidth: 'auto', fontStyle: 'bold' },
+        3: { cellWidth: 36 },
+        4: { cellWidth: 34, halign: 'right', fontStyle: 'bold' }
+      },
+      foot: [
+        ['TOTAL EGRESOS A PROVEEDORES', '', '', `${pagos.length} Comprobantes`, formatearMoneda(totalEgresosFiltrado)]
+      ],
+      footStyles: {
+        fillColor: [241, 245, 249],
+        textColor: [15, 23, 42],
+        fontStyle: 'bold',
+        fontSize: 8.5
       }
     });
 
@@ -303,38 +443,23 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
         `#${idx + 1}`,
         p.nombre,
         p.marca || 'Generico',
-        p.tipo_prod,
         String(p.total_vendido),
         formatearMoneda(Number(p.total_recaudado || 0))
       ];
     });
 
     autoTable(doc, {
+      ...crearOpcionesTablaLimpia(doc, 8.5, 8),
       startY,
       margin: { left: 14, right: 14 },
-      head: [['Puesto', 'Producto / Articulo', 'Marca', 'Categoria', 'Unidades', 'Recaudacion Total']],
-      body: filasTop.length > 0 ? filasTop : [['Sin registros', '-', '-', '-', '-', '-']],
-      theme: 'grid',
-      headStyles: {
-        fillColor: [217, 119, 6], // Amber 600
-        textColor: [255, 255, 255],
-        fontSize: 8.5,
-        fontStyle: 'bold'
-      },
-      bodyStyles: {
-        fontSize: 8,
-        textColor: [51, 65, 85]
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252]
-      },
+      head: [['Puesto', 'Descripcion', 'Marca', 'Unidades', 'Recaudacion Total']],
+      body: filasTop.length > 0 ? filasTop : [['Sin registros', '-', '-', '-', '-']],
       columnStyles: {
         0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
         1: { cellWidth: 'auto', fontStyle: 'bold' },
-        2: { cellWidth: 35 },
-        3: { cellWidth: 30 },
-        4: { cellWidth: 25, halign: 'center' },
-        5: { cellWidth: 35, halign: 'right', fontStyle: 'bold' }
+        2: { cellWidth: 42 },
+        3: { cellWidth: 26, halign: 'center' },
+        4: { cellWidth: 38, halign: 'right', fontStyle: 'bold' }
       }
     });
 
@@ -350,28 +475,84 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
       ];
 
       autoTable(doc, {
+        ...crearOpcionesTablaLimpia(doc, 8.5, 8),
         startY,
         margin: { left: 14, right: 14 },
         head: [['Resumen Ejecutivo de Valuacion de Rodados', 'Valor Consolidado']],
         body: resumenData,
-        theme: 'plain',
-        headStyles: {
-          fillColor: [15, 23, 42],
-          textColor: [255, 255, 255],
-          fontSize: 8.5,
-          fontStyle: 'bold'
-        },
-        bodyStyles: {
-          fontSize: 8,
-          textColor: [51, 65, 85]
-        },
         columnStyles: {
           0: { cellWidth: 160 },
           1: { cellWidth: 'auto', halign: 'right', fontStyle: 'bold' }
         }
       });
 
-      const nextY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+      if (capitalStock.gamas && capitalStock.gamas.length > 0) {
+        const gamasY = dibujarTituloSeccion(
+          doc,
+          'Estratificacion por Gamas de Precio',
+          getLastTableY(doc, startY + 40) + 8
+        );
+        autoTable(doc, {
+          ...crearOpcionesTablaLimpia(doc, 8, 8),
+          startY: gamasY,
+          margin: { left: 14, right: 14 },
+          head: [['Gama', 'Rango de Precio', 'Modelos', 'Unidades', '% Stock Fisico', 'Precio Promedio', 'Capital Inmovilizado', '% Capital']],
+          body: capitalStock.gamas.map(g => [
+            g.nombre,
+            g.rango_texto,
+            String(g.modelos),
+            String(g.unidades),
+            `${g.porcentaje_unidades}%`,
+            formatearMoneda(g.precio_promedio),
+            formatearMoneda(g.capital_inmovilizado),
+            `${g.porcentaje_capital}%`
+          ]),
+          columnStyles: {
+            0: { cellWidth: 40, fontStyle: 'bold' },
+            1: { cellWidth: 46 },
+            2: { cellWidth: 20, halign: 'center' },
+            3: { cellWidth: 22, halign: 'center', fontStyle: 'bold' },
+            4: { cellWidth: 26, halign: 'center' },
+            5: { cellWidth: 34, halign: 'right' },
+            6: { cellWidth: 38, halign: 'right', fontStyle: 'bold' },
+            7: { cellWidth: 'auto', halign: 'center', fontStyle: 'bold' }
+          }
+        });
+      }
+
+      if (capitalStock.desglose_por_tipo && capitalStock.desglose_por_tipo.length > 0) {
+        const rubrosY = dibujarTituloSeccion(
+          doc,
+          'Desglose de Capital por Rubro',
+          getLastTableY(doc, startY + 80) + 8
+        );
+        autoTable(doc, {
+          ...crearOpcionesTablaLimpia(doc, 8, 8),
+          startY: rubrosY,
+          margin: { left: 14, right: 14 },
+          head: [['Rubro', 'Referencias Activas', 'Unidades Totales', 'Capital Inmovilizado', '% del Capital Total']],
+          body: capitalStock.desglose_por_tipo.map(t => [
+            t.tipo_prod.toUpperCase(),
+            String(t.total_articulos),
+            String(t.total_unidades),
+            formatearMoneda(t.capital_inmovilizado),
+            `${t.porcentaje_capital}%`
+          ]),
+          columnStyles: {
+            0: { cellWidth: 'auto', fontStyle: 'bold' },
+            1: { cellWidth: 42, halign: 'center' },
+            2: { cellWidth: 42, halign: 'center' },
+            3: { cellWidth: 48, halign: 'right', fontStyle: 'bold' },
+            4: { cellWidth: 42, halign: 'center', fontStyle: 'bold' }
+          }
+        });
+      }
+
+      const nextY = dibujarTituloSeccion(
+        doc,
+        `Detalle de Bicicletas en Stock (${capitalStock.bicicletas.length} modelos)`,
+        getLastTableY(doc, startY + 120) + 8
+      );
 
       const filasBicis = capitalStock.bicicletas.map(b => [
         `BIC-${String(b.id_producto).padStart(5, '0')}`,
@@ -387,24 +568,11 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
       ]);
 
       autoTable(doc, {
+        ...crearOpcionesTablaLimpia(doc, 8, 7.5),
         startY: nextY,
         margin: { left: 14, right: 14 },
         head: [['Codigo', 'Bicicleta', 'Marca', 'Color', 'Rod.', 'Gama', 'Stock', 'P. Unitario', 'Capital Total', 'Rotacion']],
         body: filasBicis.length > 0 ? filasBicis : [['Sin registros', '-', '-', '-', '-', '-', '-', '-', '-', '-']],
-        theme: 'grid',
-        headStyles: {
-          fillColor: [79, 70, 229], // Indigo 600
-          textColor: [255, 255, 255],
-          fontSize: 8,
-          fontStyle: 'bold'
-        },
-        bodyStyles: {
-          fontSize: 7.5,
-          textColor: [51, 65, 85]
-        },
-        alternateRowStyles: {
-          fillColor: [248, 250, 252]
-        },
         columnStyles: {
           0: { cellWidth: 24, fontStyle: 'bold' },
           1: { cellWidth: 'auto' },
@@ -435,7 +603,7 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
     doc.line(14, pageHeight - 12, pageWidth - 14, pageHeight - 12);
 
     doc.text(
-      'Documento oficial generado por BikeSystem - Sistema de Gestion Comercial y Taller',
+      'Informe de gestion comercial interna • Generado por DN BIKES',
       14,
       pageHeight - 8
     );
@@ -448,6 +616,6 @@ export function exportarPDFReporte(params: ExportarPDFReporteParams): void {
   }
 
   // 6. Descarga Directa
-  const nombreArchivo = `Reporte_${activeTab.toUpperCase()}_BikeSystem_${fechaReporteStr}.pdf`;
+  const nombreArchivo = `Reporte_${activeTab.toUpperCase()}_DNBikes_${fechaReporteStr}.pdf`;
   doc.save(nombreArchivo);
 }

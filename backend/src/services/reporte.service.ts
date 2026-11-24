@@ -3,22 +3,61 @@ import { BadRequestError } from '../utils/errors.js';
 import { DATE_REGEX } from '../utils/validation.js';
 import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
+const DATE_CAPTURE_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Valida que una fecha opcional tenga formato YYYY-MM-DD y sea válida en calendario. */
+const validarFechaIsoReporte = (valor: string | undefined, nombreCampo: string): string | undefined => {
+  if (!valor || typeof valor !== 'string' || !valor.trim()) {
+    return undefined;
+  }
+  const limpia = valor.trim();
+  const match = limpia.match(DATE_CAPTURE_REGEX);
+  if (!match) {
+    throw new BadRequestError(`El formato de fecha "${nombreCampo}" no es válido. Usá AAAA-MM-DD (ej: 2026-05-01).`);
+  }
+  const anio = Number(match[1]);
+  const mes = Number(match[2]);
+  const dia = Number(match[3]);
+  const fechaUtc = new Date(Date.UTC(anio, mes - 1, dia));
+  if (
+    fechaUtc.getUTCFullYear() !== anio ||
+    fechaUtc.getUTCMonth() !== mes - 1 ||
+    fechaUtc.getUTCDate() !== dia
+  ) {
+    throw new BadRequestError(`La fecha "${nombreCampo}" (${limpia}) no existe en el calendario.`);
+  }
+  return limpia;
+};
+
+/** Valida ambas cotas de un rango de fechas y verifica que desde <= hasta. */
+const validarRangoFechasReporte = (
+  fechaDesde?: string,
+  fechaHasta?: string
+): { desde?: string | undefined; hasta?: string | undefined } => {
+  const desde = validarFechaIsoReporte(fechaDesde, 'desde');
+  const hasta = validarFechaIsoReporte(fechaHasta, 'hasta');
+  if (desde && hasta && desde > hasta) {
+    throw new BadRequestError('La fecha "desde" no puede ser posterior a la fecha "hasta".');
+  }
+  return { desde, hasta };
+};
+
 /** Genera cláusula SQL parametrizada para rango de fechas (desde / hasta). */
 const construirFiltroFecha = (columna: string, desde?: string | undefined, hasta?: string | undefined, paramOffset: number = 1): { sql: string; params: any[] } => {
   const condiciones: string[] = [];
   const params: any[] = [];
   let idx = paramOffset;
 
-  if (desde && typeof desde === 'string' && desde.trim()) {
-    const desdeLimpio = desde.trim();
+  const { desde: desdeLimpio, hasta: hastaLimpio } = validarRangoFechasReporte(desde, hasta);
+
+  if (desdeLimpio) {
     if (!DATE_REGEX.test(desdeLimpio)) {
       throw new BadRequestError('El formato de fecha "desde" no es válido. Usá AAAA-MM-DD (ej: 2026-05-01).');
     }
     condiciones.push(`${columna} >= $${idx++}`);
     params.push(desdeLimpio);
   }
-  if (hasta && typeof hasta === 'string' && hasta.trim()) {
-    const hastaLimpio = hasta.trim();
+  if (hastaLimpio) {
     if (!DATE_REGEX.test(hastaLimpio)) {
       throw new BadRequestError('El formato de fecha "hasta" no es válido. Usá AAAA-MM-DD (ej: 2026-05-31).');
     }
@@ -35,12 +74,18 @@ const construirFiltroFecha = (columna: string, desde?: string | undefined, hasta
 /** Servicio de analítica, balances financieros consolidados y reportes del sistema. */
 export class ReporteService {
   /** Obtiene métricas en tiempo real para el panel de inicio (finanzas del mes, alertas y ranking). */
-  static async obtenerDashboard() {
+  static async obtenerDashboard(opciones?: { rolUsuario?: string | undefined }) {
+    const rol = opciones?.rolUsuario?.toUpperCase();
+    const esAdmin = !rol || rol === 'ADMIN' || rol === 'SUPERADMIN';
+
+    const inicioMesSql = `date_trunc('month', (CURRENT_TIMESTAMP AT TIME ZONE 'America/Argentina/Buenos_Aires')::date)`;
+    const finMesSql = `(${inicioMesSql} + INTERVAL '1 month')`;
+
     const queryGanancias = `
       SELECT 
-        (SELECT COALESCE(SUM(costo_total), 0) FROM Venta WHERE (estado IS NULL OR estado != 'ANULADA') AND EXTRACT(MONTH FROM fecha) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM CURRENT_DATE)) AS ventas_mes,
-        (SELECT COALESCE(SUM(costo_total), 0) FROM Reparacion WHERE estado = 'Entregada' AND EXTRACT(MONTH FROM COALESCE(fecha_egreso, fecha_ingreso)) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM COALESCE(fecha_egreso, fecha_ingreso)) = EXTRACT(YEAR FROM CURRENT_DATE)) AS taller_mes,
-        (SELECT COALESCE(SUM(monto_total), 0) FROM Pago_Proveedor WHERE EXTRACT(MONTH FROM fecha) = EXTRACT(MONTH FROM CURRENT_DATE) AND EXTRACT(YEAR FROM fecha) = EXTRACT(YEAR FROM CURRENT_DATE)) AS egresos_proveedores_mes;
+        (SELECT COALESCE(SUM(costo_total), 0) FROM Venta WHERE (estado IS NULL OR estado != 'ANULADA') AND fecha >= ${inicioMesSql} AND fecha < ${finMesSql}) AS ventas_mes,
+        (SELECT COALESCE(SUM(costo_total), 0) FROM Reparacion WHERE estado = 'Entregada' AND COALESCE(fecha_egreso, fecha_ingreso) >= ${inicioMesSql} AND COALESCE(fecha_egreso, fecha_ingreso) < ${finMesSql}) AS taller_mes,
+        (SELECT COALESCE(SUM(monto_total), 0) FROM Pago_Proveedor WHERE fecha >= ${inicioMesSql} AND fecha < ${finMesSql}) AS egresos_proveedores_mes;
     `;
 
     const queryTaller = `
@@ -61,7 +106,8 @@ export class ReporteService {
       LIMIT 5;
     `;
 
-    const queryTopProductos = `
+    const queryTopProductos = esAdmin
+      ? `
       SELECT 
         p.id_producto,
         p.nombre,
@@ -77,36 +123,68 @@ export class ReporteService {
       GROUP BY p.id_producto, p.nombre, p.tipo_prod, pb.marca, p.marca
       ORDER BY total_vendido DESC
       LIMIT 10;
+    `
+      : `
+      SELECT 
+        p.id_producto,
+        p.nombre,
+        p.tipo_prod,
+        COALESCE(pb.marca, p.marca) AS marca,
+        COALESCE(SUM(dv.cantidad), 0)::INT AS total_vendido
+      FROM Detalle_Venta dv
+      INNER JOIN Venta v ON dv.id_venta = v.id_venta
+      INNER JOIN Productos p ON dv.id_producto = p.id_producto
+      LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
+      WHERE (v.estado IS NULL OR v.estado != 'ANULADA')
+      GROUP BY p.id_producto, p.nombre, p.tipo_prod, pb.marca, p.marca
+      ORDER BY total_vendido DESC
+      LIMIT 10;
     `;
 
-    // Ejecución paralela de las 4 consultas independientes del dashboard
+    // Ejecución paralela de las consultas independientes del dashboard
     const [resultGanancias, resultTaller, resultStock, resultTopProd] = await Promise.all([
-      pool.query(queryGanancias),
+      esAdmin ? pool.query(queryGanancias) : Promise.resolve(null),
       pool.query(queryTaller),
       pool.query(queryStock),
       pool.query(queryTopProductos)
     ]);
 
-    const ventasMes = Math.round(Number(resultGanancias.rows[0].ventas_mes) * 100) / 100;
-    const tallerMes = Math.round(Number(resultGanancias.rows[0].taller_mes) * 100) / 100;
-    const egresosMes = Math.round(Number(resultGanancias.rows[0].egresos_proveedores_mes) * 100) / 100;
-    const recaudacionTotalMes = Math.round((ventasMes + tallerMes) * 100) / 100;
-    const balanceNetoMes = Math.round((recaudacionTotalMes - egresosMes) * 100) / 100;
+    let finanzas: {
+      ventas_mostrador: number;
+      ingresos_taller: number;
+      total_mes: number;
+      egresos_proveedores: number;
+      balance_neto_mes: number;
+    } | null = null;
 
-    const totalTallerActivo = resultTaller.rows.reduce((acc, row) => acc + (parseInt(row.cantidad, 10) || 0), 0);
+    if (esAdmin && resultGanancias) {
+      const ventasMes = Math.round(Number(resultGanancias.rows[0].ventas_mes) * 100) / 100;
+      const tallerMes = Math.round(Number(resultGanancias.rows[0].taller_mes) * 100) / 100;
+      const egresosMes = Math.round(Number(resultGanancias.rows[0].egresos_proveedores_mes) * 100) / 100;
+      const recaudacionTotalMes = Math.round((ventasMes + tallerMes) * 100) / 100;
+      const balanceNetoMes = Math.round((recaudacionTotalMes - egresosMes) * 100) / 100;
 
-    return {
-      finanzas: {
+      finanzas = {
         ventas_mostrador: ventasMes,
         ingresos_taller: tallerMes,
         total_mes: recaudacionTotalMes,
         egresos_proveedores: egresosMes,
         balance_neto_mes: balanceNetoMes
-      },
+      };
+    }
+
+    const topProductos = esAdmin
+      ? resultTopProd.rows
+      : resultTopProd.rows.map(({ total_recaudado: _omit, ...rest }) => rest);
+
+    const totalTallerActivo = resultTaller.rows.reduce((acc, row) => acc + (parseInt(row.cantidad, 10) || 0), 0);
+
+    return {
+      finanzas,
       taller_activo: resultTaller.rows,
       total_taller_activo: totalTallerActivo,
       alertas_stock: resultStock.rows,
-      top_productos: resultTopProd.rows
+      top_productos: topProductos
     };
   }
 
@@ -244,17 +322,18 @@ export class ReporteService {
     pagina?: number | string | undefined;
   }) {
     const { fechaDesde, fechaHasta, busqueda, limite, pagina } = filtros;
+    const { desde: desdeValido, hasta: hastaValido } = validarRangoFechasReporte(fechaDesde, fechaHasta);
     const condiciones: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
-    if (fechaDesde && typeof fechaDesde === 'string' && fechaDesde.trim()) {
+    if (desdeValido) {
       condiciones.push(`v.fecha >= $${idx++}`);
-      params.push(fechaDesde.trim());
+      params.push(desdeValido);
     }
-    if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
+    if (hastaValido) {
       condiciones.push(`v.fecha < ($${idx++}::date + INTERVAL '1 day')`);
-      params.push(fechaHasta.trim());
+      params.push(hastaValido);
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
       const term = `%${busqueda.trim()}%`;
@@ -293,9 +372,9 @@ export class ReporteService {
         ((LOWER(TRIM(c.nombre)) = 'consumidor' AND LOWER(TRIM(c.apellido)) = 'final') OR c.direccion ILIKE '%mostrador%') AS es_consumidor_final,
         u.nombre_usuario AS vendedor,
         COUNT(*) OVER()::INT AS total_registros,
-        COUNT(*) FILTER (WHERE v.estado != 'ANULADA') OVER()::INT AS total_cobradas_resumen,
+        COUNT(*) FILTER (WHERE v.estado IS NULL OR v.estado != 'ANULADA') OVER()::INT AS total_cobradas_resumen,
         COUNT(*) FILTER (WHERE v.estado = 'ANULADA') OVER()::INT AS total_anuladas_resumen,
-        COALESCE(SUM(v.costo_total) FILTER (WHERE v.estado != 'ANULADA') OVER(), 0)::NUMERIC AS total_facturado_resumen
+        COALESCE(SUM(v.costo_total) FILTER (WHERE v.estado IS NULL OR v.estado != 'ANULADA') OVER(), 0)::NUMERIC AS total_facturado_resumen
       FROM Venta v
       INNER JOIN Cliente c ON v.id_cliente = c.id_cliente
       INNER JOIN Usuario u ON v.id_usuario = u.id_usuario
@@ -343,17 +422,18 @@ export class ReporteService {
     pagina?: number | string | undefined;
   }) {
     const { fechaDesde, fechaHasta, estado, busqueda, limite, pagina } = filtros;
+    const { desde: desdeValido, hasta: hastaValido } = validarRangoFechasReporte(fechaDesde, fechaHasta);
     const condiciones: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
-    if (fechaDesde && typeof fechaDesde === 'string' && fechaDesde.trim()) {
+    if (desdeValido) {
       condiciones.push(`COALESCE(r.fecha_egreso, r.fecha_ingreso) >= $${idx++}`);
-      params.push(fechaDesde.trim());
+      params.push(desdeValido);
     }
-    if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
+    if (hastaValido) {
       condiciones.push(`COALESCE(r.fecha_egreso, r.fecha_ingreso) < ($${idx++}::date + INTERVAL '1 day')`);
-      params.push(fechaHasta.trim());
+      params.push(hastaValido);
     }
     if (estado && typeof estado === 'string' && estado.trim() && estado.trim().toUpperCase() !== 'TODOS') {
       condiciones.push(`r.estado = $${idx++}`);
@@ -450,17 +530,18 @@ export class ReporteService {
     pagina?: number | string | undefined;
   }) {
     const { fechaDesde, fechaHasta, busqueda, limite, pagina } = filtros;
+    const { desde: desdeValido, hasta: hastaValido } = validarRangoFechasReporte(fechaDesde, fechaHasta);
     const condiciones: string[] = [];
     const params: any[] = [];
     let idx = 1;
 
-    if (fechaDesde && typeof fechaDesde === 'string' && fechaDesde.trim()) {
+    if (desdeValido) {
       condiciones.push(`p.fecha >= $${idx++}`);
-      params.push(fechaDesde.trim());
+      params.push(desdeValido);
     }
-    if (fechaHasta && typeof fechaHasta === 'string' && fechaHasta.trim()) {
+    if (hastaValido) {
       condiciones.push(`p.fecha < ($${idx++}::date + INTERVAL '1 day')`);
-      params.push(fechaHasta.trim());
+      params.push(hastaValido);
     }
     if (busqueda && typeof busqueda === 'string' && busqueda.trim()) {
       const term = `%${busqueda.trim()}%`;
@@ -488,6 +569,9 @@ export class ReporteService {
         mp.nombre AS metodo_pago_nombre,
         p.fecha,
         p.monto_total,
+        p.moneda,
+        p.monto_usd,
+        p.cotizacion_dolar,
         p.observaciones,
         COUNT(*) OVER()::INT AS total_registros,
         COALESCE(SUM(p.monto_total) OVER(), 0)::NUMERIC AS total_egresos_resumen
@@ -559,8 +643,12 @@ export class ReporteService {
     gamaBajaMax?: number | string | undefined;
     gamaMediaMax?: number | string | undefined;
   }) {
-    const gamaBajaMax = Number(parametros?.gamaBajaMax) > 0 ? Number(parametros?.gamaBajaMax) : 500000;
-    const gamaMediaMax = Number(parametros?.gamaMediaMax) > gamaBajaMax ? Number(parametros?.gamaMediaMax) : 1200000;
+    const rawBaja = Number(parametros?.gamaBajaMax);
+    const rawMedia = Number(parametros?.gamaMediaMax);
+    const gamaBajaMax = Number.isFinite(rawBaja) && rawBaja > 0 ? rawBaja : 450000;
+    const gamaMediaMax = Number.isFinite(rawMedia) && rawMedia > gamaBajaMax
+      ? rawMedia
+      : Math.max(1200000, gamaBajaMax * 2);
 
     // 1. Resumen por tipo de producto (Bicicletas vs Repuestos vs Accesorios)
     const queryDesgloseTipo = `
@@ -616,7 +704,7 @@ export class ReporteService {
           AND v.fecha >= CURRENT_DATE - INTERVAL '90 days'
         GROUP BY dv.id_producto
       ) v90 ON p.id_producto = v90.id_producto
-      WHERE p.tipo_prod = 'bicicleta' AND p.activo = true AND p.cantidad > 0
+      WHERE LOWER(p.tipo_prod) = 'bicicleta' AND p.activo = true AND p.cantidad > 0
       ORDER BY capital_inmovilizado DESC, p.precio DESC;
     `;
 
@@ -636,9 +724,9 @@ export class ReporteService {
       const unid = Number(row.total_unidades) || 0;
       capitalTotalInventario += cap;
       unidadesTotalInventario += unid;
-      if (row.tipo_prod === 'bicicleta') {
-        capitalBicicletas = cap;
-        unidadesBicicletas = unid;
+      if (String(row.tipo_prod || '').toLowerCase() === 'bicicleta') {
+        capitalBicicletas += cap;
+        unidadesBicicletas += unid;
       }
       return {
         tipo_prod: row.tipo_prod,

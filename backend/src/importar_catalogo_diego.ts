@@ -1,18 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { Pool } from 'pg';
-import dotenv from 'dotenv';
-
 import { fileURLToPath } from 'url';
+import { pool } from './config/db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-});
 
 interface BiciCatalogo {
   fila_excel: number;
@@ -26,7 +18,7 @@ interface BiciCatalogo {
   rodado: string;
   color: string;
   talle: string;
-  genero: 'hombre' | 'mujer' | 'unisex';
+  genero: 'hombre' | 'mujer' | 'unisex' | 'niño/a';
   stock: number;
   stock_minimo: number;
   es_usada: boolean;
@@ -39,15 +31,7 @@ async function importarCatalogo() {
     console.log('--- INICIANDO IMPORTACION DE CATALOGO REAL DE DIEGO ---');
     await client.query('BEGIN');
 
-    // 1. Desactivar y anular stock de productos de prueba ficticios para no distorsionar finanzas
-    console.log('1. Desactivando registros ficticios de prueba (IDs: 17, 8, 5, 3)...');
-    await client.query(`
-      UPDATE Productos 
-      SET activo = false, cantidad = 0, updated_at = CURRENT_TIMESTAMP
-      WHERE id_producto IN (17, 8, 5, 3);
-    `);
-
-    // 2. Leer archivo JSON generado del Excel
+    // Leer archivo JSON generado del Excel
     const jsonPath = path.resolve(__dirname, 'catalogo_diego.json');
     if (!fs.existsSync(jsonPath)) {
       throw new Error(`No se encontro el archivo ${jsonPath}`);
@@ -55,7 +39,7 @@ async function importarCatalogo() {
 
     const contenido = fs.readFileSync(jsonPath, 'utf8');
     const bicis: BiciCatalogo[] = JSON.parse(contenido);
-    console.log(`2. Procesando ${bicis.length} modelos de bicicletas desde ListBicis-2.xlsx...`);
+    console.log(`Procesando ${bicis.length} modelos de bicicletas desde catalogo_diego.json...`);
 
     let insertados = 0;
     let actualizados = 0;
@@ -67,7 +51,7 @@ async function importarCatalogo() {
       const colorSeguro = (b.color || 'Negro').substring(0, 30).trim();
       const rodadoSeguro = (b.rodado || '29').substring(0, 20).trim();
       const talleSeguro = (b.talle || 'M').substring(0, 20).trim();
-      const generoSeguro = ['hombre', 'mujer', 'unisex'].includes(b.genero) ? b.genero : 'unisex';
+      const generoSeguro = ['hombre', 'mujer', 'unisex', 'niño/a'].includes(b.genero) ? b.genero : 'unisex';
 
       // Verificar si ya existe por nombre
       const resExistente = await client.query(

@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { Cliente, Producto, MetodoPago, DetalleVentaItem } from '../../../types';
 import { formatearMoneda } from '../../../utils/formatters';
+import { SearchableSelect, type SearchableOption } from '../../../components/SearchableSelect';
 
 interface ModalNuevaVentaProps {
   clientes: Cliente[];
@@ -8,6 +9,8 @@ interface ModalNuevaVentaProps {
   metodosPago: MetodoPago[];
   clienteSeleccionadoId: number;
   metodoPagoSeleccionadoId: number;
+  tipoPrecio: 'publico' | 'reventa';
+  onCambiarTipoPrecio: (modo: 'publico' | 'reventa') => void;
   productoBuscadoId: number;
   cantidadAnadir: number | string;
   filtroTipo: string;
@@ -40,6 +43,8 @@ export function ModalNuevaVenta({
   metodosPago,
   clienteSeleccionadoId,
   metodoPagoSeleccionadoId,
+  tipoPrecio,
+  onCambiarTipoPrecio,
   productoBuscadoId,
   cantidadAnadir,
   filtroTipo,
@@ -64,40 +69,32 @@ export function ModalNuevaVenta({
   onSubmit,
   onClose
 }: ModalNuevaVentaProps) {
-  const [busquedaTexto, setBusquedaTexto] = useState('');
-
-  // Filtrado reactivo y seguro de productos (solo activos)
-  const productosFiltrados = useMemo(() => {
-    return productos.filter(p => {
-      if (p.activo === false) return false;
-
-      const prodTipo = (p.tipo_prod || '').toLowerCase().trim();
-      const filtro = filtroTipo.toLowerCase().trim();
-      const coincideTipo = filtro === 'todos' || prodTipo === filtro || prodTipo.startsWith(filtro) || filtro.startsWith(prodTipo);
-
-      if (!coincideTipo) return false;
-
-      if (busquedaTexto.trim()) {
-        const term = busquedaTexto.toLowerCase().trim();
-        const cleanTerm = term.replace(/^(bic-?|id\s*:?\s*#?|#)\s*/i, '').trim();
-        const nombre = (p.nombre || '').toLowerCase();
-        const marca = (p.marca || '').toLowerCase();
-        const modelo = (p.modelo || '').toLowerCase();
-        const idStr = String(p.id_producto || '');
-
-        const coincideId =
-          idStr === term ||
-          idStr.includes(term) ||
-          `#${idStr}`.includes(term) ||
-          `id ${idStr}`.includes(term) ||
-          (cleanTerm !== '' && (idStr === cleanTerm || idStr.includes(cleanTerm)));
-
-        return coincideId || nombre.includes(term) || marca.includes(term) || modelo.includes(term);
-      }
-
-      return true;
-    });
-  }, [productos, filtroTipo, busquedaTexto]);
+  // Filtrado reactivo y seguro de productos (solo activos) por categoría
+  const opcionesProductos: SearchableOption[] = useMemo(() => {
+    const filtro = filtroTipo.toLowerCase().trim();
+    return productos
+      .filter(p => {
+        if (p.activo === false) return false;
+        const prodTipo = (p.tipo_prod || '').toLowerCase().trim();
+        return filtro === 'todos' || prodTipo === filtro || prodTipo.startsWith(filtro) || filtro.startsWith(prodTipo);
+      })
+      .map(p => {
+        const sinStock = Number(p.cantidad) <= 0;
+        const tieneReventa = p.precio_reventa !== null && p.precio_reventa !== undefined && Number(p.precio_reventa) > 0;
+        const precioMostrar = tipoPrecio === 'reventa' && tieneReventa ? p.precio_reventa : p.precio;
+        const tagReventa = tipoPrecio === 'reventa' && tieneReventa ? ' • Reventa' : '';
+        const prefijoCod = p.codigo ? `[${p.codigo}] ` : `#${p.id_producto} - `;
+        const detalles = [p.marca, p.modelo, `Stock: ${p.cantidad} un.${sinStock ? ' (AGOTADO)' : ''}`].filter(Boolean).join(' • ');
+        return {
+          value: p.id_producto || 0,
+          label: `${prefijoCod}${p.nombre}`,
+          sublabel: `${detalles}${tagReventa}`,
+          badge: formatearMoneda(precioMostrar),
+          searchText: `#${p.id_producto || ''} ${p.id_producto || ''} ${p.codigo || ''} ${p.nombre || ''} ${p.marca || ''} ${p.modelo || ''}`,
+          disabled: sinStock
+        };
+      });
+  }, [productos, filtroTipo, tipoPrecio]);
 
   const productoSeleccionado = useMemo(() => {
     return productos.find(p => p.id_producto === productoBuscadoId);
@@ -126,8 +123,8 @@ export function ModalNuevaVenta({
   }, [clienteSeleccionadoId, clienteConsumidorFinal, clientes]);
 
   // Priorizar Consumidor Final al inicio de la lista de selección
-  const clientesOrdenados = useMemo(() => {
-    return [...clientes].sort((a, b) => {
+  const opcionesClientes: SearchableOption[] = useMemo(() => {
+    const ordenados = [...clientes].sort((a, b) => {
       const aEsCF = (a.nombre?.toLowerCase().trim() === 'consumidor' && a.apellido?.toLowerCase().trim() === 'final') ||
         (a.nombre?.toLowerCase().trim() === 'final' && a.apellido?.toLowerCase().trim() === 'consumidor') ||
         a.direccion?.toLowerCase().includes('mostrador');
@@ -137,6 +134,18 @@ export function ModalNuevaVenta({
       if (aEsCF && !bEsCF) return -1;
       if (!aEsCF && bEsCF) return 1;
       return (a.apellido || '').localeCompare(b.apellido || '');
+    });
+
+    return ordenados.map(c => {
+      const esCF = (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
+        (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
+        c.direccion?.toLowerCase().includes('mostrador');
+      return {
+        value: c.id_cliente || 0,
+        label: esCF ? 'Consumidor Final (Venta Mostrador)' : `${c.apellido}, ${c.nombre}`,
+        sublabel: esCF ? 'Sin DNI obligatorio' : `DNI: ${c.dni || 'S/DNI'}${c.telefono ? ` • Tel: ${c.telefono}` : ''}`,
+        searchText: `${c.nombre || ''} ${c.apellido || ''} ${c.apellido || ''} ${c.nombre || ''} ${c.dni || ''} ${esCF ? 'consumidor final mostrador' : ''}`
+      };
     });
   }, [clientes]);
 
@@ -210,28 +219,13 @@ export function ModalNuevaVenta({
                   </button>
                 )}
               </div>
-              <select
+              <SearchableSelect
+                options={opcionesClientes}
                 value={clienteSeleccionadoId}
-                onChange={e => onCambiarCliente(Number(e.target.value))}
-                style={{
-                  width: '100%', padding: '10px', borderRadius: '8px',
-                  border: '1px solid var(--borde-input)', fontSize: '0.9rem',
-                  backgroundColor: 'var(--bg-principal)', color: 'var(--texto-principal)'
-                }}
-                required
-              >
-                <option value={0}>Seleccionar Cliente ({clientesOrdenados.length} disponibles)</option>
-                {clientesOrdenados.map(c => {
-                  const esCF = (c.nombre?.toLowerCase().trim() === 'consumidor' && c.apellido?.toLowerCase().trim() === 'final') ||
-                    (c.nombre?.toLowerCase().trim() === 'final' && c.apellido?.toLowerCase().trim() === 'consumidor') ||
-                    c.direccion?.toLowerCase().includes('mostrador');
-                  return (
-                    <option key={c.id_cliente} value={c.id_cliente}>
-                      {esCF ? 'Consumidor Final (S/DNI - Venta Mostrador)' : `${c.apellido} ${c.nombre} (DNI: ${c.dni || 'S/DNI'})`}
-                    </option>
-                  );
-                })}
-              </select>
+                onChange={val => onCambiarCliente(Number(val) || 0)}
+                placeholder="Buscar y seleccionar cliente por nombre, apellido o DNI..."
+                emptyMessage="No se encontraron clientes con ese criterio."
+              />
             </div>
 
             <div>
@@ -370,6 +364,57 @@ export function ModalNuevaVenta({
 
           {/* SELECCIÓN DE PRODUCTOS DESDE STOCK */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* Selector de Lista de Precios (Público vs Reventa Mayorista) */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '8px',
+              padding: '8px 12px',
+              borderRadius: '8px',
+              backgroundColor: 'var(--bg-principal)',
+              border: '1px solid var(--borde-input)'
+            }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: '700', color: 'var(--texto-principal)' }}>
+                Lista de Precios:
+              </span>
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => onCambiarTipoPrecio('publico')}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    border: tipoPrecio === 'publico' ? 'none' : '1px solid var(--borde-input)',
+                    backgroundColor: tipoPrecio === 'publico' ? 'var(--azul-oscuro)' : 'var(--bg-tarjeta)',
+                    color: tipoPrecio === 'publico' ? '#fff' : 'var(--texto-mutado)'
+                  }}
+                >
+                  Precio Público
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onCambiarTipoPrecio('reventa')}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.78rem',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    border: tipoPrecio === 'reventa' ? 'none' : '1px solid var(--borde-input)',
+                    backgroundColor: tipoPrecio === 'reventa' ? 'var(--azul-oscuro)' : 'var(--bg-tarjeta)',
+                    color: tipoPrecio === 'reventa' ? '#fff' : 'var(--texto-mutado)'
+                  }}
+                >
+                  Precio Reventa (Revendedores)
+                </button>
+              </div>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
               <label style={{ fontSize: '0.85rem', fontWeight: '700' }}>
                 Agregar Artículos del Inventario
@@ -395,24 +440,6 @@ export function ModalNuevaVenta({
               </div>
             </div>
 
-            {/* Buscador de Producto por texto */}
-            <input
-              type="text"
-              maxLength={60}
-              value={busquedaTexto}
-              onChange={e => setBusquedaTexto(e.target.value.slice(0, 60))}
-              placeholder="Buscar artículo por ID, nombre, marca o modelo..."
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--borde-input)',
-                fontSize: '0.85rem',
-                backgroundColor: 'var(--bg-principal)',
-                color: 'var(--texto-principal)'
-              }}
-            />
-
             {errorCarrito && (
               <div style={{
                 padding: '8px 12px',
@@ -427,37 +454,14 @@ export function ModalNuevaVenta({
               </div>
             )}
 
-            {/* Selector de Producto a ancho completo */}
-            <select
+            {/* Selector de Producto con búsqueda integrada */}
+            <SearchableSelect
+              options={opcionesProductos}
               value={productoBuscadoId}
-              onChange={e => onCambiarProductoBuscado(Number(e.target.value))}
-              style={{
-                width: '100%',
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                border: '1px solid var(--borde-input)',
-                fontSize: '0.9rem',
-                backgroundColor: 'var(--bg-principal)',
-                color: 'var(--texto-principal)',
-                textOverflow: 'ellipsis'
-              }}
-            >
-              <option value={0}>
-                {productosFiltrados.length > 0
-                  ? `Seleccionar Artículo (${productosFiltrados.length} encontrados)`
-                  : 'No hay artículos coincidentes con stock activo'}
-              </option>
-              {productosFiltrados.map(p => {
-                const sinStock = Number(p.cantidad) <= 0;
-                return (
-                  <option key={p.id_producto} value={p.id_producto} disabled={sinStock}>
-                    #{p.id_producto} - {p.nombre} {p.marca ? `(${p.marca})` : ''} — {formatearMoneda(p.precio)} [Stock: {p.cantidad} un.]{sinStock ? ' (AGOTADO)' : ''}
-                  </option>
-                );
-              })}
-            </select>
+              onChange={val => onCambiarProductoBuscado(Number(val) || 0)}
+              placeholder="Buscar y seleccionar artículo por código, ID, nombre, marca o modelo..."
+              emptyMessage="No hay artículos coincidentes con stock activo."
+            />
 
             {/* Barra Integrada: Información de Stock + Cantidad + Botón Añadir */}
             <div style={{
@@ -484,8 +488,14 @@ export function ModalNuevaVenta({
                     </span>
                     <span style={{ color: 'var(--texto-mutado)' }}>&bull;</span>
                     <span>
-                      <strong>Precio:</strong>{' '}
-                      <span style={{ fontWeight: '700' }}>{formatearMoneda(productoSeleccionado.precio)}</span>
+                      <strong>{tipoPrecio === 'reventa' && Number(productoSeleccionado.precio_reventa) > 0 ? 'Precio Reventa:' : 'Precio:'}</strong>{' '}
+                      <span style={{ fontWeight: '700' }}>
+                        {formatearMoneda(
+                          tipoPrecio === 'reventa' && Number(productoSeleccionado.precio_reventa) > 0
+                            ? productoSeleccionado.precio_reventa
+                            : productoSeleccionado.precio
+                        )}
+                      </span>
                     </span>
                     {productoSeleccionado.tipo_prod === 'bicicleta' && (
                       <span style={{

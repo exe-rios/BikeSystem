@@ -34,19 +34,42 @@ export function InicioUltimosMovimientos({
                   </td>
                 </tr>
               ) : (
-                ultimasVentas.map((v) => (
-                  <tr key={v.id_venta} style={{ borderBottom: '1px solid var(--borde-input)' }}>
-                    <td style={{ padding: '10px 14px', fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--texto-mutado)' }}>
-                      FAC-{String(v.id_venta).padStart(4, '0')}
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: '500' }}>
-                      {v.cliente_nombre ? `${v.cliente_apellido}, ${v.cliente_nombre}` : `Cliente #${v.id_cliente}`}
-                    </td>
-                    <td style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: '700', color: '#16a34a', textAlign: 'right' }}>
-                      {formatearMoneda(v.costo_total)}
-                    </td>
-                  </tr>
-                ))
+                ultimasVentas.map((v) => {
+                  const esAnulada = v.estado === 'ANULADA';
+                  return (
+                    <tr key={v.id_venta} style={{ borderBottom: '1px solid var(--borde-input)', opacity: esAnulada ? 0.65 : 1 }}>
+                      <td style={{ padding: '10px 14px', fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--texto-mutado)' }}>
+                        FAC-{String(v.id_venta).padStart(4, '0')}
+                        {esAnulada && (
+                          <span style={{
+                            marginLeft: '6px',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(220, 38, 38, 0.12)',
+                            color: '#dc2626',
+                            fontSize: '0.68rem',
+                            fontWeight: '700'
+                          }}>
+                            ANULADA
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ padding: '10px 14px', fontSize: '0.85rem', fontWeight: '500' }}>
+                        {v.cliente_nombre ? `${v.cliente_apellido}, ${v.cliente_nombre}` : `Cliente #${v.id_cliente}`}
+                      </td>
+                      <td style={{
+                        padding: '10px 14px',
+                        fontSize: '0.85rem',
+                        fontWeight: '700',
+                        color: esAnulada ? '#dc2626' : '#16a34a',
+                        textDecoration: esAnulada ? 'line-through' : 'none',
+                        textAlign: 'right'
+                      }}>
+                        {formatearMoneda(v.costo_total)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

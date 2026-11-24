@@ -9,8 +9,14 @@ export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
  * Lanza BadRequestError si el valor no es un número válido o es menor o igual a cero.
  */
 export const validarId = (valor: unknown, mensajeError = 'ID no válido'): number => {
+  if (typeof valor === 'boolean' || valor === null || valor === undefined) {
+    throw new BadRequestError(mensajeError);
+  }
+  if (typeof valor === 'string' && !valor.trim()) {
+    throw new BadRequestError(mensajeError);
+  }
   const num = Number(valor);
-  if (isNaN(num) || num <= 0) {
+  if (!Number.isFinite(num) || !Number.isInteger(num) || num <= 0 || num > 2147483647) {
     throw new BadRequestError(mensajeError);
   }
   return num;

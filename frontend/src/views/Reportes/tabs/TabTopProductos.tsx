@@ -26,9 +26,8 @@ export function TabTopProductos({
           <thead>
             <tr style={{ borderBottom: '1px solid var(--borde-input)', backgroundColor: 'var(--bg-principal)' }}>
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase', width: '80px', textAlign: 'center' }}>Posición</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Producto</th>
+              <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Descripción</th>
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Marca</th>
-              <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase' }}>Categoría</th>
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase', width: '220px' }}>Rotación / Demanda</th>
               <th style={{ padding: '12px 16px', fontSize: '0.82rem', color: 'var(--texto-mutado)', fontWeight: '700', textTransform: 'uppercase', textAlign: 'right' }}>Total Recaudado</th>
             </tr>
@@ -36,7 +35,7 @@ export function TabTopProductos({
           <tbody>
             {topProductosList.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
+                <td colSpan={5} style={{ padding: '30px', textAlign: 'center', color: 'var(--texto-mutado)' }}>
                   No se encontraron registros de ventas acumuladas.
                 </td>
               </tr>
@@ -53,11 +52,6 @@ export function TabTopProductos({
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: '0.88rem', color: 'var(--texto-mutado)' }}>
                       {item.marca || 'Genérico'}
-                    </td>
-                    <td style={{ padding: '12px 16px', fontSize: '0.82rem' }}>
-                      <span style={{ padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-principal)', border: '1px solid var(--borde-input)', textTransform: 'capitalize' }}>
-                        {item.tipo_prod}
-                      </span>
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

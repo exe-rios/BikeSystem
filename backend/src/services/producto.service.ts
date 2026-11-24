@@ -1,5 +1,5 @@
 import { pool } from '../config/db.js';
-import { BadRequestError, NotFoundError, UnauthorizedError } from '../utils/errors.js';
+import { BadRequestError, NotFoundError, UnauthorizedError, ForbiddenError } from '../utils/errors.js';
 import { validarId } from '../utils/validation.js';
 import { normalizarPaginacion, aplicarPaginacionSQL, calcularMetaPaginacion } from '../utils/pagination.js';
 
@@ -9,6 +9,8 @@ export const PRODUCTO_SELECT = `
   SELECT p.*, 
          COALESCE(pb.marca, p.marca) AS marca, 
          pb.color, pb.rodado, pb.talle, pb.genero,
+         prov.nombre_empresa AS proveedor_nombre,
+         prov.cotizacion_dolar AS proveedor_cotizacion_dolar,
          CASE 
              WHEN p.cantidad <= 0 THEN 'sin_stock'
              WHEN p.stock_minimo > 0 AND p.cantidad <= p.stock_minimo THEN 'bajo_stock'
@@ -16,21 +18,48 @@ export const PRODUCTO_SELECT = `
          END AS estado_stock
   FROM Productos p
   LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
+  LEFT JOIN Proveedor prov ON p.id_proveedor = prov.id_proveedor
 `;
 
-const GENEROS_BICICLETA_VALIDOS = ['hombre', 'mujer', 'unisex'];
+const GENEROS_BICICLETA_VALIDOS = ['hombre', 'mujer', 'unisex', 'niño/a'];
+const MONEDAS_VALIDAS = ['ARS', 'USD'];
+
+/** Normaliza el porcentaje de ganancia al factor decimal almacenado en DB (ej. 60 -> 0.6000). */
+function normalizarFactorGanancia(val: unknown): number | null {
+  if (val === undefined || val === null || val === '') return null;
+  const num = Number(val);
+  if (isNaN(num) || !isFinite(num)) return null;
+  if (num > 10) {
+    return Math.round((num / 100) * 10000) / 10000;
+  }
+  return Math.round(num * 10000) / 10000;
+}
+
+/** Obtiene la cotización efectiva del dólar: propia del proveedor si existe, o global del sistema. */
+async function obtenerCotizacionEfectiva(client: { query: (sql: string, params?: any[]) => Promise<any> }, idProveedor: number | null): Promise<number> {
+  if (idProveedor) {
+    const resProvCot = await client.query('SELECT cotizacion_dolar FROM Proveedor WHERE id_proveedor = $1 LIMIT 1;', [idProveedor]);
+    if (resProvCot.rows[0]?.cotizacion_dolar) {
+      const cotProv = Number(resProvCot.rows[0].cotizacion_dolar);
+      if (!isNaN(cotProv) && cotProv > 0) return cotProv;
+    }
+  }
+  const resCot = await client.query(`SELECT valor FROM Configuracion_Sistema WHERE clave = 'cotizacion_dolar' LIMIT 1;`);
+  const cotGlobal = Number(resCot.rows[0]?.valor);
+  return !isNaN(cotGlobal) && cotGlobal > 0 ? cotGlobal : 1;
+}
 
 /** Valida formato y restricciones de los campos del artículo. */
-const validarDatosProducto = (body: any) => {
-  const { nombre, tipo_prod, cantidad, precio, stock_minimo, genero } = body;
+export const validarDatosProducto = (body: any) => {
+  const { nombre, tipo_prod, cantidad, precio, precio_usd, moneda, id_proveedor, stock_minimo, genero } = body;
   const errores: string[] = [];
 
   if (!nombre || typeof nombre !== 'string' || nombre.trim().length < 2) {
     errores.push('Escribí el nombre del artículo (al menos 2 letras).');
   }
 
-  if (nombre && typeof nombre === 'string' && nombre.trim().length > 70) {
-    errores.push('El nombre no puede superar los 70 caracteres.');
+  if (nombre && typeof nombre === 'string' && nombre.trim().length > 100) {
+    errores.push('El nombre no puede superar los 100 caracteres.');
   }
 
   const tipoLimpio = String(tipo_prod || '').trim().toLowerCase();
@@ -38,18 +67,29 @@ const validarDatosProducto = (body: any) => {
     errores.push('Elegí un tipo válido: Bicicleta, Repuesto o Accesorio.');
   }
 
-  if (body.marca && typeof body.marca === 'string' && body.marca.trim().length > 20) {
-    errores.push('La marca no puede superar los 20 caracteres.');
+  if (body.marca && typeof body.marca === 'string' && body.marca.trim().length > 50) {
+    errores.push('La marca no puede superar los 50 caracteres.');
   }
 
-  if (body.modelo && typeof body.modelo === 'string' && body.modelo.trim().length > 20) {
-    errores.push('El modelo no puede superar los 20 caracteres.');
+  if (body.modelo && typeof body.modelo === 'string' && body.modelo.trim().length > 50) {
+    errores.push('El modelo no puede superar los 50 caracteres.');
+  }
+
+  if (body.codigo && typeof body.codigo === 'string' && body.codigo.trim().length > 50) {
+    errores.push('El código del artículo no puede superar los 50 caracteres.');
   }
 
   if (tipoLimpio === 'bicicleta') {
     const generoVal = String(genero || '').trim().toLowerCase();
     if (!generoVal || !GENEROS_BICICLETA_VALIDOS.includes(generoVal)) {
-      errores.push('Seleccioná el género de la bicicleta (Hombre, Mujer o Unisex).');
+      errores.push('Seleccioná el género de la bicicleta (Hombre, Mujer, Unisex o Niño/a).');
+    }
+  }
+
+  if (moneda !== undefined && moneda !== null && moneda !== '') {
+    const monedaNorm = String(moneda).trim().toUpperCase();
+    if (!MONEDAS_VALIDAS.includes(monedaNorm)) {
+      errores.push('La moneda del producto debe ser ARS o USD.');
     }
   }
 
@@ -59,6 +99,67 @@ const validarDatosProducto = (body: any) => {
       errores.push('El precio no puede ser negativo.');
     } else if (precioNum > 99999999.99) {
       errores.push('El precio no puede superar los $99.999.999,99.');
+    }
+  }
+
+  if (precio_usd !== undefined && precio_usd !== null && precio_usd !== '') {
+    const precioUsdNum = Number(precio_usd);
+    if (isNaN(precioUsdNum) || precioUsdNum < 0) {
+      errores.push('El precio en dólares no puede ser negativo.');
+    } else if (precioUsdNum > 99999999.99) {
+      errores.push('El precio en dólares no puede superar USD 99.999.999,99.');
+    }
+  }
+
+  if (body.costo_usd !== undefined && body.costo_usd !== null && body.costo_usd !== '') {
+    const costoNum = Number(body.costo_usd);
+    if (isNaN(costoNum) || costoNum < 0) {
+      errores.push('El costo no puede ser negativo.');
+    } else if (costoNum > 99999999.99) {
+      errores.push('El costo no puede superar 99.999.999,99.');
+    }
+  }
+
+  if (body.porcentaje_ganancia !== undefined && body.porcentaje_ganancia !== null && body.porcentaje_ganancia !== '') {
+    const ganNum = Number(body.porcentaje_ganancia);
+    if (isNaN(ganNum) || ganNum < 0) {
+      errores.push('El porcentaje de ganancia no puede ser negativo.');
+    } else if (ganNum > 100000) {
+      errores.push('El porcentaje de ganancia excede el máximo permitido.');
+    }
+  }
+
+  if (body.porcentaje_reventa !== undefined && body.porcentaje_reventa !== null && body.porcentaje_reventa !== '') {
+    const revPctNum = Number(body.porcentaje_reventa);
+    if (isNaN(revPctNum) || revPctNum < 0) {
+      errores.push('El porcentaje de reventa no puede ser negativo.');
+    } else if (revPctNum > 100000) {
+      errores.push('El porcentaje de reventa excede el máximo permitido.');
+    }
+  }
+
+  if (body.precio_reventa !== undefined && body.precio_reventa !== null && body.precio_reventa !== '') {
+    const revNum = Number(body.precio_reventa);
+    if (isNaN(revNum) || revNum < 0) {
+      errores.push('El precio de reventa no puede ser negativo.');
+    } else if (revNum > 99999999.99) {
+      errores.push('El precio de reventa no puede superar los $99.999.999,99.');
+    }
+  }
+
+  if (body.precio_reventa_usd !== undefined && body.precio_reventa_usd !== null && body.precio_reventa_usd !== '') {
+    const revUsdNum = Number(body.precio_reventa_usd);
+    if (isNaN(revUsdNum) || revUsdNum < 0) {
+      errores.push('El precio de reventa en dólares no puede ser negativo.');
+    } else if (revUsdNum > 99999999.99) {
+      errores.push('El precio de reventa en dólares no puede superar USD 99.999.999,99.');
+    }
+  }
+
+  if (id_proveedor !== undefined && id_proveedor !== null && id_proveedor !== '') {
+    const provNum = Number(id_proveedor);
+    if (!Number.isInteger(provNum) || provNum <= 0) {
+      errores.push('El proveedor seleccionado no es válido.');
     }
   }
 
@@ -111,7 +212,7 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
   let rodado: string | undefined = undefined;
 
   // 1. Extraer ID numérico explícito (ej: "id 8", "id: 8", "producto 8", "art 8", "#8", "# 8", o solo "8")
-  const idRegex = /\b(?:id|codigo|código|prod|producto|art|articulo|artículo)\s*[:=]?\s*#?\s*([0-9]+)\b/i;
+  const idRegex = /\b(?:id|prod|producto|art|articulo|artículo)\s*[:=]?\s*#?\s*([0-9]+)\b/i;
   const matchId = texto.match(idRegex);
   if (matchId && matchId[1]) {
     const parsedId = Number(matchId[1]);
@@ -172,7 +273,7 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
   }
 
   // Si se reconoció un ID pero no quedó como término de búsqueda textual, incluirlo para el matching SQL
-  if (id && !terminos.includes(String(id))) {
+  if (id && !terminos.some(t => t === String(id) || (/^\d+$/.test(t) && Number(t) === id))) {
     terminos.push(String(id));
   }
 
@@ -186,7 +287,7 @@ export function parsearBusquedaAvanzada(busqueda: string): BusquedaParseada {
 
 /** Servicio de catálogo de productos, control de stock y trazabilidad de inventario. */
 export class ProductoService {
-  /** Obtiene listado paginado de productos con filtros de categoría, stock y métricas resumidas. */
+  /** Obtiene listado paginado de productos con filtros de categoría, proveedor, moneda, stock y métricas resumidas. */
   static async obtenerProductos(filtros: { 
     tipo_prod?: string | undefined; 
     tipo?: string | undefined;
@@ -194,6 +295,8 @@ export class ProductoService {
     talle?: string | undefined;
     rodado?: string | undefined;
     marca?: string | undefined;
+    id_proveedor?: number | string | undefined;
+    moneda?: string | undefined;
     estado_stock?: string | undefined;
     disponibilidad?: string | undefined;
     estado?: string | undefined;
@@ -201,7 +304,7 @@ export class ProductoService {
     limite?: number | string | undefined;
     pagina?: number | string | undefined;
   }) {
-    const { tipo_prod, tipo, busqueda, talle, rodado, marca, estado_stock, disponibilidad, estado, solo_activos, limite, pagina } = filtros;
+    const { tipo_prod, tipo, busqueda, talle, rodado, marca, id_proveedor, moneda, estado_stock, disponibilidad, estado, solo_activos, limite, pagina } = filtros;
     
     // Consulta para resumen global de inventario
     const queryResumen = `
@@ -209,6 +312,7 @@ export class ProductoService {
         COUNT(*) FILTER (WHERE activo = true)::INT AS total_articulos,
         COALESCE(SUM(cantidad) FILTER (WHERE activo = true), 0)::INT AS total_unidades,
         COUNT(*) FILTER (WHERE activo = true AND cantidad > 0 AND stock_minimo > 0 AND cantidad <= stock_minimo)::INT AS bajo_stock_count,
+        COUNT(*) FILTER (WHERE activo = true AND cantidad <= 0)::INT AS sin_stock_count,
         COUNT(*) FILTER (WHERE activo = false)::INT AS inactivos_count
       FROM Productos;
     `;
@@ -217,6 +321,8 @@ export class ProductoService {
       SELECT p.*, 
              COALESCE(pb.marca, p.marca) AS marca, 
              pb.color, pb.rodado, pb.talle, pb.genero,
+             prov.nombre_empresa AS proveedor_nombre,
+             prov.cotizacion_dolar AS proveedor_cotizacion_dolar,
              CASE 
                  WHEN p.cantidad <= 0 THEN 'sin_stock'
                  WHEN p.stock_minimo > 0 AND p.cantidad <= p.stock_minimo THEN 'bajo_stock'
@@ -225,6 +331,7 @@ export class ProductoService {
              COUNT(*) OVER()::INT AS total_registros
       FROM Productos p
       LEFT JOIN Producto_BiciNueva pb ON p.id_producto = pb.id_producto
+      LEFT JOIN Proveedor prov ON p.id_proveedor = prov.id_proveedor
       WHERE 1=1
     `;
     const params: any[] = [];
@@ -245,6 +352,28 @@ export class ProductoService {
     if (tipoFiltro && typeof tipoFiltro === 'string' && tipoFiltro.trim() !== 'todos') {
       query += ` AND p.tipo_prod = $${paramIndex}`;
       params.push(tipoFiltro.trim().toLowerCase());
+      paramIndex++;
+    }
+
+    // Filtro por proveedor
+    if (id_proveedor !== undefined && id_proveedor !== null && String(id_proveedor).trim() !== '' && String(id_proveedor).trim().toLowerCase() !== 'todos') {
+      if (String(id_proveedor).trim().toLowerCase() === 'sin_proveedor') {
+        query += ` AND p.id_proveedor IS NULL`;
+      } else {
+        const provIdNum = Number(id_proveedor);
+        if (!Number.isInteger(provIdNum) || provIdNum <= 0) {
+          throw new BadRequestError('El filtro de proveedor no es válido.');
+        }
+        query += ` AND p.id_proveedor = $${paramIndex}`;
+        params.push(provIdNum);
+        paramIndex++;
+      }
+    }
+
+    // Filtro por moneda
+    if (moneda && typeof moneda === 'string' && ['ARS', 'USD'].includes(moneda.trim().toUpperCase())) {
+      query += ` AND p.moneda = $${paramIndex}`;
+      params.push(moneda.trim().toUpperCase());
       paramIndex++;
     }
 
@@ -280,6 +409,7 @@ export class ProductoService {
     if (busquedaParseada.terminos.length > 0) {
       for (const termino of busquedaParseada.terminos) {
         query += ` AND (
+          p.codigo ILIKE $${paramIndex} OR
           p.nombre ILIKE $${paramIndex} OR 
           p.marca ILIKE $${paramIndex} OR 
           p.modelo ILIKE $${paramIndex} OR 
@@ -332,6 +462,7 @@ export class ProductoService {
       total_articulos: 0,
       total_unidades: 0,
       bajo_stock_count: 0,
+      sin_stock_count: 0,
       inactivos_count: 0
     };
 
@@ -345,6 +476,7 @@ export class ProductoService {
         total_articulos: Number(resumen.total_articulos) || 0,
         total_unidades: Number(resumen.total_unidades) || 0,
         bajo_stock_count: Number(resumen.bajo_stock_count) || 0,
+        sin_stock_count: Number(resumen.sin_stock_count) || 0,
         inactivos_count: Number(resumen.inactivos_count) || 0
       },
       productos
@@ -372,28 +504,89 @@ export class ProductoService {
       throw new BadRequestError('Hay errores en los datos del artículo.', errores);
     }
 
-    const { nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, genero, precio, stock_minimo, activo } = datos;
+    const { codigo, nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, genero, precio, precio_usd, costo_usd, porcentaje_ganancia, porcentaje_reventa, precio_reventa, precio_reventa_usd, moneda, id_proveedor, stock_minimo, activo } = datos;
     const { idUsuarioOperador, nombreUsuarioOperador } = operador;
     const estadoActivo = activo !== undefined ? Boolean(activo) : true;
+    const codigoLimpio = codigo !== undefined && codigo !== null && String(codigo).trim() !== '' ? String(codigo).trim() : null;
     const tipoLimpio = String(tipo_prod).trim().toLowerCase();
     const marcaLimpia = marca ? String(marca).trim() : null;
+    const monedaLimpia = String(moneda || 'ARS').trim().toUpperCase() === 'USD' ? 'USD' : 'ARS';
+    const idProveedorFinal = id_proveedor !== undefined && id_proveedor !== null && id_proveedor !== '' ? Number(id_proveedor) : null;
+    const costoUsdFinal = costo_usd !== undefined && costo_usd !== null && costo_usd !== '' ? Math.round(Number(costo_usd) * 100) / 100 : null;
+    const gananciaFinal = normalizarFactorGanancia(porcentaje_ganancia);
+    const porcentajeReventaFinal = normalizarFactorGanancia(porcentaje_reventa);
 
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
+      let precioFinalArs = Math.round((Number(precio) || 0) * 100) / 100;
+      let precioUsdFinal: number | null = null;
+      let precioReventaFinal: number | null = null;
+      let precioReventaUsdFinal: number | null = null;
+
+      if (monedaLimpia === 'USD') {
+        const cotizacion = await obtenerCotizacionEfectiva(client, idProveedorFinal);
+        if (precio_usd !== undefined && precio_usd !== null && precio_usd !== '') {
+          precioUsdFinal = Math.round(Number(precio_usd) * 100) / 100;
+        } else if (costoUsdFinal !== null && costoUsdFinal > 0 && gananciaFinal !== null) {
+          precioUsdFinal = Math.round(costoUsdFinal * (1 + gananciaFinal) * 100) / 100;
+        } else {
+          precioUsdFinal = Math.round(Number(precio || 0) * 100) / 100;
+        }
+        precioFinalArs = Math.round(precioUsdFinal * cotizacion * 100) / 100;
+
+        if (precio_reventa_usd !== undefined && precio_reventa_usd !== null && precio_reventa_usd !== '') {
+          precioReventaUsdFinal = Math.round(Number(precio_reventa_usd) * 100) / 100;
+        } else if (costoUsdFinal !== null && costoUsdFinal > 0 && porcentajeReventaFinal !== null) {
+          precioReventaUsdFinal = Math.round(costoUsdFinal * (1 + porcentajeReventaFinal) * 100) / 100;
+        } else if (precio_reventa !== undefined && precio_reventa !== null && precio_reventa !== '') {
+          precioReventaFinal = Math.round(Number(precio_reventa) * 100) / 100;
+          if (cotizacion > 0) {
+            precioReventaUsdFinal = Math.round((precioReventaFinal / cotizacion) * 100) / 100;
+          }
+        }
+        if (precioReventaUsdFinal !== null) {
+          precioReventaFinal = Math.round(precioReventaUsdFinal * cotizacion * 100) / 100;
+        }
+      } else {
+        if (
+          costoUsdFinal !== null &&
+          costoUsdFinal > 0 &&
+          gananciaFinal !== null &&
+          (precio === undefined || precio === null || precio === '')
+        ) {
+          precioFinalArs = Math.round(costoUsdFinal * (1 + gananciaFinal) * 100) / 100;
+        }
+
+        if (precio_reventa !== undefined && precio_reventa !== null && precio_reventa !== '') {
+          precioReventaFinal = Math.round(Number(precio_reventa) * 100) / 100;
+        } else if (costoUsdFinal !== null && costoUsdFinal > 0 && porcentajeReventaFinal !== null) {
+          precioReventaFinal = Math.round(costoUsdFinal * (1 + porcentajeReventaFinal) * 100) / 100;
+        }
+      }
+
       const queryProd = `
-        INSERT INTO Productos (nombre, marca, modelo, tipo_prod, cantidad, precio, stock_minimo, activo)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO Productos (codigo, nombre, marca, modelo, tipo_prod, cantidad, precio, moneda, precio_usd, costo_usd, porcentaje_ganancia, porcentaje_reventa, precio_reventa, precio_reventa_usd, id_proveedor, stock_minimo, activo)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         RETURNING *;
       `;
       const resultProd = await client.query(queryProd, [
+        codigoLimpio,
         nombre.trim(),
         marcaLimpia,
         modelo ? String(modelo).trim() : null,
         tipoLimpio,
         Number(cantidad) || 0,
-        Number(precio) || 0,
+        precioFinalArs,
+        monedaLimpia,
+        precioUsdFinal,
+        costoUsdFinal,
+        gananciaFinal,
+        porcentajeReventaFinal,
+        precioReventaFinal,
+        precioReventaUsdFinal,
+        idProveedorFinal,
         Number(stock_minimo) || 0,
         estadoActivo
       ]);
@@ -416,30 +609,24 @@ export class ProductoService {
       }
 
       if (idUsuarioOperador && Number(cantidad) > 0) {
-        try {
-          await client.query(
-            `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
-             VALUES ($1, $2, 'INGRESO', $3, 'Carga Inicial de Inventario', 'Alta de producto nuevo en catálogo');`,
-            [nuevoProducto.id_producto, idUsuarioOperador, Number(cantidad)]
-          );
-        } catch {
-          // Ignorar
-        }
+        await client.query(
+          `INSERT INTO Movimiento_Stock (id_producto, id_usuario, tipo_movimiento, cantidad, motivo, observaciones)
+           VALUES ($1, $2, 'INGRESO', $3, 'Carga Inicial de Inventario', 'Alta de producto nuevo en catálogo');`,
+          [nuevoProducto.id_producto, idUsuarioOperador, Number(cantidad)]
+        );
       }
 
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Stock', 'Alta de Producto', $3);`,
-          [
-            idUsuarioOperador || null,
-            nombreUsuarioOperador || 'Usuario',
-            `Producto registrado: "${nuevoProducto.nombre}" (ID #${nuevoProducto.id_producto}, Tipo: ${tipoLimpio}, Stock: ${nuevoProducto.cantidad}, Precio: $${nuevoProducto.precio}).`
-          ]
-        );
-      } catch {
-        // Ignorar
-      }
+      const infoMoneda = monedaLimpia === 'USD' ? ` (USD ${precioUsdFinal} -> $${nuevoProducto.precio} ARS)` : ` ($${nuevoProducto.precio} ARS)`;
+      const infoProv = idProveedorFinal ? `, Proveedor ID #${idProveedorFinal}` : '';
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Stock', 'Alta de Producto', $3);`,
+        [
+          idUsuarioOperador || null,
+          String(nombreUsuarioOperador || 'Usuario').trim().slice(0, 50),
+          `Producto registrado: "${nuevoProducto.nombre}" (ID #${nuevoProducto.id_producto}, Tipo: ${tipoLimpio}, Stock: ${nuevoProducto.cantidad}${infoProv}, Precio:${infoMoneda}).`
+        ]
+      );
 
       await client.query('COMMIT');
 
@@ -454,10 +641,22 @@ export class ProductoService {
   }
 
   /** Actualiza los datos de un artículo y registra diferencias de stock en Kardex si cambiaron. */
-  static async actualizarProducto(id: number, datos: any, operador: { idUsuarioOperador?: number | undefined; nombreUsuarioOperador?: string | undefined }) {
+  static async actualizarProducto(
+    id: number,
+    datos: any,
+    operador: { idUsuarioOperador?: number | undefined; nombreUsuarioOperador?: string | undefined; rolUsuarioOperador?: string | undefined }
+  ) {
     validarId(id, 'No se encontró ese producto.');
 
-    const { idUsuarioOperador, nombreUsuarioOperador } = operador;
+    const { idUsuarioOperador, nombreUsuarioOperador, rolUsuarioOperador } = operador;
+    if (
+      datos?.activo !== undefined &&
+      rolUsuarioOperador &&
+      !['ADMIN', 'SUPERADMIN'].includes(rolUsuarioOperador.toUpperCase())
+    ) {
+      throw new ForbiddenError('Solo un administrador puede activar o desactivar productos.');
+    }
+
     const client = await pool.connect();
 
     try {
@@ -471,7 +670,15 @@ export class ProductoService {
       const prodAnterior = checkProd.rows[0];
       const stockAnterior = Number(prodAnterior.cantidad);
 
-      const { nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, genero, precio, stock_minimo, activo } = datos;
+      const { codigo, nombre, marca, modelo, tipo_prod, cantidad, color, rodado, talle, genero, precio, precio_usd, costo_usd, porcentaje_ganancia, porcentaje_reventa, precio_reventa, precio_reventa_usd, moneda, id_proveedor, stock_minimo, activo } = datos;
+
+      if (codigo !== undefined && codigo !== null && typeof codigo === 'string' && codigo.trim().length > 50) {
+        throw new BadRequestError('El código del artículo no puede superar los 50 caracteres.');
+      }
+
+      const codigoFinal: string | null = 'codigo' in datos
+        ? (codigo !== null && String(codigo).trim() !== '' ? String(codigo).trim() : null)
+        : (prodAnterior.codigo ?? null);
 
       let tipoLimpio: string | null = null;
       if (tipo_prod) {
@@ -484,7 +691,7 @@ export class ProductoService {
       if (genero !== undefined && genero !== null && genero !== '') {
         const generoVal = String(genero).trim().toLowerCase();
         if (!GENEROS_BICICLETA_VALIDOS.includes(generoVal)) {
-          throw new BadRequestError('Seleccioná un género válido: Hombre, Mujer o Unisex.');
+          throw new BadRequestError('Seleccioná un género válido: Hombre, Mujer, Unisex o Niño/a.');
         }
       }
 
@@ -502,6 +709,48 @@ export class ProductoService {
         }
       }
 
+      if (precio_usd !== undefined && precio_usd !== null && precio_usd !== '') {
+        const precioUsdNum = Number(precio_usd);
+        if (isNaN(precioUsdNum) || precioUsdNum < 0) {
+          throw new BadRequestError('El precio en dólares no puede ser negativo.');
+        }
+      }
+
+      if (costo_usd !== undefined && costo_usd !== null && costo_usd !== '') {
+        const costoNum = Number(costo_usd);
+        if (isNaN(costoNum) || costoNum < 0) {
+          throw new BadRequestError('El costo no puede ser negativo.');
+        }
+      }
+
+      if (porcentaje_ganancia !== undefined && porcentaje_ganancia !== null && porcentaje_ganancia !== '') {
+        const ganNum = Number(porcentaje_ganancia);
+        if (isNaN(ganNum) || ganNum < 0) {
+          throw new BadRequestError('El porcentaje de ganancia no puede ser negativo.');
+        }
+      }
+
+      if (porcentaje_reventa !== undefined && porcentaje_reventa !== null && porcentaje_reventa !== '') {
+        const revPctNum = Number(porcentaje_reventa);
+        if (isNaN(revPctNum) || revPctNum < 0) {
+          throw new BadRequestError('El porcentaje de reventa no puede ser negativo.');
+        }
+      }
+
+      if (precio_reventa !== undefined && precio_reventa !== null && precio_reventa !== '') {
+        const revNum = Number(precio_reventa);
+        if (isNaN(revNum) || revNum < 0) {
+          throw new BadRequestError('El precio de reventa no puede ser negativo.');
+        }
+      }
+
+      if (precio_reventa_usd !== undefined && precio_reventa_usd !== null && precio_reventa_usd !== '') {
+        const revUsdNum = Number(precio_reventa_usd);
+        if (isNaN(revUsdNum) || revUsdNum < 0) {
+          throw new BadRequestError('El precio de reventa en dólares no puede ser negativo.');
+        }
+      }
+
       if (stock_minimo !== undefined && stock_minimo !== null && stock_minimo !== '') {
         const stockMinNum = Number(stock_minimo);
         if (isNaN(stockMinNum) || stockMinNum < 0 || !Number.isInteger(stockMinNum)) {
@@ -509,28 +758,170 @@ export class ProductoService {
         }
       }
 
+      let idProveedorFinal: number | null = prodAnterior.id_proveedor ?? null;
+      if ('id_proveedor' in datos) {
+        if (id_proveedor === null || id_proveedor === '') {
+          idProveedorFinal = null;
+        } else {
+          idProveedorFinal = validarId(id_proveedor, 'El proveedor seleccionado no es válido.');
+        }
+      }
+
+      const monedaActual = prodAnterior.moneda === 'USD' ? 'USD' : 'ARS';
+      let monedaFinal = monedaActual;
+      if (moneda !== undefined && moneda !== null && moneda !== '') {
+        const mNorm = String(moneda).trim().toUpperCase();
+        if (!MONEDAS_VALIDAS.includes(mNorm)) {
+          throw new BadRequestError('La moneda debe ser ARS o USD.');
+        }
+        monedaFinal = mNorm;
+      }
+
+      const costoUsdFinal: number | null = 'costo_usd' in datos
+        ? (costo_usd !== null && costo_usd !== '' ? Math.round(Number(costo_usd) * 100) / 100 : null)
+        : (monedaActual === 'USD' && monedaFinal === 'ARS'
+            ? null
+            : (prodAnterior.costo_usd !== null && prodAnterior.costo_usd !== undefined ? Number(prodAnterior.costo_usd) : null));
+
+      const marcaFinal: string | null = 'marca' in datos
+        ? (marca !== null && String(marca).trim() !== '' ? String(marca).trim() : null)
+        : (prodAnterior.marca ?? null);
+      const modeloFinal: string | null = 'modelo' in datos
+        ? (modelo !== null && String(modelo).trim() !== '' ? String(modelo).trim() : null)
+        : (prodAnterior.modelo ?? null);
+
+      const gananciaFinal: number | null = 'porcentaje_ganancia' in datos
+        ? normalizarFactorGanancia(porcentaje_ganancia)
+        : (prodAnterior.porcentaje_ganancia !== null && prodAnterior.porcentaje_ganancia !== undefined ? Number(prodAnterior.porcentaje_ganancia) : null);
+
+      const porcentajeReventaFinal: number | null = 'porcentaje_reventa' in datos
+        ? normalizarFactorGanancia(porcentaje_reventa)
+        : (prodAnterior.porcentaje_reventa !== null && prodAnterior.porcentaje_reventa !== undefined ? Number(prodAnterior.porcentaje_reventa) : null);
+
+      let precioFinalArs = Number(prodAnterior.precio);
+      let precioUsdFinal: number | null = prodAnterior.precio_usd !== null && prodAnterior.precio_usd !== undefined ? Number(prodAnterior.precio_usd) : null;
+      let precioReventaFinal: number | null = prodAnterior.precio_reventa !== null && prodAnterior.precio_reventa !== undefined ? Number(prodAnterior.precio_reventa) : null;
+      let precioReventaUsdFinal: number | null = prodAnterior.precio_reventa_usd !== null && prodAnterior.precio_reventa_usd !== undefined ? Number(prodAnterior.precio_reventa_usd) : null;
+
+      if (monedaFinal === 'USD') {
+        const cambioCostoOGanancia = 'costo_usd' in datos || 'porcentaje_ganancia' in datos;
+        const cambioReventa = 'costo_usd' in datos || 'porcentaje_reventa' in datos || 'precio_reventa_usd' in datos || 'precio_reventa' in datos;
+        const necesitaRecalculo =
+          moneda !== undefined ||
+          precio_usd !== undefined ||
+          precio !== undefined ||
+          cambioCostoOGanancia ||
+          cambioReventa ||
+          'id_proveedor' in datos;
+
+        if (precio_usd !== undefined && precio_usd !== null && precio_usd !== '') {
+          precioUsdFinal = Math.round(Number(precio_usd) * 100) / 100;
+        } else if (cambioCostoOGanancia && costoUsdFinal !== null && costoUsdFinal > 0) {
+          precioUsdFinal = Math.round(costoUsdFinal * (1 + (gananciaFinal || 0)) * 100) / 100;
+        } else if (precioUsdFinal === null && precio !== undefined && precio !== '') {
+          precioUsdFinal = Math.round(Number(precio) * 100) / 100;
+        } else if (precioUsdFinal === null) {
+          precioUsdFinal = 0;
+        }
+
+        const cotizacion = necesitaRecalculo ? await obtenerCotizacionEfectiva(client, idProveedorFinal) : 1;
+        if (necesitaRecalculo) {
+          precioFinalArs = Math.round(precioUsdFinal * cotizacion * 100) / 100;
+        }
+
+        if ('precio_reventa_usd' in datos) {
+          if (precio_reventa_usd !== null && precio_reventa_usd !== '') {
+            precioReventaUsdFinal = Math.round(Number(precio_reventa_usd) * 100) / 100;
+          } else if (costoUsdFinal !== null && costoUsdFinal > 0 && porcentajeReventaFinal !== null) {
+            precioReventaUsdFinal = Math.round(costoUsdFinal * (1 + porcentajeReventaFinal) * 100) / 100;
+          } else {
+            precioReventaUsdFinal = null;
+          }
+        } else if (('costo_usd' in datos || 'porcentaje_reventa' in datos) && costoUsdFinal !== null && costoUsdFinal > 0 && porcentajeReventaFinal !== null) {
+          precioReventaUsdFinal = Math.round(costoUsdFinal * (1 + porcentajeReventaFinal) * 100) / 100;
+        } else if ('precio_reventa' in datos) {
+          if (precio_reventa === null || precio_reventa === '') {
+            precioReventaUsdFinal = null;
+            precioReventaFinal = null;
+          } else if (cotizacion > 0) {
+            precioReventaUsdFinal = Math.round((Number(precio_reventa) / cotizacion) * 100) / 100;
+          }
+        }
+
+        if (necesitaRecalculo) {
+          precioReventaFinal = precioReventaUsdFinal !== null ? Math.round(precioReventaUsdFinal * cotizacion * 100) / 100 : null;
+        }
+      } else {
+        precioUsdFinal = null;
+        precioReventaUsdFinal = null;
+        if (precio !== undefined && precio !== null && precio !== '') {
+          precioFinalArs = Math.round(Number(precio) * 100) / 100;
+        } else if (
+          ('costo_usd' in datos || 'porcentaje_ganancia' in datos) &&
+          costoUsdFinal !== null &&
+          costoUsdFinal > 0
+        ) {
+          precioFinalArs = Math.round(costoUsdFinal * (1 + (gananciaFinal || 0)) * 100) / 100;
+        }
+
+        if ('precio_reventa' in datos) {
+          if (precio_reventa !== null && precio_reventa !== '') {
+            precioReventaFinal = Math.round(Number(precio_reventa) * 100) / 100;
+          } else if (costoUsdFinal !== null && costoUsdFinal > 0 && porcentajeReventaFinal !== null) {
+            precioReventaFinal = Math.round(costoUsdFinal * (1 + porcentajeReventaFinal) * 100) / 100;
+          } else {
+            precioReventaFinal = null;
+          }
+        } else if (
+          ('costo_usd' in datos || 'porcentaje_reventa' in datos) &&
+          costoUsdFinal !== null &&
+          costoUsdFinal > 0 &&
+          porcentajeReventaFinal !== null
+        ) {
+          precioReventaFinal = Math.round(costoUsdFinal * (1 + porcentajeReventaFinal) * 100) / 100;
+        }
+      }
+
       const queryProd = `
         UPDATE Productos
-        SET nombre = COALESCE($1, nombre),
-            marca = COALESCE($2, marca),
-            modelo = COALESCE($3, modelo),
-            tipo_prod = COALESCE($4, tipo_prod),
-            cantidad = COALESCE($5, cantidad),
-            precio = COALESCE($6, precio),
-            stock_minimo = COALESCE($7, stock_minimo),
-            activo = COALESCE($8, activo)
-        WHERE id_producto = $9
+        SET codigo = $1,
+            nombre = COALESCE($2, nombre),
+            marca = $3,
+            modelo = $4,
+            tipo_prod = COALESCE($5, tipo_prod),
+            cantidad = COALESCE($6, cantidad),
+            precio = $7,
+            moneda = $8,
+            precio_usd = $9,
+            id_proveedor = $10,
+            stock_minimo = COALESCE($11, stock_minimo),
+            activo = COALESCE($12, activo),
+            costo_usd = $13,
+            porcentaje_ganancia = $14,
+            porcentaje_reventa = $15,
+            precio_reventa = $16,
+            precio_reventa_usd = $17
+        WHERE id_producto = $18
         RETURNING *;
       `;
       const resultProd = await client.query(queryProd, [
+        codigoFinal,
         nombre !== undefined ? String(nombre).trim() : null,
-        marca !== undefined ? (marca ? String(marca).trim() : null) : null,
-        modelo !== undefined ? (modelo ? String(modelo).trim() : null) : null,
+        marcaFinal,
+        modeloFinal,
         tipoLimpio,
-        cantidad !== undefined && cantidad !== '' ? Number(cantidad) : null,
-        precio !== undefined && precio !== '' ? Number(precio) : null,
-        stock_minimo !== undefined && stock_minimo !== '' ? Number(stock_minimo) : null,
+        cantidad !== undefined && cantidad !== null && cantidad !== '' ? Number(cantidad) : null,
+        precioFinalArs,
+        monedaFinal,
+        precioUsdFinal,
+        idProveedorFinal,
+        stock_minimo !== undefined && stock_minimo !== null && stock_minimo !== '' ? Number(stock_minimo) : null,
         activo !== undefined ? Boolean(activo) : null,
+        costoUsdFinal,
+        gananciaFinal,
+        porcentajeReventaFinal,
+        precioReventaFinal,
+        precioReventaUsdFinal,
         id
       ]);
 
@@ -555,35 +946,40 @@ export class ProductoService {
           VALUES ($1, $2, $3, $4, $5, $6)
           ON CONFLICT (id_producto) 
           DO UPDATE SET 
-            marca = EXCLUDED.marca,
-            color = EXCLUDED.color,
-            rodado = EXCLUDED.rodado,
-            talle = EXCLUDED.talle,
-            genero = EXCLUDED.genero;
+            marca = CASE WHEN $7::boolean THEN EXCLUDED.marca ELSE Producto_BiciNueva.marca END,
+            color = CASE WHEN $8::boolean THEN EXCLUDED.color ELSE Producto_BiciNueva.color END,
+            rodado = CASE WHEN $9::boolean THEN EXCLUDED.rodado ELSE Producto_BiciNueva.rodado END,
+            talle = CASE WHEN $10::boolean THEN EXCLUDED.talle ELSE Producto_BiciNueva.talle END,
+            genero = CASE WHEN $11::boolean THEN EXCLUDED.genero ELSE Producto_BiciNueva.genero END;
         `;
         await client.query(queryBici, [
           id,
-          marca ? String(marca).trim() : 'Genérica',
-          color !== undefined ? (color ? String(color).trim() : null) : null,
-          rodado !== undefined ? (rodado ? String(rodado).trim() : null) : null,
-          talle !== undefined ? (talle ? String(talle).trim() : null) : null,
-          genero !== undefined && genero !== '' ? String(genero).trim().toLowerCase() : 'unisex'
+          marca ? String(marca).trim() : (productoActualizado.marca || 'Genérica'),
+          color !== undefined && color !== null && String(color).trim() !== '' ? String(color).trim() : null,
+          rodado !== undefined && rodado !== null && String(rodado).trim() !== '' ? String(rodado).trim() : null,
+          talle !== undefined && talle !== null && String(talle).trim() !== '' ? String(talle).trim() : null,
+          genero !== undefined && genero !== null && String(genero).trim() !== '' ? String(genero).trim().toLowerCase() : 'unisex',
+          'marca' in datos,
+          'color' in datos,
+          'rodado' in datos,
+          'talle' in datos,
+          'genero' in datos
         ]);
       }
 
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Stock', 'Modificación de Producto', $3);`,
-          [
-            idUsuarioOperador || null,
-            nombreUsuarioOperador || 'Usuario',
-            `Producto actualizado: "${productoActualizado.nombre}" (ID #${id}). Stock: ${productoActualizado.cantidad}, Precio: $${productoActualizado.precio}.`
-          ]
-        );
-      } catch {
-        // Ignorar
-      }
+      const detallePrecio = monedaFinal === 'USD'
+        ? `USD ${precioUsdFinal} -> $${productoActualizado.precio} ARS`
+        : `$${productoActualizado.precio} ARS`;
+      const detalleProv = idProveedorFinal ? `, Proveedor ID #${idProveedorFinal}` : '';
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Stock', 'Modificación de Producto', $3);`,
+        [
+          idUsuarioOperador || null,
+          String(nombreUsuarioOperador || 'Usuario').trim().slice(0, 50),
+          `Producto actualizado: "${productoActualizado.nombre}" (ID #${id}). Stock: ${productoActualizado.cantidad}${detalleProv}, Precio (${monedaFinal}): ${detallePrecio}.`
+        ]
+      );
 
       await client.query('COMMIT');
 
@@ -777,19 +1173,15 @@ export class ProductoService {
         );
       }
 
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Stock', 'Ajuste de Stock Manual', $3);`,
-          [
-            idUsuarioOperador || null,
-            nombreUsuarioOperador || 'Usuario',
-            `Ajuste de stock en "${resProd.rows[0].nombre}" (ID #${id}): ${tipoNorm} de ${cantNum} un. (Stock anterior: ${stockActual}, Nuevo stock: ${nuevoStock}). Motivo: ${motivo.trim()}.`
-          ]
-        );
-      } catch {
-        // Ignorar
-      }
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Stock', 'Ajuste de Stock Manual', $3);`,
+        [
+          idUsuarioOperador || null,
+          String(nombreUsuarioOperador || 'Usuario').trim().slice(0, 50),
+          `Ajuste de stock en "${resProd.rows[0].nombre}" (ID #${id}): ${tipoNorm} de ${cantNum} un. (Stock anterior: ${stockActual}, Nuevo stock: ${nuevoStock}). Motivo: ${motivo.trim()}.`
+        ]
+      );
 
       await client.query('COMMIT');
 

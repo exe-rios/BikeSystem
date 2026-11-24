@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { PeticionConUsuario } from '../middlewares/auth.middleware.js';
 import { ReparacionService } from '../services/reparacion.service.js';
+import { UnauthorizedError } from '../utils/errors.js';
 import { validarId } from '../utils/validation.js';
 import { responderOk, responderCreado } from '../utils/response.js';
 
@@ -34,10 +35,14 @@ export const obtenerReparacionPorId = async (req: Request, res: Response, next: 
 /** Endpoint POST /api/reparaciones: Registra el ingreso de una bicicleta al taller. */
 export const crearReparacion = async (req: PeticionConUsuario, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { id_bicicleta, id_usuario, estado, descripcion, costo_mano_obra } = req.body;
+    const { id_bicicleta, estado, descripcion, costo_mano_obra } = req.body || {};
+    const idUsuarioToken = req.usuarioToken?.id;
+    if (!idUsuarioToken) {
+      throw new UnauthorizedError('No se pudo identificar quién hace el registro. Volvé a iniciar sesión.');
+    }
     const nuevaRep = await ReparacionService.crearReparacion({
       id_bicicleta,
-      id_usuario: req.usuarioToken?.id || id_usuario,
+      id_usuario: idUsuarioToken,
       estado,
       descripcion,
       costo_mano_obra,

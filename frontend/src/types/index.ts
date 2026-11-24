@@ -59,10 +59,14 @@ export interface DetalleReparacionItem {
   tipo_prod?: string;
 }
 
-export type GeneroBicicleta = 'hombre' | 'mujer' | 'unisex';
+export type GeneroBicicleta = 'hombre' | 'mujer' | 'unisex' | 'niño/a';
 
 export interface Producto {
   id_producto?: number;
+  id_proveedor?: number | null;
+  proveedor_nombre?: string | null;
+  proveedor_cotizacion_dolar?: number | string | null;
+  codigo?: string | null;
   nombre: string;
   marca?: string;
   modelo?: string;
@@ -74,15 +78,149 @@ export interface Producto {
   talle?: string;
   genero?: GeneroBicicleta | string;
   precio: number | string;
+  moneda?: 'ARS' | 'USD';
+  precio_usd?: number | string | null;
+  costo_usd?: number | string | null;
+  porcentaje_ganancia?: number | string | null;
+  porcentaje_reventa?: number | string | null;
+  precio_reventa?: number | string | null;
+  precio_reventa_usd?: number | string | null;
   stock_minimo: number | string;
   activo?: boolean;
   estado_stock?: 'optimo' | 'bajo_stock' | 'sin_stock';
+}
+
+export interface PagoProveedorPendiente {
+  id_pendiente: number;
+  id_proveedor: number;
+  proveedor_nombre?: string | null;
+  id_usuario: number;
+  usuario_nombre?: string | null;
+  id_pago_inicial?: number | null;
+  numero_factura?: string | null;
+  fecha_factura?: string | null;
+  monto_factura_total: number | string;
+  monto_pagado: number | string;
+  saldo_pendiente: number | string;
+  moneda: 'ARS' | 'USD';
+  fecha_proximo_pago: string;
+  dias_restantes?: number;
+  estado: 'PENDIENTE' | 'PAGADO' | 'CANCELADO';
+  observaciones?: string | null;
+  created_at?: string;
+}
+
+export interface CotizacionDolarInfo {
+  cotizacion_dolar: number;
+  updated_at: string | null;
+  updated_by_nombre: string | null;
+  productos_usd_count: number;
+}
+
+export interface CotizacionProveedorInput {
+  nombre_proveedor: string;
+  cotizacion_dolar: number;
+}
+
+export interface ItemCargaMasivaInput {
+  id_producto?: number;
+  codigo?: string;
+  nombre: string;
+  tipo_prod: 'bicicleta' | 'repuesto' | 'accesorio' | string;
+  marca?: string;
+  modelo?: string;
+  nombre_proveedor?: string;
+  cantidad?: number | string;
+  stock_minimo?: number | string;
+  precio?: number | string;
+  precio_usd?: number | string;
+  costo_usd?: number | string;
+  porcentaje_ganancia?: number | string;
+  porcentaje_reventa?: number | string;
+  precio_reventa?: number | string;
+  precio_reventa_usd?: number | string;
+  moneda?: 'ARS' | 'USD' | string;
+  color?: string;
+  rodado?: string;
+  talle?: string;
+  genero?: string;
+  modo_stock?: 'sumar' | 'reemplazar';
+}
+
+export interface PreviewCargaMasivaItem {
+  fila: number;
+  accion: 'CREAR' | 'ACTUALIZAR';
+  id_producto_existente: number | null;
+  codigo?: string | null;
+  nombre: string;
+  tipo_prod: string;
+  marca: string | null;
+  modelo: string | null;
+  nombre_proveedor?: string | null;
+  cotizacion_aplicada?: number;
+  cantidad_archivo: number;
+  stock_actual: number;
+  stock_resultante: number;
+  moneda: 'ARS' | 'USD';
+  precio_usd: number | null;
+  costo_usd?: number | null;
+  porcentaje_ganancia?: number | null;
+  porcentaje_reventa?: number | null;
+  precio_reventa?: number | null;
+  precio_reventa_usd?: number | null;
+  precio_ars: number;
+  precio_actual_ars: number | null;
+  stock_minimo: number;
+  genero: string | null;
+  color: string | null;
+  rodado: string | null;
+  talle: string | null;
+  errores: string[];
+}
+
+export interface PreviewCargaMasivaResponse {
+  proveedor: { id_proveedor: number | null; nombre_empresa: string | null };
+  cotizacion_dolar: number;
+  resumen: {
+    total_filas: number;
+    nuevos: number;
+    actualizar: number;
+    con_errores: number;
+  };
+  items: PreviewCargaMasivaItem[];
+}
+
+export interface AumentoMasivoItem {
+  id_producto: number;
+  nombre: string;
+  marca: string | null;
+  modelo: string | null;
+  tipo_prod: string;
+  moneda: 'ARS' | 'USD';
+  costo_actual?: number | null;
+  costo_nuevo?: number | null;
+  porcentaje_ganancia?: number | null;
+  precio_usd_actual: number | null;
+  precio_usd_nuevo: number | null;
+  precio_ars_actual: number;
+  precio_ars_nuevo: number;
+}
+
+export interface AumentoMasivoResponse {
+  preview: boolean;
+  message?: string;
+  proveedor: { id_proveedor: number | null; nombre_empresa: string };
+  cotizacion_dolar: number;
+  total_afectados: number;
+  resumen_moneda: { usd: number; ars: number };
+  items: AumentoMasivoItem[];
 }
 
 export interface ResumenStock {
   total_articulos: number;
   total_unidades: number;
   bajo_stock_count: number;
+  sin_stock_count?: number;
   inactivos_count: number;
 }
 
@@ -93,6 +231,9 @@ export interface Proveedor {
   telefono: string;
   email: string;
   direccion: string;
+  cotizacion_dolar?: number | string | null;
+  productos_count?: number;
+  productos_usd_count?: number;
 }
 
 export interface MetodoPago {
@@ -110,6 +251,9 @@ export interface PagoProveedor {
   metodo_pago_nombre?: string;
   fecha?: string;
   monto_total: number | string;
+  moneda?: 'ARS' | 'USD';
+  monto_usd?: number | string | null;
+  cotizacion_dolar?: number | string | null;
   observaciones?: string;
 }
 
@@ -236,11 +380,11 @@ export interface DashboardTopProducto {
   tipo_prod: string;
   marca: string | null;
   total_vendido: number;
-  total_recaudado: number;
+  total_recaudado?: number;
 }
 
 export interface DashboardData {
-  finanzas: DashboardFinanzas;
+  finanzas: DashboardFinanzas | null;
   taller_activo: DashboardTallerActivo[];
   total_taller_activo?: number;
   alertas_stock: DashboardAlertaStock[];

@@ -147,11 +147,11 @@ export function TabTaller({
         <div style={{ textAlign: 'right', display: 'flex', gap: '24px', alignItems: 'center' }}>
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', marginRight: '6px' }}>Mano de Obra Cobrada:</span>
-            <strong style={{ fontSize: '1.05rem', color: 'var(--texto-principal)' }}>{formatearMoneda(totalManoObraMonto)}</strong>
+            <strong style={{ fontSize: '1.05rem', color: 'var(--texto-principal)' }}>{formatearMoneda(reparacionesResumen.totalManoObra ?? totalManoObraMonto)}</strong>
           </div>
           <div>
             <span style={{ fontSize: '0.82rem', color: 'var(--texto-mutado)', marginRight: '6px' }}>Recaudación Efectiva (Entregadas):</span>
-            <strong style={{ fontSize: '1.25rem', color: '#16a34a' }}>{formatearMoneda(totalReparacionesMonto)}</strong>
+            <strong style={{ fontSize: '1.25rem', color: '#16a34a' }}>{formatearMoneda(reparacionesResumen.totalRecaudado ?? totalReparacionesMonto)}</strong>
           </div>
         </div>
       </div>

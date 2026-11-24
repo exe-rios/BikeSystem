@@ -73,7 +73,12 @@ export function PagoProveedoresTabla({
                 </td>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)' }}>{p.usuario_nombre}</td>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: '#10b981', fontWeight: '700' }}>
-                  {formatearMoneda(p.monto_total, { conDecimales: true })}
+                  <div>{formatearMoneda(p.monto_total, { conDecimales: true })}</div>
+                  {p.moneda === 'USD' && p.monto_usd !== null && p.monto_usd !== undefined && (
+                    <div style={{ fontSize: '0.75rem', color: '#0f766e', fontWeight: '600', marginTop: '2px' }}>
+                      USD {Number(p.monto_usd).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  )}
                 </td>
                 <td style={{ padding: '16px', fontSize: '0.95rem', color: 'var(--texto-mutado)', textAlign: 'right' }}>
                   {p.observaciones || '-'}

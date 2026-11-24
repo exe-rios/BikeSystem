@@ -12,6 +12,7 @@ export function ReparacionesView() {
     bicicletas,
     cargando,
     guardando,
+    actualizandoEstadoId,
     error,
     vistaTab,
     busquedaTaller,
@@ -95,6 +96,7 @@ export function ReparacionesView() {
           setBusquedaTaller={setBusquedaTaller}
           cargando={cargando}
           draggingId={draggingId}
+          actualizandoEstadoId={actualizandoEstadoId}
           setDraggingId={setDraggingId}
           handleDropEnColumna={handleDropEnColumna}
           handleAbrirDetalle={handleAbrirDetalle}

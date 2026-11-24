@@ -4,11 +4,15 @@ import { AuditoriaHeader } from './components/AuditoriaHeader';
 import { AuditoriaFiltros } from './components/AuditoriaFiltros';
 import { AuditoriaTabla } from './components/AuditoriaTabla';
 import { ModalConfirmarBackup } from './components/ModalConfirmarBackup';
+import { ModalLogsSistema } from './components/ModalLogsSistema';
+import { usePermisos } from '../../hooks/usePermisos';
 import { api } from '../../services/api';
 
 /** Vista principal de auditoría y bitácora del sistema. */
 export function AuditoriaView() {
   const [mostrarModalBackup, setMostrarModalBackup] = useState<boolean>(false);
+  const [mostrarModalLogs, setMostrarModalLogs] = useState<boolean>(false);
+  const { puedeVerLogsSistema } = usePermisos();
 
   const {
     registros,
@@ -41,6 +45,8 @@ export function AuditoriaView() {
         cargando={cargando}
         onActualizar={recargar}
         onDescargarBackup={() => setMostrarModalBackup(true)}
+        puedeVerLogs={puedeVerLogsSistema}
+        onAbrirLogs={() => setMostrarModalLogs(true)}
         error={error}
       />
 
@@ -72,6 +78,14 @@ export function AuditoriaView() {
         onClose={() => setMostrarModalBackup(false)}
         onConfirmar={handleDescargarBackup}
       />
+
+      {/* MODAL DE LOGS TÉCNICOS (SOLO SUPERADMIN) */}
+      {puedeVerLogsSistema && (
+        <ModalLogsSistema
+          abierto={mostrarModalLogs}
+          onClose={() => setMostrarModalLogs(false)}
+        />
+      )}
     </div>
   );
 }

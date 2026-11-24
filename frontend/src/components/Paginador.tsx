@@ -38,6 +38,7 @@ export const Paginador: React.FC<PaginadorProps> = ({
 
   return (
     <div
+      className="no-imprimir"
       style={{
         display: 'flex',
         justifyContent: 'center',
@@ -99,6 +100,8 @@ export const Paginador: React.FC<PaginadorProps> = ({
             <button
               key={p}
               onClick={() => handlerCambio(p)}
+              disabled={esActiva}
+              aria-current={esActiva ? 'page' : undefined}
               style={{
                 width: '32px',
                 height: '32px',

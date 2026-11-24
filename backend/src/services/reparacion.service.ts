@@ -174,8 +174,8 @@ export class ReparacionService {
     }
 
     const query = `
-      INSERT INTO Reparacion (id_bicicleta, id_usuario, estado, descripcion, costo_mano_obra, costo_total)
-      VALUES ($1, $2, $3, $4, $5, $5)
+      INSERT INTO Reparacion (id_bicicleta, id_usuario, estado, descripcion, costo_mano_obra, costo_total, fecha_egreso)
+      VALUES ($1, $2, $3, $4, $5, $5, CASE WHEN $3 = 'Entregada' THEN CURRENT_DATE ELSE NULL END)
       RETURNING *;
     `;
     const result = await pool.query(query, [idBiciNum, idUsuarioNum, estadoFinal, descripcion.trim(), montoManoObra]);
@@ -251,7 +251,7 @@ export class ReparacionService {
       const ordenActual = checkOrden.rows[0];
 
       // Si la orden ya está entregada y cerrada, protegerla contra alteraciones no autorizadas
-      if (ordenActual.estado === 'Entregada' && estadoNormalizado !== 'Entregada') {
+      if (ordenActual.estado === 'Entregada') {
         throw new BadRequestError('No se pueden modificar órdenes de taller que ya han sido entregadas y cerradas.');
       }
 
@@ -284,19 +284,15 @@ export class ReparacionService {
       const ordenActualizada = resultUpdate.rows[0];
 
       // Registrar en Bitácora
-      try {
-        await client.query(
-          `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
-           VALUES ($1, $2, 'Taller', 'Actualización de Orden', $3);`,
-          [
-            idUsuarioOperador || null,
-            nombreUsuarioOperador || 'Usuario',
-            `Orden #${id} actualizada. Estado: ${ordenActualizada.estado}, Mano de obra: $${ordenActualizada.costo_mano_obra}, Total: $${ordenActualizada.costo_total}.`
-          ]
-        );
-      } catch {
-        // Ignorar fallo secundario en bitácora
-      }
+      await client.query(
+        `INSERT INTO Bitacora_Actividad (id_usuario, nombre_usuario, modulo, accion, descripcion)
+         VALUES ($1, $2, 'Taller', 'Actualización de Orden', $3);`,
+        [
+          idUsuarioOperador || null,
+          String(nombreUsuarioOperador || 'Usuario').trim().slice(0, 50),
+          `Orden #${id} actualizada. Estado: ${ordenActualizada.estado}, Mano de obra: $${ordenActualizada.costo_mano_obra}, Total: $${ordenActualizada.costo_total}.`
+        ]
+      );
 
       await client.query('COMMIT');
 

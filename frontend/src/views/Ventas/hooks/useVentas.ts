@@ -176,13 +176,15 @@ export function useVentas() {
     clienteId: number,
     metodoPagoId: number,
     items: { id_producto: number; cantidad: number }[],
-    datosCF?: { cliente_nombre?: string; cliente_apellido?: string; cliente_dni?: string }
+    datosCF?: { cliente_nombre?: string; cliente_apellido?: string; cliente_dni?: string },
+    tipoPrecio: 'publico' | 'reventa' = 'publico'
   ) => {
     setGuardando(true);
     try {
       const payload = {
         id_cliente: clienteId,
         id_metodo_pago: metodoPagoId,
+        tipo_precio: tipoPrecio,
         detalles: items,
         ...(datosCF || {})
       };

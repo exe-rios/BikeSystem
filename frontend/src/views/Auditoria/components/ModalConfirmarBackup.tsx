@@ -124,8 +124,8 @@ export function ModalConfirmarBackup({
             Información del Respaldo:
           </p>
           <ul style={{ margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <li>Se generará un archivo SQL completo con todas las tablas del sistema: usuarios, clientes, proveedores, catálogo, stock, ventas, reparaciones y bitácora.</li>
-            <li>El volcado utiliza transacciones atómicas con desactivación temporal de disparadores para permitir una restauración limpia y sin conflictos.</li>
+            <li>Se generará un archivo SQL completo con todas las tablas del sistema: usuarios, configuraciones, clientes, proveedores, catálogo, stock, ventas, reparaciones, pagos pendientes y bitácora.</li>
+            <li>El volcado utiliza transacciones atómicas consistentes en orden referencial con limpieza previa segura, compatible con PostgreSQL nativo y Supabase.</li>
             <li>La operación quedará registrada formalmente en la bitácora de auditoría.</li>
           </ul>
         </div>

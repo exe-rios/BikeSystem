@@ -36,6 +36,13 @@ export function formatearFecha(
   fallback = 'N/D'
 ): string {
   if (!fecha) return fallback;
+  if (typeof fecha === 'string') {
+    const matchIso = fecha.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (matchIso) {
+      const localDate = new Date(Number(matchIso[1]), Number(matchIso[2]) - 1, Number(matchIso[3]));
+      return isNaN(localDate.getTime()) ? fallback : localDate.toLocaleDateString('es-AR');
+    }
+  }
   const d = typeof fecha === 'string' ? new Date(fecha) : fecha;
   if (isNaN(d.getTime())) return fallback;
   return d.toLocaleDateString('es-AR');

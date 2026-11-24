@@ -5,6 +5,7 @@ import type { Producto, DetalleVentaItem } from '../../../types';
 export function useCarritoVenta() {
   const [clienteSeleccionadoId, setClienteSeleccionadoId] = useState<number>(0);
   const [metodoPagoSeleccionadoId, setMetodoPagoSeleccionadoId] = useState<number>(1);
+  const [tipoPrecio, setTipoPrecio] = useState<'publico' | 'reventa'>('publico');
   const [carritoDetalle, setCarritoDetalle] = useState<DetalleVentaItem[]>([]);
 
   // Datos personalizados para Consumidor Final de mostrador (sin crear nuevo cliente)
@@ -18,9 +19,33 @@ export function useCarritoVenta() {
   const [filtroTipo, setFiltroTipo] = useState<string>('todos');
   const [errorCarrito, setErrorCarrito] = useState<string | null>(null);
 
+  const obtenerPrecioEfectivo = (prod: Producto, modo: 'publico' | 'reventa'): number => {
+    if (modo === 'reventa' && prod.precio_reventa !== null && prod.precio_reventa !== undefined && Number(prod.precio_reventa) > 0) {
+      return Number(prod.precio_reventa);
+    }
+    return Number(prod.precio) || 0;
+  };
+
+  const cambiarTipoPrecio = (nuevoModo: 'publico' | 'reventa', productos: Producto[]) => {
+    setTipoPrecio(nuevoModo);
+    setCarritoDetalle(prev =>
+      prev.map(item => {
+        const prod = productos.find(p => p.id_producto === item.id_producto);
+        if (!prod) return item;
+        const nuevoUnitario = obtenerPrecioEfectivo(prod, nuevoModo);
+        return {
+          ...item,
+          precio_unitario: nuevoUnitario,
+          costo_total: Math.round(nuevoUnitario * item.cantidad * 100) / 100
+        };
+      })
+    );
+  };
+
   // Total calculado del carrito para vista previa del usuario
   const totalVenta = useMemo(() => {
-    return carritoDetalle.reduce((acc, item) => acc + (item.costo_total || (item.cantidad * item.precio_unitario)), 0);
+    const suma = carritoDetalle.reduce((acc, item) => acc + (item.costo_total || (item.cantidad * item.precio_unitario)), 0);
+    return Math.round(suma * 100) / 100;
   }, [carritoDetalle]);
 
   // Agregar artículo al carrito validando stock disponible
@@ -34,8 +59,8 @@ export function useCarritoVenta() {
     const prod = productos.find(p => p.id_producto === productoBuscadoId);
     if (!prod) return false;
 
-    const cant = parseInt(String(cantidadAnadir), 10);
-    if (isNaN(cant) || cant <= 0) {
+    const cant = Number(cantidadAnadir);
+    if (!Number.isFinite(cant) || !Number.isInteger(cant) || cant <= 0) {
       setErrorCarrito('La cantidad a añadir debe ser un número entero mayor a 0.');
       return false;
     }
@@ -58,7 +83,7 @@ export function useCarritoVenta() {
             ? {
                 ...item,
                 cantidad: nuevaCantidad,
-                costo_total: Number(item.precio_unitario) * nuevaCantidad
+                costo_total: Math.round(Number(item.precio_unitario) * nuevaCantidad * 100) / 100
               }
             : item
         )
@@ -68,13 +93,14 @@ export function useCarritoVenta() {
       return true;
     }
 
+    const precioUnitario = obtenerPrecioEfectivo(prod, tipoPrecio);
     const nuevoItem: DetalleVentaItem = {
       id_producto: prod.id_producto!,
       nombre: prod.nombre,
       tipo_prod: prod.tipo_prod,
       cantidad: cant,
-      precio_unitario: Number(prod.precio) || 0,
-      costo_total: (Number(prod.precio) || 0) * cant,
+      precio_unitario: precioUnitario,
+      costo_total: Math.round(precioUnitario * cant * 100) / 100,
       marca: prod.marca,
       modelo: prod.modelo,
       numero_serie: prod.numero_serie,
@@ -110,7 +136,7 @@ export function useCarritoVenta() {
           return {
             ...item,
             cantidad: nuevaCantidad,
-            costo_total: item.precio_unitario * nuevaCantidad
+            costo_total: Math.round(Number(item.precio_unitario) * nuevaCantidad * 100) / 100
           };
         }
         return item;
@@ -127,6 +153,7 @@ export function useCarritoVenta() {
     setCarritoDetalle([]);
     setClienteSeleccionadoId(defaultClienteId);
     setMetodoPagoSeleccionadoId(primerMetodoPagoId);
+    setTipoPrecio('publico');
     setNombreConsumidorFinal('');
     setApellidoConsumidorFinal('');
     setDniConsumidorFinal('');
@@ -141,6 +168,8 @@ export function useCarritoVenta() {
     setClienteSeleccionadoId,
     metodoPagoSeleccionadoId,
     setMetodoPagoSeleccionadoId,
+    tipoPrecio,
+    cambiarTipoPrecio,
     nombreConsumidorFinal,
     setNombreConsumidorFinal,
     apellidoConsumidorFinal,

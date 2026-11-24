@@ -17,5 +17,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   refocus: (): void => {
     ipcRenderer.send('window:refocus');
+  },
+  printWithPreview: (options?: { title?: string; landscape?: boolean }): Promise<boolean> => {
+    return ipcRenderer.invoke('print:preview', options);
+  },
+  openLogsFolder: (): Promise<boolean> => {
+    return ipcRenderer.invoke('logs:openFolder');
   }
 });

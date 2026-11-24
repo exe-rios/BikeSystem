@@ -2,6 +2,8 @@ interface AuditoriaHeaderProps {
   cargando: boolean;
   onActualizar: () => void;
   onDescargarBackup: () => void;
+  puedeVerLogs?: boolean;
+  onAbrirLogs?: () => void;
   error: string | null;
 }
 
@@ -10,6 +12,8 @@ export function AuditoriaHeader({
   cargando,
   onActualizar,
   onDescargarBackup,
+  puedeVerLogs,
+  onAbrirLogs,
   error
 }: AuditoriaHeaderProps) {
   return (
@@ -25,6 +29,28 @@ export function AuditoriaHeader({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {puedeVerLogs && onAbrirLogs && (
+            <button
+              type="button"
+              onClick={onAbrirLogs}
+              style={{
+                backgroundColor: '#0f172a',
+                color: '#ffffff',
+                border: 'none',
+                padding: '10px 16px',
+                borderRadius: '10px',
+                fontWeight: '600',
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                boxShadow: '0 2px 4px rgba(15, 23, 42, 0.2)'
+              }}
+            >
+              Logs del Sistema
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onDescargarBackup}

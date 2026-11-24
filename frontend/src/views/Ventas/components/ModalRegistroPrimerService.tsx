@@ -13,6 +13,23 @@ interface ModalRegistroPrimerServiceProps {
   ) => Promise<boolean>;
 }
 
+const obtenerHoyLocalIso = (): string => {
+  const ahora = new Date();
+  const anio = ahora.getFullYear();
+  const mes = String(ahora.getMonth() + 1).padStart(2, '0');
+  const dia = String(ahora.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+};
+
+const parsearFechaLocal = (fechaStr: string): Date => {
+  const limpia = String(fechaStr || '').trim();
+  const matchIso = limpia.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (matchIso) {
+    return new Date(Number(matchIso[1]), Number(matchIso[2]) - 1, Number(matchIso[3]));
+  }
+  return new Date(limpia);
+};
+
 /** Modal para asentar y registrar el 1° Service Obligatorio de Bicicletas Vendidas. */
 export function ModalRegistroPrimerService({
   garantia,
@@ -25,10 +42,9 @@ export function ModalRegistroPrimerService({
   const fechaInputId = useId();
   const observacionesInputId = useId();
   const autorizacionCheckboxId = useId();
-  
-  const [fechaService, setFechaService] = useState<string>(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const hoyLocalIso = obtenerHoyLocalIso();
+
+  const [fechaService, setFechaService] = useState<string>(() => hoyLocalIso);
   const [observaciones, setObservaciones] = useState<string>('');
   const [confirmarExcepcion, setConfirmarExcepcion] = useState<boolean>(false);
   const [guardando, setGuardando] = useState<boolean>(false);
@@ -36,11 +52,11 @@ export function ModalRegistroPrimerService({
 
   if (!abierto || !garantia) return null;
 
-  // Plazo de 30 días desde la fecha de venta
-  const fechaVentaObj = new Date(garantia.fecha_venta);
-  const fechaActualObj = new Date();
+  // Plazo de 30 días desde la fecha de venta en calendario local
+  const fechaVentaObj = parsearFechaLocal(garantia.fecha_venta);
+  const fechaActualObj = parsearFechaLocal(hoyLocalIso);
   const diffTiempo = fechaActualObj.getTime() - fechaVentaObj.getTime();
-  const diasDesdeVenta = Math.floor(diffTiempo / (1000 * 60 * 60 * 24));
+  const diasDesdeVenta = Math.max(0, Math.round(diffTiempo / (1000 * 60 * 60 * 24)));
   const esFueraDeTermino = diasDesdeVenta > 30;
   const esAdmin = rolUsuario === 'ADMIN' || rolUsuario === 'SUPERADMIN';
 
@@ -229,7 +245,7 @@ export function ModalRegistroPrimerService({
               id={fechaInputId}
               type="date"
               value={fechaService}
-              max={new Date().toISOString().split('T')[0]}
+              max={hoyLocalIso}
               onChange={e => setFechaService(e.target.value)}
               disabled={esFueraDeTermino && !esAdmin}
               style={{

@@ -76,6 +76,7 @@ export function TabConsolidado({
             </h3>
             <button
               type="button"
+              className="no-imprimir"
               onClick={onVerRankingCompleto}
               style={{ background: 'none', border: 'none', color: '#2563eb', fontSize: '0.82rem', fontWeight: '600', cursor: 'pointer' }}
             >
