@@ -13,7 +13,7 @@ El proyecto está construido bajo una arquitectura de **Monorepo**, separando el
 - **Lenguaje:** TypeScript
 - **Contenedor de Escritorio:** Electron (v42)
 - **Empaquetado y Actualizaciones:** `electron-builder` + `electron-updater` (GitHub Releases)
-- **Interfaz Adaptable:** Soporte para `1920x1080` y resoluciones compactas (`1360x768`) con menú lateral colapsable
+- **Interfaz Adaptable:** Soporte para `1920x1080` y resoluciones compactas con menú lateral colapsable
 
 ### Backend
 - **Entorno:** Node.js (v24 o superior)
