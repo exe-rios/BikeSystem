@@ -1,4 +1,5 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { PanelLeftClose, PanelLeftOpen, LogOut } from 'lucide-react';
 import iconInicio from './assets/Fotinhos/icono-inicio.png';
 import iconClientes from './assets/Fotinhos/icono-clientes.png';
 import iconBicicletas from './assets/Fotinhos/icono-bicicletas.png';
@@ -50,9 +51,45 @@ function AppContent() {
   return <AuthenticatedLayout key={user.id_usuario} user={user} logout={logout} />;
 }
 
-/** Layout principal autenticado con barra lateral de navegación y vistas activas. */
+const SIDEBAR_STORAGE_KEY = 'bikesystem_sidebar_colapsado';
+
+/** Layout principal autenticado con barra lateral colapsable de navegación y vistas activas. */
 function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => void }) {
   const [vistaActual, setVistaActual] = useState<VistaTipo>('inicio');
+  const [sidebarColapsado, setSidebarColapsado] = useState<boolean>(() => {
+    try {
+      const guardado = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (guardado !== null) return guardado === 'true';
+    } catch {
+      // Ignorar fallos de localStorage
+    }
+    return typeof window !== 'undefined' ? window.innerWidth <= 1440 : false;
+  });
+
+  useEffect(() => {
+    const onResize = () => {
+      try {
+        if (localStorage.getItem(SIDEBAR_STORAGE_KEY) !== null) return;
+      } catch {
+        // Ignorar
+      }
+      setSidebarColapsado(window.innerWidth <= 1440);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarColapsado(prev => {
+      const siguiente = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(siguiente));
+      } catch {
+        // Ignorar
+      }
+      return siguiente;
+    });
+  };
 
   const userName = user?.nombre_usuario || 'Usuario';
   const userRole = (user?.rol || 'EMPLEADO').toUpperCase();
@@ -91,43 +128,77 @@ function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => v
 
       {/* --- SIDEBAR MENÚ LATERAL --- */}
       <aside style={{
-        width: '260px',
-        minWidth: '260px',
+        width: sidebarColapsado ? '72px' : '260px',
+        minWidth: sidebarColapsado ? '72px' : '260px',
         backgroundColor: 'var(--bg-tarjeta)',
         borderRight: '1px solid var(--borde-input)',
-        padding: '24px 16px',
+        padding: sidebarColapsado ? '18px 10px' : '24px 16px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        overflowY: 'auto'
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        transition: 'width 0.18s ease, min-width 0.18s ease, padding 0.18s ease'
       }}>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {/* Título de Marca */}
-          <h2
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              fontSize: '1.3rem',
-              fontWeight: '700',
-              color: 'var(--texto-principal)',
-              marginBottom: '22px',
-              paddingLeft: '8px'
-            }}
-          >
-            <img
-              src={logoDnBike}
-              alt="Logo DN Bike"
+          {/* Título de Marca + botón colapsar */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: sidebarColapsado ? 'center' : 'space-between',
+            flexDirection: sidebarColapsado ? 'column' : 'row',
+            gap: sidebarColapsado ? '10px' : '8px',
+            marginBottom: '22px',
+            paddingLeft: sidebarColapsado ? '0' : '8px'
+          }}>
+            <h2
               style={{
-                width: '32px',
-                height: '32px',
-                objectFit: 'contain',
-                borderRadius: '50%'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                fontSize: '1.3rem',
+                fontWeight: '700',
+                color: 'var(--texto-principal)',
+                margin: 0
               }}
-            />
-            DN Bike
-          </h2>
+              title="DN Bike"
+            >
+              <img
+                src={logoDnBike}
+                alt="Logo DN Bike"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  objectFit: 'contain',
+                  borderRadius: '50%'
+                }}
+              />
+              {!sidebarColapsado && 'DN Bike'}
+            </h2>
+
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              title={sidebarColapsado ? 'Expandir menú lateral' : 'Contraer menú lateral'}
+              aria-label={sidebarColapsado ? 'Expandir menú lateral' : 'Contraer menú lateral'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '30px',
+                height: '30px',
+                borderRadius: '8px',
+                border: '1px solid var(--borde-input)',
+                backgroundColor: 'transparent',
+                color: 'var(--texto-mutado)',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              {sidebarColapsado ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            </button>
+          </div>
 
           {/* Opciones de Navegación */}
           {menuItems.map((item) => {
@@ -138,12 +209,14 @@ function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => v
               <button
                 key={item.id}
                 onClick={() => setVistaActual(item.id)}
+                title={sidebarColapsado ? item.label : undefined}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px',
+                  justifyContent: sidebarColapsado ? 'center' : 'flex-start',
+                  gap: sidebarColapsado ? '0' : '12px',
                   width: '100%',
-                  padding: '10px 14px',
+                  padding: sidebarColapsado ? '10px 8px' : '10px 14px',
                   fontSize: '0.9rem',
                   fontWeight: activo ? '700' : '500',
                   border: 'none',
@@ -152,13 +225,23 @@ function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => v
                   backgroundColor: activo ? 'var(--azul-oscuro)' : 'transparent',
                   color: activo ? '#ffffff' : 'var(--texto-mutado)',
                   transition: 'all 0.15s ease',
-                  textAlign: 'left'
+                  textAlign: 'left',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                <span style={{ display: 'inline-flex', width: '20px', height: '20px', alignItems: 'center', justifyContent: 'center', opacity: activo ? 1 : 0.75, fontSize: '1rem' }}>
-                  <img src={item.icon} alt={`${item.label} icon`} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                <span style={{ display: 'inline-flex', width: '20px', height: '20px', alignItems: 'center', justifyContent: 'center', opacity: activo ? 1 : 0.75, fontSize: '1rem', flexShrink: 0 }}>
+                  <img
+                    src={item.icon}
+                    alt={`${item.label} icon`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      filter: activo ? 'brightness(0) invert(1)' : 'none'
+                    }}
+                  />
                 </span>
-                {item.label}
+                {!sidebarColapsado && item.label}
               </button>
             );
           })}
@@ -168,6 +251,7 @@ function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => v
         <div style={{
           display: 'flex',
           flexDirection: 'column',
+          alignItems: sidebarColapsado ? 'center' : 'stretch',
           gap: '14px',
           paddingTop: '18px',
           marginTop: '16px',
@@ -176,55 +260,61 @@ function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => v
           boxSizing: 'border-box'
         }}>
           {/* Fila superior: Info del Perfil con color distintivo por rol */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '42px',
-              height: '42px',
-              minWidth: '42px',
-              borderRadius: '50%',
-              backgroundColor: roleTheme.avatarBg,
-              color: roleTheme.avatarText,
-              border: `2px solid ${roleTheme.avatarBorder}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '700',
-              fontSize: '1rem',
-              boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
-            }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: sidebarColapsado ? 'center' : 'flex-start', gap: '12px' }}>
+            <div
+              title={sidebarColapsado ? `${userName} (${roleTheme.isSuperAdmin ? 'SUPERADMIN' : roleTheme.label})` : undefined}
+              style={{
+                width: '42px',
+                height: '42px',
+                minWidth: '42px',
+                borderRadius: '50%',
+                backgroundColor: roleTheme.avatarBg,
+                color: roleTheme.avatarText,
+                border: `2px solid ${roleTheme.avatarBorder}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '700',
+                fontSize: '1rem',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+              }}
+            >
               {roleTheme.isSuperAdmin ? '👑' : (userName ? userName.slice(0, 2).toUpperCase() : 'U')}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
-              <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--texto-principal)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
-                {userName}
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{
-                  fontSize: '0.72rem',
-                  fontWeight: '700',
-                  padding: '1px 8px',
-                  borderRadius: '12px',
-                  backgroundColor: roleTheme.badgeBg,
-                  color: roleTheme.badgeColor,
-                  border: `1px solid ${roleTheme.badgeBorder}`,
-                  display: 'inline-flex',
-                  alignItems: 'center'
-                }}>
-                  {roleTheme.isSuperAdmin ? 'SUPERADMIN' : roleTheme.label}
+            {!sidebarColapsado && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', overflow: 'hidden' }}>
+                <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--texto-principal)', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                  {userName}
                 </span>
-                {roleTheme.isSuperAdmin && (
-                  <span style={{ fontSize: '0.68rem', color: '#7c3aed', fontWeight: '600' }} title="Perfil exclusivo de desarrollador">
-                    (Dev)
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{
+                    fontSize: '0.72rem',
+                    fontWeight: '700',
+                    padding: '1px 8px',
+                    borderRadius: '12px',
+                    backgroundColor: roleTheme.badgeBg,
+                    color: roleTheme.badgeColor,
+                    border: `1px solid ${roleTheme.badgeBorder}`,
+                    display: 'inline-flex',
+                    alignItems: 'center'
+                  }}>
+                    {roleTheme.isSuperAdmin ? 'SUPERADMIN' : roleTheme.label}
                   </span>
-                )}
+                  {roleTheme.isSuperAdmin && (
+                    <span style={{ fontSize: '0.68rem', color: '#7c3aed', fontWeight: '600' }} title="Perfil exclusivo de desarrollador">
+                      (Dev)
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Fila inferior: Botón Cerrar Sesión */}
           <button
             onClick={logout}
+            title={sidebarColapsado ? 'Cerrar Sesión' : undefined}
             style={{
               width: '100%',
               backgroundColor: 'rgba(239, 68, 68, 0.06)',
@@ -233,7 +323,7 @@ function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => v
               fontSize: '0.88rem',
               fontWeight: '600',
               cursor: 'pointer',
-              padding: '9px',
+              padding: sidebarColapsado ? '9px 0' : '9px',
               borderRadius: '10px',
               display: 'flex',
               alignItems: 'center',
@@ -253,18 +343,21 @@ function AuthenticatedLayout({ user, logout }: { user: AuthUser; logout: () => v
               e.currentTarget.style.color = '#333';
             }}
           >
-            Cerrar Sesión
+            {sidebarColapsado ? <LogOut size={16} /> : 'Cerrar Sesión'}
           </button>
         </div>
       </aside>
 
       {/* --- CONTENIDO DINÁMICO DE LAS VISTAS --- */}
-      <main style={{
-        flex: 1,
-        width: 'calc(100vw - 260px)',
-        padding: '36px',
-        overflowY: 'auto'
-      }}>
+      <main
+        className="app-main-content"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: '36px',
+          overflowY: 'auto'
+        }}
+      >
         <Suspense fallback={
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px', color: 'var(--texto-mutado)', fontSize: '0.95rem' }}>
             Cargando módulo...

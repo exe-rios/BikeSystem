@@ -12,7 +12,8 @@ El proyecto está construido bajo una arquitectura de **Monorepo**, separando el
 - **Framework:** React 19 + Vite
 - **Lenguaje:** TypeScript
 - **Contenedor de Escritorio:** Electron (v42)
-- **Empaquetado:** electron-builder
+- **Empaquetado y Actualizaciones:** `electron-builder` + `electron-updater` (GitHub Releases)
+- **Interfaz Adaptable:** Soporte para `1920x1080` y resoluciones compactas (`1360x768`) con menú lateral colapsable
 
 ### Backend
 - **Entorno:** Node.js (v24 o superior)
@@ -169,9 +170,37 @@ pnpm dev
 | `backend/` | `pnpm seed:superadmin` | Crea o actualiza el usuario `superadmin` |
 | `frontend/` | `pnpm dev` | Inicia Vite y la ventana de Electron en desarrollo |
 | `frontend/` | `pnpm build` | Verifica tipos con TypeScript y compila el bundle de producción |
-| `frontend/` | `pnpm dist` | Compila Frontend + Backend y genera el instalador Windows (`release/BikeSystem Setup 1.0.0.exe`) |
+| `frontend/` | `pnpm dist` | Compila Frontend + Backend y genera el instalador Windows (`release/BikeSystem Setup <ver>.exe`) |
+| `frontend/` | `pnpm dist:publish` | Compila y publica automáticamente el Release en GitHub (requiere `GH_TOKEN`) |
 | `frontend/` | `pnpm dist:dir` | Empaqueta el ejecutable portátil de Windows (`release/win-unpacked/BikeSystem.exe`) |
 | `frontend/` | `pnpm lint` | Ejecuta el linter ESLint |
+
+---
+
+## Producción y Actualizaciones Automáticas
+
+### Configuración `.env` en PC instalada (Windows)
+En la versión empaquetada (`.exe`), el archivo `.env` **no** debe colocarse dentro de `Archivos de programa` (`Program Files`), ya que Windows restringe la escritura ahí y se perdería al actualizar.  
+Electron prioriza la ruta de usuario:
+```text
+%APPDATA%\BikeSystem\.env
+```
+Si no existe al abrir la app por primera vez, se crea una plantilla `.env.example` en esa misma carpeta.
+
+### Actualización automática (`electron-updater`)
+La aplicación instalada consulta automáticamente los Releases de `exe-rios/BikeSystem` al iniciar (en segundo plano). Cuando hay una versión nueva, la descarga y avisa al usuario para reiniciar y aplicarla.
+
+Para publicar una nueva versión:
+1. Si hay cambios de base de datos, agregarlos de forma idempotente (`IF NOT EXISTS`) en `backend/src/utils/ensureSchema.ts`.
+2. Incrementar `"version"` en `frontend/package.json` (ej. `1.0.0` → `1.0.1`).
+3. Compilar el instalador:
+   ```powershell
+   pnpm --dir frontend dist
+   ```
+4. Publicar el Release en GitHub con `gh` CLI:
+   ```powershell
+   gh release create "v<ver>" "frontend/release/BikeSystem Setup <ver>.exe" "frontend/release/BikeSystem Setup <ver>.exe.blockmap" "frontend/release/latest.yml" --repo exe-rios/BikeSystem --title "BikeSystem v<ver>" --notes "Resumen de cambios"
+   ```
 
 ---
 

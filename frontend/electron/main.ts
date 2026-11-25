@@ -1,5 +1,6 @@
-import { app, BrowserWindow, shell, Menu, utilityProcess, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, Menu, utilityProcess, dialog, ipcMain, screen } from 'electron';
 import type { UtilityProcess } from 'electron';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -573,8 +574,7 @@ async function openNativeSystemPrintDialog(options?: PrintOptions): Promise<bool
         printBackground: true,
         pageSize: 'A4',
         landscape,
-        preferCSSPageSize: !landscape,
-        margins: { marginType: 'default' }
+        preferCSSPageSize: !landscape
       });
 
       const pdfPath = path.join(
@@ -807,10 +807,11 @@ function getAppIcon(): string | undefined {
 function createWindow() {
   const preloadPath = getPreloadPath();
   const appIcon = getAppIcon();
+  const { width: workWidth, height: workHeight } = screen.getPrimaryDisplay().workAreaSize;
 
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    width: Math.min(1360, workWidth),
+    height: Math.min(840, workHeight),
     autoHideMenuBar: true,
     ...(appIcon ? { icon: appIcon } : {}),
     webPreferences: {
@@ -825,6 +826,7 @@ function createWindow() {
   });
 
   const win = mainWindow;
+  win.maximize();
 
   // Garantizar que Chromium reciba el foco al activar o restaurar la ventana en Windows
   win.on('focus', () => {
@@ -962,6 +964,51 @@ ipcMain.handle('logs:openFolder', async () => {
   }
 });
 
+/** Configura la búsqueda y descarga automática de actualizaciones desde GitHub Releases. */
+function setupAutoUpdater(): void {
+  if (!app.isPackaged || process.env.VITE_DEV_SERVER_URL) return;
+
+  const require = createRequire(import.meta.url);
+  const { autoUpdater } = require('electron-updater') as typeof import('electron-updater');
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info) => {
+    appendElectronLog('INFO', 'AUTO_UPDATER', `Nueva versión disponible: ${info.version}`);
+  });
+
+  autoUpdater.on('update-downloaded', async (info) => {
+    appendElectronLog('INFO', 'AUTO_UPDATER', `Actualización ${info.version} descargada y lista para instalar.`);
+    const targetWin = mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+    const { response } = await dialog.showMessageBox(targetWin as BrowserWindow, {
+      type: 'info',
+      title: 'Actualización disponible - BikeSystem',
+      message: `Se descargó la versión ${info.version} de BikeSystem.`,
+      detail: '¿Querés reiniciar ahora para aplicar la actualización? (Si elegís "Más tarde", se instalará al cerrar el programa).',
+      buttons: ['Reiniciar y actualizar', 'Más tarde'],
+      defaultId: 0,
+      cancelId: 1
+    });
+
+    if (response === 0) {
+      stopActivePrintProcess();
+      stopBackendServer();
+      autoUpdater.quitAndInstall();
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    appendElectronLog('WARN', 'AUTO_UPDATER', err?.message || String(err));
+  });
+
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((err: unknown) => {
+      appendElectronLog('WARN', 'AUTO_UPDATER', err instanceof Error ? err.message : String(err));
+    });
+  }, 5000);
+}
+
 const gotSingleInstanceLock = app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.quit();
@@ -1005,6 +1052,7 @@ if (!gotSingleInstanceLock) {
     }
 
     createWindow();
+    setupAutoUpdater();
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {

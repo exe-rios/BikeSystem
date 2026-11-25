@@ -441,12 +441,15 @@ export class ProductoService {
       busquedaParseada.terminos.find(t => /^\d+$/.test(t)) ? Number(busquedaParseada.terminos.find(t => /^\d+$/.test(t))) : undefined
     );
 
+    // Ordenar alfabéticamente primero (letras A-Z) y luego numéricamente (productos que inician con dígitos)
+    const ordenAlfanumerico = `CASE WHEN TRIM(p.nombre) ~ '^[0-9]' THEN 1 ELSE 0 END ASC, CASE WHEN TRIM(p.nombre) ~ '^[0-9]' THEN COALESCE(NULLIF(substring(TRIM(p.nombre) FROM '^([0-9]+)'), ''), '0')::numeric ELSE 0 END ASC, LOWER(TRIM(p.nombre)) ASC, p.id_producto ASC`;
+
     if (idPrioritario && Number.isInteger(idPrioritario) && idPrioritario > 0 && idPrioritario <= 2147483647) {
-      query += ` ORDER BY CASE WHEN p.id_producto = $${paramIndex} THEN 0 ELSE 1 END, p.id_producto DESC`;
+      query += ` ORDER BY CASE WHEN p.id_producto = $${paramIndex} THEN 0 ELSE 1 END, ${ordenAlfanumerico}`;
       params.push(idPrioritario);
       paramIndex++;
     } else {
-      query += ` ORDER BY p.id_producto DESC`;
+      query += ` ORDER BY ${ordenAlfanumerico}`;
     }
 
     const paginacion = normalizarPaginacion({ limite, pagina }, { opcional: true });

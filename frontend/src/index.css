@@ -176,3 +176,14 @@ button {
     display: none !important;
   }
 }
+
+/* Ajuste responsivo automático para resoluciones medianas/bajas (ej. 1360x768) sin afectar 1920x1080 */
+@media screen and (max-width: 1440px), screen and (max-height: 820px) {
+  html {
+    font-size: 14px;
+  }
+
+  .app-main-content {
+    padding: 20px 24px !important;
+  }
+}
