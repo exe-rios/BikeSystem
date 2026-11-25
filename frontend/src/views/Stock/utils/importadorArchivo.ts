@@ -127,6 +127,13 @@ const MARCAS_CONOCIDAS: Array<{ patron: RegExp; nombre: string }> = [
   { patron: /\bKLATTER\b/i, nombre: 'Klatter' },
   { patron: /\bSBK\b/i, nombre: 'SBK' },
   { patron: /\bFIERCE\b/i, nombre: 'Fierce' },
+  { patron: /\bTEKNIAL\b/i, nombre: 'Teknial' },
+  { patron: /\bFUJI\b/i, nombre: 'Fuji' },
+  { patron: /\bCUBE\b/i, nombre: 'Cube' },
+  { patron: /\bNINER\b/i, nombre: 'Niner' },
+  { patron: /\bGT\b/i, nombre: 'GT' },
+  { patron: /\bAND[\s-]?ES\b/i, nombre: 'And-es' },
+  { patron: /\bLOOK\b/i, nombre: 'Look' },
   { patron: /\bPERETTI\b/i, nombre: 'Peretti' },
   { patron: /\bGIRO\b/i, nombre: 'Giro' },
   { patron: /\bZEFAL\b/i, nombre: 'Zefal' },
@@ -165,22 +172,52 @@ const DICCIONARIO_COLORES: Record<string, string> = {
 
 export interface AtributosExtraidos {
   marca?: string;
+  modelo?: string;
   rodado?: string;
   talle?: string;
   color?: string;
   genero?: 'hombre' | 'mujer' | 'unisex' | 'niño/a';
 }
 
-/** Extrae automáticamente marca, rodado, talle, color y género desde la descripción de un artículo. */
+const REGEX_INICIO_REPUESTO = /^\s*(?:ruedas?|cubiertas?|c[aá]maras?|cuadro|horquilla|asiento|palancas?|manubrio|casco|guantes?|calza|camiseta|aceite|cadena|freno|mazas?|pi[nñ][oó]n|llantas?|inflador|candado|luz|luces|canasto|sillita|pedales?|stem|vela|descarrilador|cambio|shifter|cable|funda|parche|rayos?|niples|pu[nñ]os?|carama[nñ]ola|porta\w*|adaptador|arandela|bujes?|suplemento)\b/i;
+
+const REGEX_PALABRAS_REPUESTO_O_ACCESORIO = /\b(ruedas?|cubiertas?|c[aá]maras?|cuadro|horquilla|asiento|palancas?|manubrio|casco|guantes?|calza|camiseta|aceite|cadena|freno|mazas?|pi[nñ][oó]n|llantas?|inflador|candado|luz|luces|canasto|sillita|pedales?|stem|vela|descarrilador|cambio|shifter|cable|funda|parche|rayos?|niples|pu[nñ]os?|carama[nñ]ola|porta\w*|adaptador|arandela|bujes?|suplemento)\b/i;
+
+const REGEX_MARCAS_BICICLETA = /\b(SCOTT|VAIRO|VENZO|TOPMEGA|RALEIGH|OLMO|SLP|VOLTA|TEKNIAL|FUJI|CUBE|NINER|ZION|FIRE\s*BIRD|NORDIC|ENRIQUE|TOMASELLI|OXEA|SPY|PHILCO|MOTOMEL|BATTLE|RIVA|STARK|KLATTER|SBK|FIERCE|TRINX|SPECIALIZED|TREK|GIANT|MERIDA|CANNONDALE|ORBEA|BIANCHI|COLNER|MAZZI|AND[\s-]?ES|GT)\b/i;
+
+const REGEX_PALABRAS_BICICLETA = /\b(bicicletas?|bici|camicleta|playera|freestyle|full\s+dama|spinning|mtb|bmx|gravel|plegable|fixie)\b/i;
+
+/** Determina si una fila sin columna TIPO explícita corresponde a una bicicleta completa. */
+function inferirTipoProductoFila(nombre: string, tipoDefaultHoja: string, permitirAutodetectarBici = true): string {
+  // Si empieza explícitamente con un repuesto/accesorio (ej. "ruedas crossmark", "cuadro y horquilla...")
+  if (REGEX_INICIO_REPUESTO.test(nombre)) {
+    return tipoDefaultHoja === 'accesorio' ? 'accesorio' : 'repuesto';
+  }
+  const tieneMarcaORodadoBici = REGEX_MARCAS_BICICLETA.test(nombre) || /\brod(?:ado)?\b/i.test(nombre) || REGEX_PALABRAS_BICICLETA.test(nombre);
+  if (REGEX_PALABRAS_REPUESTO_O_ACCESORIO.test(nombre) && !tieneMarcaORodadoBici) {
+    return tipoDefaultHoja === 'accesorio' ? 'accesorio' : 'repuesto';
+  }
+  if (tipoDefaultHoja === 'bicicleta') {
+    return 'bicicleta';
+  }
+  if (permitirAutodetectarBici && tipoDefaultHoja === 'repuesto' && REGEX_PALABRAS_BICICLETA.test(nombre) && !REGEX_PALABRAS_REPUESTO_O_ACCESORIO.test(nombre)) {
+    return 'bicicleta';
+  }
+  return tipoDefaultHoja;
+}
+
+/** Extrae automáticamente marca, modelo, rodado, talle, color y género desde la descripción de un artículo. */
 export function extraerAtributosDesdeDescripcion(descripcion: string, esBicicleta: boolean): AtributosExtraidos {
   const texto = String(descripcion || '').trim();
   if (!texto) return {};
 
   // 1. Marca
   let marca: string | undefined;
+  let patronMarcaUsado: RegExp | undefined;
   for (const m of MARCAS_CONOCIDAS) {
     if (m.patron.test(texto)) {
       marca = m.nombre;
+      patronMarcaUsado = m.patron;
       break;
     }
   }
@@ -198,12 +235,14 @@ export function extraerAtributosDesdeDescripcion(descripcion: string, esBiciclet
     return { marca };
   }
 
-  // 2. Rodado (ej. R29, R20, R27.5, ROD 26, RODADO 29, 700C, GRAVEL)
+  // 2. Rodado (ej. R29, R20, R27.5, ROD 26, Rod, 26, 29", 700C, número suelto 24/26/29, GRAVEL)
   let rodado: string | undefined;
   const matchRodado =
     texto.match(/\bR\s*-?\s*(12|14|16|18|20|24|26|27[.,]5|28|29)\b/i) ||
-    texto.match(/\bROD(?:ADO)?\.?\s*[:=-]?\s*(12|14|16|18|20|24|26|27[.,]5|28|29|700)\b/i) ||
-    texto.match(/\b(27[.,]5|700)C?\b/i);
+    texto.match(/\bROD(?:ADO)?[.,\s:=-]*(12|14|16|18|20|24|26|27[.,]5|28|29|700)\b/i) ||
+    texto.match(/\b(12|14|16|18|20|24|26|27[.,]5|28|29)\s*"/i) ||
+    texto.match(/\b(27[.,]5|700)C?\b/i) ||
+    texto.match(/(?<![.,\d])\b(12|14|16|20|24|26|27[.,]5|29)\b(?![.,]\d|\s*(?:v|vel|hs|km|gr|g|kg|mm|cm)\b)/i);
   if (matchRodado && matchRodado[1]) {
     rodado = matchRodado[1].replace(',', '.');
   } else if (/\bGRAVEL\b/i.test(texto)) {
@@ -249,13 +288,32 @@ export function extraerAtributosDesdeDescripcion(descripcion: string, esBiciclet
     ? coloresDetectados.join(' ').slice(0, 30)
     : undefined;
 
-  return { marca, rodado, talle, color, genero };
+  // 6. Modelo (limpiando la marca y palabras genéricas para extraer el modelo comercial)
+  let modeloBase = texto;
+  if (patronMarcaUsado) {
+    modeloBase = modeloBase.replace(patronMarcaUsado, ' ');
+  }
+  modeloBase = modeloBase
+    .replace(/\bBICICLETAS?\b/gi, ' ')
+    .replace(/\bROD(?:ADO)?[.,\s:=-]*(?:12|14|16|18|20|24|26|27[.,]5|28|29|700)\b/gi, ' ')
+    .replace(/\bR\s*-?\s*(?:12|14|16|18|20|24|26|27[.,]5|28|29)\b/gi, ' ')
+    .replace(/\b(?:NI[NÑ][OA]S?\/?[AO]?|NEN[AE]S?|VAR[OÓ]N|DAMA|LADY|HOMBRE|MUJER|INFANTIL)\b/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s,/-]+|[\s,/-]+$/g, '')
+    .trim();
+  const modelo = modeloBase.length >= 1 ? modeloBase.slice(0, 50) : undefined;
+
+  return { marca, modelo, rodado, talle, color, genero };
 }
 
-const inferirTipoPorNombreHoja = (nombreHoja: string): string => {
+const inferirTipoPorNombreHoja = (nombreHoja: string, nombreArchivo = ''): string => {
   const n = normalizarTextoClave(nombreHoja);
   if (n.includes('indum') || n.includes('acces')) return 'accesorio';
   if (n.includes('bici')) return 'bicicleta';
+  const esHojaGenerica = /^(hoja|sheet)\d*$/.test(n);
+  if (esHojaGenerica && normalizarTextoClave(nombreArchivo).includes('bici')) {
+    return 'bicicleta';
+  }
   return 'repuesto';
 };
 
@@ -287,24 +345,33 @@ function extraerCotizacionesSuperiores(rows: unknown[][], hastaFila: number, map
   }
 }
 
-function buscarIndiceColumna(headers: string[], aliases: string[]): number {
+function buscarIndiceColumna(headers: string[], aliases: string[], excluirIndices?: Set<number>): number {
   for (const alias of aliases) {
-    const idx = headers.findIndex(h => h === alias);
+    const idx = headers.findIndex((h, i) => !excluirIndices?.has(i) && h === alias);
     if (idx !== -1) return idx;
   }
   for (const alias of aliases) {
-    const idx = headers.findIndex(h => h.includes(alias));
+    const idx = headers.findIndex((h, i) => !excluirIndices?.has(i) && h.includes(alias));
     if (idx !== -1) return idx;
   }
   return -1;
 }
+
+const SUBHEADERS_CONOCIDOS = new Set([
+  'valor_en_dolares', 'valor_dolares', 'valor_dolar', 'costo_usd', 'costo_dolares',
+  'valor_en_pesos', 'valor_pesos', 'costo_pesos', 'costo_ars',
+  'valor_publico', 'valor_al_publico', 'precio_publico', 'precio_venta',
+  'valor_reventa', 'precio_reventa', 'ganancia', 'porcentaje_ganancia',
+  'porcentaje_reventa', 'porc_reventa'
+]);
 
 function parsearHojaMatriz(
   rows: unknown[][],
   nombreHoja: string,
   monedaDefault: 'ARS' | 'USD',
   cotizacionesMap: Map<string, CotizacionProveedorInput>,
-  stockFallback = 0
+  stockFallback = 0,
+  nombreArchivo = ''
 ): ItemCargaMasivaInput[] {
   if (rows.length === 0) return [];
 
@@ -317,7 +384,12 @@ function parsearHojaMatriz(
     const siguienteNormas = (rows[r + 1] || []).map(c => normalizarTextoClave(String(c ?? '')));
     const combinadas = [...normas, ...siguienteNormas];
     const tieneColumnaClave = combinadas.some(n =>
-      ['proveedor', 'precio', 'precio_venta', 'valor_publico', 'valor_al_publico', 'valor_en_dolares', 'valor_dolares', 'precio_usd'].includes(n)
+      [
+        'proveedor', 'precio', 'precio_venta', 'precio_publico', 'precio_ars', 'precio_pesos',
+        'precio_lista', 'precio_contado', 'pvp', 'valor_publico', 'valor_al_publico',
+        'valor_en_dolares', 'valor_dolares', 'valor_en_pesos', 'valor_pesos', 'costo_pesos',
+        'precio_usd', 'importe', 'valor', 'codigo', 'cod', 'sku'
+      ].includes(n)
     );
     if (tieneProducto && tieneColumnaClave) {
       headerIdx = r;
@@ -330,40 +402,80 @@ function parsearHojaMatriz(
   // 2. Extraer cotizaciones por proveedor encima del encabezado
   extraerCotizacionesSuperiores(rows, headerIdx, cotizacionesMap);
 
-  // 3. Combinar encabezado principal + sub-encabezado si la fila siguiente tiene sub-títulos (ej. COSTO -> VALOR EN DOLARES)
+  // 3. Combinar encabezado principal + sub-encabezado sin pisar columnas clave (ej. CODIGO, PRODUCTO)
   const filaH1 = (rows[headerIdx] || []).map(c => normalizarTextoClave(String(c ?? '')));
   const filaH2 = (rows[headerIdx + 1] || []).map(c => normalizarTextoClave(String(c ?? '')));
-  const tieneSubHeader = filaH2.some(n =>
-    ['valor_en_dolares', 'valor_dolares', 'valor_dolar', 'valor_en_pesos', 'valor_pesos', 'costo_pesos', 'valor_publico', 'valor_al_publico', 'ganancia'].includes(n)
-  );
+  const tieneSubHeader = filaH2.some(n => SUBHEADERS_CONOCIDOS.has(n));
 
   const maxCols = Math.max(filaH1.length, filaH2.length);
   const headersCombinados: string[] = [];
   for (let c = 0; c < maxCols; c++) {
-    headersCombinados.push((tieneSubHeader && filaH2[c]) ? filaH2[c] : (filaH1[c] || ''));
+    const h1 = filaH1[c] || '';
+    const h2 = filaH2[c] || '';
+    if (tieneSubHeader && h2 && (SUBHEADERS_CONOCIDOS.has(h2) || !h1)) {
+      headersCombinados.push(h2);
+    } else {
+      headersCombinados.push(h1);
+    }
   }
 
   const startDataIdx = tieneSubHeader ? headerIdx + 2 : headerIdx + 1;
-  const tipoDefaultHoja = inferirTipoPorNombreHoja(nombreHoja);
+  const tipoDefaultHoja = inferirTipoPorNombreHoja(nombreHoja, nombreArchivo);
+  const hojaNorm = normalizarTextoClave(nombreHoja);
+  const archivoNorm = normalizarTextoClave(nombreArchivo);
+  const esContextoSoloRepuestos =
+    archivoNorm.includes('repuesto') ||
+    ['comunes', 'especiales', 'cubiertas', 'camaras', 'repuestos', 'indumentaria', 'accesorios'].some(k => hojaNorm.includes(k));
 
   const idxNombre = buscarIndiceColumna(headersCombinados, ['producto', 'nombre', 'descripcion', 'item', 'name', 'articulo']);
   if (idxNombre === -1) return [];
 
-  const idxId = buscarIndiceColumna(headersCombinados, ['id_producto', 'id']);
-  const idxCodigo = buscarIndiceColumna(headersCombinados, ['codigo', 'cod', 'sku', 'codigo_articulo', 'codigo_producto', 'cod_art', 'cod_prod']);
-  const idxProveedor = buscarIndiceColumna(headersCombinados, ['proveedor']);
-  const idxTipo = buscarIndiceColumna(headersCombinados, ['tipo_prod', 'tipo', 'categoria', 'rubro']);
-  const idxMarca = buscarIndiceColumna(headersCombinados, ['marca', 'fabricante', 'brand']);
-  const idxModelo = buscarIndiceColumna(headersCombinados, ['modelo', 'model']);
-  const idxCantidad = buscarIndiceColumna(headersCombinados, ['cantidad', 'stock', 'unidades', 'cant', 'qty']);
-  const idxStockMin = buscarIndiceColumna(headersCombinados, ['stock_minimo', 'minimo', 'alerta_stock', 'stock_min']);
-  const idxMoneda = buscarIndiceColumna(headersCombinados, ['moneda', 'currency', 'divisa']);
+  const colsAsignadas = new Set<number>([idxNombre]);
+  const idxId = buscarIndiceColumna(headersCombinados, ['id_producto', 'id'], colsAsignadas);
+  if (idxId !== -1) colsAsignadas.add(idxId);
 
-  const idxCostoUsd = buscarIndiceColumna(headersCombinados, ['valor_en_dolares', 'valor_dolares', 'valor_dolar', 'costo_usd', 'costo_dolares']);
-  const idxCostoArs = buscarIndiceColumna(headersCombinados, ['valor_en_pesos', 'valor_pesos', 'costo_pesos']);
-  const idxPrecioUsd = buscarIndiceColumna(headersCombinados, ['precio_usd', 'usd', 'precio_dolares']);
-  const idxValorReventa = buscarIndiceColumna(headersCombinados, ['valor_reventa', 'precio_reventa', 'reventa']);
-  const idxValorPublico = buscarIndiceColumna(headersCombinados, ['valor_publico', 'valor_al_publico', 'precio_publico', 'precio_bonif', 'precio_bonificado', 'precio_neto', 'precio_unitario', 'precio_venta', 'precio_ars', 'precio', 'valor', 'importe', 'price']);
+  const idxCodigo = buscarIndiceColumna(
+    headersCombinados,
+    [
+      'codigo', 'cod', 'sku', 'codigo_articulo', 'codigo_producto', 'cod_art', 'cod_prod',
+      'codigo_barras', 'codigo_de_barras', 'cod_barra', 'cod_barras', 'barcode', 'ean',
+      'plu', 'referencia', 'ref', 'nro_articulo', 'num_articulo', 'codigo_interno',
+      'articulo', 'art'
+    ],
+    colsAsignadas
+  );
+  if (idxCodigo !== -1) colsAsignadas.add(idxCodigo);
+
+  const idxProveedor = buscarIndiceColumna(headersCombinados, ['proveedor'], colsAsignadas);
+  const idxTipo = buscarIndiceColumna(headersCombinados, ['tipo_prod', 'tipo', 'categoria', 'rubro'], colsAsignadas);
+  const idxMarca = buscarIndiceColumna(headersCombinados, ['marca', 'fabricante', 'brand'], colsAsignadas);
+  const idxModelo = buscarIndiceColumna(headersCombinados, ['modelo', 'model'], colsAsignadas);
+  const idxCantidad = buscarIndiceColumna(headersCombinados, ['cantidad', 'stock', 'unidades', 'cant', 'qty'], colsAsignadas);
+  const idxStockMin = buscarIndiceColumna(headersCombinados, ['stock_minimo', 'minimo', 'alerta_stock', 'stock_min'], colsAsignadas);
+  const idxMoneda = buscarIndiceColumna(headersCombinados, ['moneda', 'currency', 'divisa'], colsAsignadas);
+
+  const colsPrecioUsadas = new Set<number>(colsAsignadas);
+  const idxCostoUsd = buscarIndiceColumna(headersCombinados, ['valor_en_dolares', 'valor_dolares', 'valor_dolar', 'costo_usd', 'costo_dolares'], colsPrecioUsadas);
+  if (idxCostoUsd !== -1) colsPrecioUsadas.add(idxCostoUsd);
+
+  const idxCostoArs = buscarIndiceColumna(headersCombinados, ['valor_en_pesos', 'valor_pesos', 'costo_pesos', 'costo_ars'], colsPrecioUsadas);
+  if (idxCostoArs !== -1) colsPrecioUsadas.add(idxCostoArs);
+
+  const idxPrecioUsd = buscarIndiceColumna(headersCombinados, ['precio_usd', 'usd', 'precio_dolares'], colsPrecioUsadas);
+  if (idxPrecioUsd !== -1) colsPrecioUsadas.add(idxPrecioUsd);
+
+  const idxValorReventa = buscarIndiceColumna(headersCombinados, ['valor_reventa', 'precio_reventa', 'reventa'], colsPrecioUsadas);
+  if (idxValorReventa !== -1) colsPrecioUsadas.add(idxValorReventa);
+
+  const idxValorPublico = buscarIndiceColumna(
+    headersCombinados,
+    [
+      'valor_publico', 'valor_al_publico', 'valor_contado', 'precio_publico', 'precio_bonif', 'precio_bonificado',
+      'precio_neto', 'precio_unitario', 'precio_venta', 'precio_ars', 'precio_pesos',
+      'precio_en_pesos', 'precio_contado', 'precio_lista', 'valor_lista', 'pvp', 'precio', 'valor', 'importe', 'price'
+    ],
+    colsPrecioUsadas
+  );
 
   // Buscar % reventa inmediatamente anterior a valor reventa (en hojas como COMUNES el sub-encabezado puede venir vacío)
   let idxPorcReventa = -1;
@@ -419,21 +531,43 @@ function parsearHojaMatriz(
       : -1;
 
     // Filtrar filas separadoras de sección (ej. "IMPORTADOS", "CUADROS") o notas sin precio válido
-    const tienePrecioValido = valorPublico > 0 || precioUsdDirecto > 0 || (costoUsd > 0 && proveedorFila.length > 0);
+    const tienePrecioValido = valorPublico > 0 || costoArs > 0 || precioUsdDirecto > 0 || (costoUsd > 0 && proveedorFila.length > 0);
     if (!tienePrecioValido) continue;
 
-    const tipo_prod = normalizarTipoProducto(idxTipo !== -1 ? row[idxTipo] : '', tipoDefaultHoja);
+    const tipoExplicito = idxTipo !== -1 ? String(row[idxTipo] ?? '').trim() : '';
+    const tipo_prod = tipoExplicito
+      ? normalizarTipoProducto(tipoExplicito, tipoDefaultHoja)
+      : inferirTipoProductoFila(nombre, tipoDefaultHoja, !esContextoSoloRepuestos);
+
+    let nombreFinal = nombre;
+    if (hojaNorm.includes('cubierta') && !/\bcubiertas?\b/i.test(nombreFinal)) {
+      nombreFinal = `Cubierta ${nombreFinal}`;
+    } else if (hojaNorm.includes('camara') && !/\bc[aá]maras?\b/i.test(nombreFinal)) {
+      nombreFinal = `Cámara ${nombreFinal}`;
+    }
     const idRaw = idxId !== -1 ? Number(row[idxId]) : undefined;
-    const codigo = idxCodigo !== -1 ? String(row[idxCodigo] ?? '').trim() : '';
+    const codigoCol = idxCodigo !== -1
+      ? String(row[idxCodigo] ?? '').trim()
+      : (idxNombre > 0 && !headersCombinados[0] ? String(row[0] ?? '').trim() : '');
+    const codigo = codigoCol;
     const marca = idxMarca !== -1 ? String(row[idxMarca] ?? '').trim() : '';
     const modelo = idxModelo !== -1 ? String(row[idxModelo] ?? '').trim() : '';
     const cantidad = idxCantidad !== -1 ? Math.max(0, Math.trunc(parsearNumeroFlexible(row[idxCantidad]))) : stockFallback;
     const stock_minimo = idxStockMin !== -1 ? Math.max(0, Math.trunc(parsearNumeroFlexible(row[idxStockMin]))) : 0;
 
     const monedaRaw = idxMoneda !== -1 ? String(row[idxMoneda] ?? '').trim().toUpperCase() : '';
-    let monedaFinal: 'ARS' | 'USD' = monedaRaw.includes('USD') ? 'USD' : (monedaRaw.includes('ARS') ? 'ARS' : monedaDefault);
+    const monedaExplicitaUsd = monedaRaw.includes('USD') || monedaRaw.includes('U$S') || monedaRaw.includes('DOLAR');
+    const monedaExplicitaArs = monedaRaw.includes('ARS') || monedaRaw.includes('PESO') || monedaRaw === '$';
+    let monedaFinal: 'ARS' | 'USD' = monedaExplicitaUsd ? 'USD' : (monedaExplicitaArs ? 'ARS' : monedaDefault);
 
-    let precioArsFinal = valorPublico > 0 ? redondear2(valorPublico) : 0;
+    const gananciaFactor = gananciaRaw > 0
+      ? (gananciaRaw > 10 ? Math.round((gananciaRaw / 100) * 10000) / 10000 : Math.round(gananciaRaw * 10000) / 10000)
+      : 0;
+    const precioArsBase = valorPublico > 0
+      ? valorPublico
+      : (costoArs > 0 ? (gananciaFactor > 0 ? costoArs * (1 + gananciaFactor) : costoArs) : 0);
+
+    let precioArsFinal = precioArsBase > 0 ? redondear2(precioArsBase) : 0;
     let precioUsdFinal: number | undefined = undefined;
     let costoUsdFinal: number | undefined = undefined;
     let gananciaFinal: number | undefined = undefined;
@@ -447,12 +581,15 @@ function parsearHojaMatriz(
         : Math.round(porcReventaRaw * 10000) / 10000;
     }
 
-    if (costoUsd > 0) {
+    const usarFlujoCostoUsd =
+      costoUsd > 0 &&
+      !monedaExplicitaArs &&
+      (monedaExplicitaUsd || monedaDefault === 'USD' || precioArsBase <= 0);
+
+    if (usarFlujoCostoUsd) {
       monedaFinal = 'USD';
       costoUsdFinal = redondear2(costoUsd);
-      gananciaFinal = gananciaRaw > 0
-        ? (gananciaRaw > 10 ? Math.round((gananciaRaw / 100) * 10000) / 10000 : Math.round(gananciaRaw * 10000) / 10000)
-        : 0;
+      gananciaFinal = gananciaFactor;
 
       const cotProv = proveedorFila ? cotizacionesMap.get(normalizarTextoClave(proveedorFila))?.cotizacion_dolar : undefined;
       const dolarEfectivo = cotProv || (costoArs > 0 ? costoArs / costoUsd : 0);
@@ -462,7 +599,7 @@ function parsearHojaMatriz(
         precioArsFinal = redondear2(valorPublico);
       } else {
         precioUsdFinal = redondear2(costoUsd * (1 + gananciaFinal));
-        precioArsFinal = dolarEfectivo > 0 ? redondear2(precioUsdFinal * dolarEfectivo) : redondear2(valorPublico);
+        precioArsFinal = dolarEfectivo > 0 ? redondear2(precioUsdFinal * dolarEfectivo) : redondear2(precioArsBase);
       }
 
       if (porcentajeReventaFinal !== undefined) {
@@ -474,25 +611,34 @@ function parsearHojaMatriz(
         precioReventaArsFinal = redondear2(valorReventaRaw);
         precioReventaUsdFinal = redondear2(valorReventaRaw / dolarEfectivo);
       }
-    } else if (precioUsdDirecto > 0) {
+    } else if (precioUsdDirecto > 0 && !monedaExplicitaArs) {
       monedaFinal = 'USD';
       precioUsdFinal = redondear2(precioUsdDirecto);
       if (valorReventaRaw > 0) {
         precioReventaArsFinal = redondear2(valorReventaRaw);
       }
-    } else if (monedaFinal === 'USD' && valorPublico > 0) {
-      precioUsdFinal = redondear2(valorPublico);
+    } else if (monedaFinal === 'USD' && precioArsBase > 0) {
+      precioUsdFinal = redondear2(precioArsBase);
       precioArsFinal = 0;
       if (valorReventaRaw > 0) {
         precioReventaUsdFinal = redondear2(valorReventaRaw);
       }
-    } else if (valorReventaRaw > 0) {
-      precioReventaArsFinal = redondear2(valorReventaRaw);
+    } else {
+      if (monedaExplicitaArs && costoUsd > 0) {
+        costoUsdFinal = redondear2(costoUsd);
+      }
+      if (gananciaFactor > 0) {
+        gananciaFinal = gananciaFactor;
+      }
+      if (valorReventaRaw > 0) {
+        precioReventaArsFinal = redondear2(valorReventaRaw);
+      }
     }
 
     const esBici = tipo_prod === 'bicicleta';
     const attrs = extraerAtributosDesdeDescripcion(nombre, esBici);
     const marcaFinal = marca || attrs.marca || '';
+    const modeloFinal = modelo || attrs.modelo || '';
     const colorRaw = idxColor !== -1 && row[idxColor] ? String(row[idxColor]).trim() : '';
     const rodadoRaw = idxRodado !== -1 && row[idxRodado] ? String(row[idxRodado]).trim() : '';
     const talleRaw = idxTalle !== -1 && row[idxTalle] ? String(row[idxTalle]).trim() : '';
@@ -501,10 +647,10 @@ function parsearHojaMatriz(
     items.push({
       id_producto: idRaw && Number.isInteger(idRaw) && idRaw > 0 ? idRaw : undefined,
       codigo: codigo ? codigo.slice(0, 50) : undefined,
-      nombre: nombre.slice(0, 100),
+      nombre: nombreFinal.slice(0, 100),
       tipo_prod,
       marca: marcaFinal.slice(0, 50),
-      modelo: modelo.slice(0, 50),
+      modelo: modeloFinal.slice(0, 50),
       nombre_proveedor: proveedorFila ? proveedorFila.slice(0, 70) : undefined,
       cantidad,
       stock_minimo,
@@ -545,7 +691,7 @@ async function parsearExcelOCsv(
   for (const sheetName of workbook.SheetNames) {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
-    const parsed = parsearHojaMatriz(rows, sheetName, monedaDefault, cotizacionesMap, stockFallback);
+    const parsed = parsearHojaMatriz(rows, sheetName, monedaDefault, cotizacionesMap, stockFallback, file.name);
     if (parsed.length > 0) {
       hojasProcesadas.push(sheetName);
       allItems.push(...parsed);

@@ -621,8 +621,10 @@ export class ProductoMasivoService {
         const mapaActualizar = new Map<number, AcumuladoActualizar>();
 
         const construirClaveCrear = (it: ItemPreparado['item']): string => {
-          if (it.codigo) return `cod:${it.codigo.toLowerCase()}`;
-          return `key:${it.tipo_prod}|${it.nombre.toLowerCase()}|${(it.marca || '').toLowerCase()}|${(it.modelo || '').toLowerCase()}|${(it.rodado || '').toLowerCase()}|${(it.talle || '').toLowerCase()}|${(it.color || '').toLowerCase()}`;
+          const provKey = (it.nombre_proveedor || '').trim().toLowerCase();
+          // Incluir nombre y proveedor evita fusionar productos distintos que comparten código o nombre entre proveedores
+          if (it.codigo) return `cod:${it.codigo.toLowerCase()}|${it.nombre.trim().toLowerCase()}|${provKey}`;
+          return `key:${it.tipo_prod}|${it.nombre.trim().toLowerCase()}|${provKey}|${(it.marca || '').toLowerCase()}|${(it.modelo || '').toLowerCase()}|${(it.rodado || '').toLowerCase()}|${(it.talle || '').toLowerCase()}|${(it.color || '').toLowerCase()}`;
         };
 
         for (let i = 0; i < preview.items.length; i++) {
